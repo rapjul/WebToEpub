@@ -191,6 +191,10 @@
         "message": "Dịch Giả",
         "description": ""
     },
+        "__MSG_label_Append_Latest_Chapter_Info__": {
+            "message": "Thêm thông tin chương mới nhất vào tiêu đề",
+            "description": "Label for checkbox that toggles adding the latest chapter/count suffix to the EPUB title"
+        },
     "__MSG_label_Use_SVG_for_Images__": {
         "message": "Sử dụng <svg> cho hình ảnh",
         "description": ""

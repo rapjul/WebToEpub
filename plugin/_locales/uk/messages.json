@@ -247,6 +247,10 @@
 		"message": "Перекладач:",
 		"description": "Label in front of input for Translator (in Advanced settings)."
 	},
+	"__MSG_label_Append_Latest_Chapter_Info__": {
+		"message": "Додавати інформацію про останній розділ у назву",
+		"description": "Label for checkbox that toggles adding the latest chapter/count suffix to the EPUB title"
+	},
 	"__MSG_label_Use_SVG_for_Images__": {
 		"message": "Використовувати <svg> для зображень",
 		"description": "Label in front of checkbox to choose between <img> and <svg> elements for images."

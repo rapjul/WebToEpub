@@ -146,5 +146,5 @@ class Download {
 }
 
 Download.toCleanup = new Map();
-Download.illegalWindowsFileNameChars = "~/?<>\\:*|\"";
+Download.illegalWindowsFileNameChars = "~/<>\\:*|\"";
 Download.init();

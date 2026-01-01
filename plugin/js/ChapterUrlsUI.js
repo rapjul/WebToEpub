@@ -151,9 +151,11 @@ class ChapterUrlsUI {
         rangeStart.onchange = null;
         rangeEnd.onchange = null;
         
-        rangeStart.selectedIndex = 0;
-        rangeEnd.selectedIndex = rangeEnd.length - 1;
-        ChapterUrlsUI.setChapterCount(rangeStart.selectedIndex, rangeEnd.selectedIndex);
+        rangeStart.selectedIndex = (rangeStart.length > 0) ? 0 : -1;
+        rangeEnd.selectedIndex = (rangeEnd.length > 0) ? (rangeEnd.length - 1) : -1;
+        let startIndex = ChapterUrlsUI.selectionToRowIndex(rangeStart);
+        let endIndex = ChapterUrlsUI.selectionToRowIndex(rangeEnd);
+        ChapterUrlsUI.setChapterCount(startIndex, endIndex);
         
         rangeStart.onchange = ChapterUrlsUI.onRangeChanged;
         rangeEnd.onchange = ChapterUrlsUI.onRangeChanged;
@@ -174,14 +176,63 @@ class ChapterUrlsUI {
     }
 
     static selectionToRowIndex(selectElement) {
-        let selectedIndex = selectElement.selectedIndex;
-        return selectedIndex + 1;
+        if (!selectElement || selectElement.selectedIndex < 0) {
+            return 0;
+        }
+        let option = selectElement.options[selectElement.selectedIndex];
+        if (option && option.value !== "") {
+            let parsedValue = Number.parseInt(option.value, 10);
+            if (!Number.isNaN(parsedValue)) {
+                return parsedValue + 1;
+            }
+        }
+        return selectElement.selectedIndex + 1;
     }
 
     /** @private */
     static setChapterCount(startIndex, endIndex) {
-        let count = Math.max(0, 1 + endIndex - startIndex);
+        let count = ChapterUrlsUI.calculateChapterCount(startIndex, endIndex);
         document.getElementById("spanChapterCount").textContent = count;
+        if (window.TitleSuffixController) {
+            let lastTitle = (count > 0)
+                ? ChapterUrlsUI.getLastVisibleChapterTitle(startIndex, endIndex)
+                : "";
+            window.TitleSuffixController.onChapterSelectionChanged(lastTitle, count);
+        }
+    }
+
+    static calculateChapterCount(startIndex, endIndex) {
+        if (!Number.isFinite(startIndex) || !Number.isFinite(endIndex)) {
+            return 0;
+        }
+        if ((startIndex <= 0) || (endIndex <= 0) || (endIndex < startIndex)) {
+            return 0;
+        }
+        return endIndex - startIndex + 1;
+    }
+
+    static getLastVisibleChapterTitle(startIndex, endIndex) {
+        let rows = ChapterUrlsUI.getTableRowsWithChapters()
+            .filter(row => ChapterUrlsUI.rowIsWithinRange(row, startIndex, endIndex) && !row.hidden);
+        if (rows.length === 0) {
+            rows = ChapterUrlsUI.getTableRowsWithChapters()
+                .filter(row => ChapterUrlsUI.rowIsWithinRange(row, startIndex, endIndex));
+        }
+        if (rows.length === 0) {
+            return "";
+        }
+        return ChapterUrlsUI.getRowTitle(rows[rows.length - 1]);
+    }
+
+    static rowIsWithinRange(row, startIndex, endIndex) {
+        if (!row) {
+            return false;
+        }
+        return (row.rowIndex >= startIndex) && (row.rowIndex <= endIndex);
+    }
+
+    static getRowTitle(row) {
+        return row?.querySelector("input[type='text']")?.value ?? "";
     }
     
     /** 
@@ -590,7 +641,14 @@ class ChapterUrlsUI {
                 ChapterUrlsUI.setRowCheckboxState(item.row, showChapter);
                 item.row.hidden = !showChapter;
             });
-            document.getElementById("spanChapterCount").textContent = ChapterUrlsUI.Filters.chapterList.filter(item => !item.row.hidden).length;
+            let visibleRows = ChapterUrlsUI.Filters.chapterList.filter(item => !item.row.hidden);
+            document.getElementById("spanChapterCount").textContent = visibleRows.length;
+            if (window.TitleSuffixController) {
+                let lastTitle = (visibleRows.length > 0)
+                    ? ChapterUrlsUI.getRowTitle(visibleRows[visibleRows.length - 1].row)
+                    : "";
+                window.TitleSuffixController.onChapterSelectionChanged(lastTitle, visibleRows.length);
+            }
         },
         generateFiltersTable() {
             let retVal = document.createElement("table");
