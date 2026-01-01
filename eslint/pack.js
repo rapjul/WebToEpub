@@ -32,8 +32,8 @@ var readFilePromise = function(fileName) {
     return new Promise(function(resolve, reject) {
         console.log("reading file: " + fileName);
         fs.readFile(fileName, function(err, data) {
-            if (err) { 
-                reject(err); 
+            if (err) {
+                reject(err);
             } else {
                 resolve(data);
             }
@@ -44,9 +44,9 @@ var readFilePromise = function(fileName) {
 var writeFilePromise = function(fileName, buffer) {
     return new Promise(function(resolve, reject) {
         console.log("writing file: " + fileName);
-        fs.writeFile(fileName, Buffer.from(buffer), function(err) {    
-            if (err) { 
-                reject(err); 
+        fs.writeFile(fileName, Buffer.from(buffer), function(err) {
+            if (err) {
+                reject(err);
             } else {
                 resolve();
             }
@@ -62,7 +62,7 @@ var readAllFiles = function(fileList, loadedFiles) {
         }).then(function(data) {
             console.log("saving file:  " + fileName);
             loadedFiles.push({
-                fileName: fileName, 
+                fileName: fileName,
                 text:     data.toString()
             });
         });
@@ -132,8 +132,8 @@ var addFilesToZip = function(zip, fileList) {
 var getLocaleFilesNames = function() {
     return new Promise(function(resolve, reject) {
         fs.readdir("../plugin/_locales", function(err, files) {
-            if (err) { 
-                reject(err); 
+            if (err) {
+                reject(err);
             } else {
                 resolve(files.map(f => "_locales/" + f + "/messages.json"));
             }
@@ -205,7 +205,7 @@ var packNonManifestExtensionFiles = function(zip, packedFileName) {
         }).then(function() {
             console.log("Wrote Zip to disk");
         }).catch(function(err) {
-            console.log(err);    
+            console.log(err);
         });
 };
 
@@ -223,11 +223,11 @@ var makeManifestForFirefox = function(data) {
     }
     manifest.permissions = permissions.concat(manifest.host_permissions);
     delete manifest.host_permissions;
-    
+
     // rename action => browser_action
     manifest.browser_action = manifest.action;
     delete manifest.action;
-    return manifest;    
+    return manifest;
 };
 
 var makeManifestForChrome = function(data) {
@@ -236,7 +236,7 @@ var makeManifestForChrome = function(data) {
     delete(manifest.action.browser_style);
     manifest.permissions = manifest.permissions
         .filter(p => !p.startsWith("webRequest"));
-    return manifest;    
+    return manifest;
 };
 
 var packExtension = function(manifest, fileExtension) {
