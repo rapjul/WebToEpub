@@ -332,6 +332,7 @@ class Library { // eslint-disable-line no-unused-vars
         let LibTemplateDownload = document.getElementById("LibTemplateDownload").innerHTML;
         let LibTemplateNewChapter = document.getElementById("LibTemplateNewChapter").innerHTML;
         let LibTemplateURL = document.getElementById("LibTemplateURL").innerHTML;
+        let LibTemplateTitle = document.getElementById("LibTemplateTitle").innerHTML;
         let LibTemplateFilename = document.getElementById("LibTemplateFilename").innerHTML;
         let LibTemplateMergeUploadButton = "";
         let LibTemplateEditMetadataButton = "";
@@ -448,6 +449,7 @@ class Library { // eslint-disable-line no-unused-vars
                 LibRenderString += "</td>";
                 LibRenderString += "</tr>";
                 LibRenderString += "<tr>";
+                LibRenderString += "<td>"+LibTemplateTitle+"</td>";
                 LibRenderString += "<td>"+LibTemplateFilename+"</td>";
                 LibRenderString += "<td><input id='LibFilename"+CurrentLibKeys[i]+"' type='text' value=''></td>";
                 LibRenderString += "</tr>";

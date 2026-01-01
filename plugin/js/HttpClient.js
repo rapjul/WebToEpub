@@ -123,8 +123,100 @@ class FetchErrorHandler {
         let host = new URL(response.url).hostname;
         if (!FetchErrorHandler.rateLimitedHosts.has(host)) {
             FetchErrorHandler.rateLimitedHosts.add(host);
-            alert(UIText.Warning.warning429ErrorResponse(host));
+            FetchErrorHandler.showTransientRateLimitWarning(
+                UIText.Warning.warning429ErrorResponse(host),
+                5000
+            );
         }
+    }
+
+    static showTransientRateLimitWarning(message, timeoutMs) {
+        if (!document?.body) {
+            console.warn("Unable to show rate limit warning: document not ready");
+            return;
+        }
+        let containerId = "rateLimitToastContainer";
+        let container = document.getElementById(containerId);
+        if (!container) {
+            container = document.createElement("div");
+            container.id = containerId;
+            container.style.position = "fixed";
+            container.style.bottom = "20px";
+            container.style.right = "20px";
+            container.style.zIndex = "9999";
+            container.style.display = "flex";
+            container.style.flexDirection = "column";
+            container.style.gap = "8px";
+            container.style.maxWidth = "360px";
+            container.style.pointerEvents = "none";
+            document.body.appendChild(container);
+        }
+
+        let toast = document.createElement("div");
+        toast.style.background = "rgba(30, 30, 30, 0.9)";
+        toast.style.color = "#ffffff";
+        toast.style.padding = "12px 16px";
+        toast.style.borderRadius = "6px";
+        toast.style.boxShadow = "0 2px 8px rgba(0,0,0,0.3)";
+        toast.style.fontSize = "14px";
+        toast.style.lineHeight = "1.3";
+        toast.style.pointerEvents = "auto";
+        toast.style.border = "1px solid rgba(255,255,255,0.2)";
+        toast.style.display = "flex";
+        toast.style.alignItems = "center";
+        toast.style.gap = "12px";
+
+        let messageNode = document.createElement("span");
+        messageNode.textContent = message;
+        messageNode.style.flex = "1";
+
+        let closeButton = document.createElement("button");
+        closeButton.textContent = "×";
+        closeButton.style.background = "transparent";
+        closeButton.style.color = "#ffffff";
+        closeButton.style.border = "none";
+        closeButton.style.fontSize = "16px";
+        closeButton.style.cursor = "pointer";
+        closeButton.style.padding = "0";
+        closeButton.style.lineHeight = "1";
+
+        toast.appendChild(messageNode);
+        toast.appendChild(closeButton);
+        container.appendChild(toast);
+
+        let timeoutId;
+        let removeToast = () => {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+            toast.remove();
+            if (container.childElementCount === 0) {
+                container.remove();
+            }
+            document.removeEventListener("visibilitychange", onVisibilityChange);
+        };
+
+        let startDismissTimer = () => {
+            if (timeoutId) {
+                return;
+            }
+            timeoutId = setTimeout(removeToast, timeoutMs ?? 5000);
+        };
+
+        let onVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                startDismissTimer();
+                document.removeEventListener("visibilitychange", onVisibilityChange);
+            }
+        };
+
+        if (document.visibilityState === "visible") {
+            startDismissTimer();
+        } else {
+            document.addEventListener("visibilitychange", onVisibilityChange);
+        }
+
+        closeButton.addEventListener("click", removeToast);
     }
 }
 FetchErrorHandler.rateLimitedHosts = new Set();

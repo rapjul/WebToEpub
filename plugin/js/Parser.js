@@ -125,6 +125,8 @@ class Parser {
         util.removeSpansWithNoAttributes(content);
         util.removeEmptyDivElements(content);
         util.removeTrailingWhiteSpace(content);
+        util.trimTextContent(content);
+        util.ensureSingleNewlineBetweenParagraphs(content);
         if (util.isElementWhiteSpace(content)) {
             let errorMsg = UIText.Warning.warningNoVisibleContent(webPage.sourceUrl);
             ErrorLog.showErrorMessage(errorMsg);
@@ -215,14 +217,37 @@ class Parser {
     }
 
     removeNextAndPreviousChapterHyperlinks(webPage, element) {
+        if (element == null) {
+            return;
+        }
         let elementToRemove = (this.findParentNodeOfChapterLinkToRemoveAt != null) ?
             this.findParentNodeOfChapterLinkToRemoveAt.bind(this)
-            : (element) => element;
+            : (node) => node;
 
-        let chapterLinks = [...element.querySelectorAll("a")]
-            .filter(link => webPage.nextPrevChapters.has(util.normalizeUrlForCompare(link.href)))
-            .map(link => elementToRemove(link));
-        util.removeElements(chapterLinks);
+        let navigationLinks = [...element.querySelectorAll("a")]
+            .filter(link => this.isChapterNavigationLink(link, webPage));
+
+        let nodesToRemove = new Set();
+        for (let link of navigationLinks) {
+            Parser.removeNavigationCueSiblings(link);
+            nodesToRemove.add(elementToRemove(link));
+        }
+        util.removeElements([...nodesToRemove]);
+        Parser.removeEmptyNavigationContainers(element);
+    }
+
+    isChapterNavigationLink(link, webPage) {
+        if (!link) {
+            return false;
+        }
+        let href = link.href;
+        if (!util.isNullOrEmpty(href)) {
+            let normalized = util.normalizeUrlForCompare(href);
+            if (webPage.nextPrevChapters.has(normalized)) {
+                return true;
+            }
+        }
+        return Parser.isNavigationCueText(Parser.getNavigationLabel(link));
     }
 
     /**
@@ -264,6 +289,7 @@ class Parser {
         if (title.textContent !== undefined) {
             title = title.textContent;
         }
+        title = title.replace(/\[NSFW\]\s+/, "");
         return title.trim();
     }
 
@@ -305,6 +331,19 @@ class Parser {
             this.populateInfoDiv(infoDiv, dom);
         }
         return infoDiv.textContent;
+    }
+
+    normalizeDescriptionText(description) {
+        if (description == null) {
+            return "";
+        }
+        let text = (typeof description === "string")
+            ? description
+            : (typeof description.textContent === "string")
+                ? description.textContent
+                : String(description ?? "");
+        let collapsed = text.replace(/\s+/g, " ");
+        return collapsed.trim();
     }
 
     /**
@@ -351,7 +390,7 @@ class Parser {
             metaInfo.subject = "";
         }
         try {
-            metaInfo.description = this.extractDescription(dom);
+            metaInfo.description = this.normalizeDescriptionText(this.extractDescription(dom));
         }
         catch (err) {
             metaInfo.description = "";
@@ -690,6 +729,135 @@ class Parser {
         return null;
     }
 
+    static getNavigationLabel(link) {
+        if (!link) {
+            return "";
+        }
+        let labels = [];
+        if (!util.isNullOrEmpty(link.textContent)) {
+            labels.push(link.textContent);
+        }
+        let aria = link.getAttribute ? link.getAttribute("aria-label") : null;
+        if (!util.isNullOrEmpty(aria)) {
+            labels.push(aria);
+        }
+        let title = link.getAttribute ? link.getAttribute("title") : null;
+        if (!util.isNullOrEmpty(title)) {
+            labels.push(title);
+        }
+        return labels.join(" ").trim();
+    }
+
+    static removeNavigationCueSiblings(link) {
+        if (!link || !link.parentNode) {
+            return;
+        }
+        Parser.removeNavigationNodesInDirection(link.previousSibling, -1);
+        Parser.removeNavigationNodesInDirection(link.nextSibling, 1);
+    }
+
+    static removeNavigationNodesInDirection(node, direction) {
+        while (node != null) {
+            if (Parser.shouldRemoveNavigationSibling(node)) {
+                let next = (direction < 0) ? node.previousSibling : node.nextSibling;
+                node.remove();
+                node = next;
+                continue;
+            }
+            if (Parser.isWhitespaceNode(node) || Parser.isDividerNode(node)) {
+                let next = (direction < 0) ? node.previousSibling : node.nextSibling;
+                node.remove();
+                node = next;
+                continue;
+            }
+            break;
+        }
+    }
+
+    static shouldRemoveNavigationSibling(node) {
+        if (node == null) {
+            return false;
+        }
+        if (node.nodeType === Node.TEXT_NODE) {
+            return Parser.isNavigationCueText(node.textContent);
+        }
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            if (node.querySelector && node.querySelector("a")) {
+                return false;
+            }
+            let text = node.textContent || "";
+            if (Parser.isNavigationCueText(text)) {
+                return true;
+            }
+            if (Parser.isDividerNode(node)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static isDividerNode(node) {
+        if (!node) {
+            return false;
+        }
+        let text = (node.textContent || "").replace(/\s+/g, " ").trim();
+        if (text === "") {
+            return false;
+        }
+        return Parser.NAVIGATION_DIVIDER_REGEX.test(text);
+    }
+
+    static isWhitespaceNode(node) {
+        return (node?.nodeType === Node.TEXT_NODE) && util.isStringWhiteSpace(node.textContent || "");
+    }
+
+    static removeEmptyNavigationContainers(root) {
+        if (!root) {
+            return;
+        }
+        let candidates = root.querySelectorAll(Parser.NAVIGATION_CONTAINER_SELECTOR);
+        let nodesToRemove = [];
+        for (let element of candidates) {
+            if (element === root) {
+                continue;
+            }
+            if (element.querySelector("a")) {
+                continue;
+            }
+            let text = element.textContent?.replace(/\s+/g, " ").trim() || "";
+            if (text === "" || Parser.isNavigationCueText(text)) {
+                nodesToRemove.push(element);
+            }
+        }
+        util.removeElements(nodesToRemove);
+    }
+
+    static isNavigationCueText(text) {
+        if (util.isNullOrEmpty(text)) {
+            return false;
+        }
+        let normalized = text.replace(/\s+/g, " ").trim();
+        if ((normalized.length === 0) || (normalized.length > Parser.NAVIGATION_TEXT_MAX_LENGTH)) {
+            return false;
+        }
+        if (Parser.NAVIGATION_TEXT_REGEX.test(normalized)) {
+            return true;
+        }
+        let sanitized = normalized
+            .toLowerCase()
+            .replace(/chapter|chap\.?|ch\.?|episode|ep\.?|part|page/gi, " ")
+            .replace(/[«»‹›←→⇐⇒<>\-|\\/\u2013\u2014]/g, " ")
+            .replace(/\s+/g, " ").trim();
+        if (sanitized.length === 0) {
+            return true;
+        }
+        let tokens = sanitized.split(" ").filter(t => t.length > 0);
+        if (tokens.length === 0) {
+            return true;
+        }
+        return tokens.every(token => Parser.NAVIGATION_KEYWORDS.includes(token));
+    }
+
     tagAuthorNotes(elements) {
         for (let e of elements) {
             e.classList.add("webToEpub-author-note");
@@ -820,3 +988,8 @@ class Parser {
 }
 
 Parser.WEB_TO_EPUB_CLASS_NAME = "webToEpubContent";
+Parser.NAVIGATION_KEYWORDS = ["next", "previous", "prev", "first", "last"];
+Parser.NAVIGATION_CONTAINER_SELECTOR = "p, div, span, strong, em, b, i, small, li, nav, header, footer";
+Parser.NAVIGATION_DIVIDER_REGEX = /^[\s|\\/><«»‹›←→⇐⇒\-\u2013\u2014]+$/u;
+Parser.NAVIGATION_TEXT_REGEX = /(?:\b(?:next|previous|prev|first|last)\b(?:\s+(?:chapter|chap\.?|episode|part))?|(?:chapter|chap\.?|episode|part)\s+\b(?:next|previous|first|last)\b|[«»‹›←→⇐⇒]{1,3})/i;
+Parser.NAVIGATION_TEXT_MAX_LENGTH = 60;

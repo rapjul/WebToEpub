@@ -2,6 +2,375 @@
     Main processing handler for popup.html
 
 */
+
+const TitleSuffixController = (function() {
+    const TITLE_SUFFIX_PATTERN = /\s*\{To [^}]*\}\s*$/i;
+    const CHAPTER_KEYWORD_PATTERN = /\b(?:chapter|chap|ch|episode|ep|part)\b[^\d]{0,32}(\d+(?:\.\d+)?)/i;
+    const LEADING_NUMBER_PATTERN = /^[-\u2013\u2014\s]*(\d+(?:\.\d+)?)/;
+    const GENERIC_NUMBER_PATTERN = /\d+(?:\.\d+)?/;
+    const MAX_KEYWORD_OFFSET = 64;
+    const MAX_GENERIC_NUMBER_OFFSET = 24;
+    const COLLECTION_KEYWORD_PATTERN = /\b(book|volume|vol|arc|bk)\b[^0-9ivxlcdm]{0,24}(\d+(?:\.\d+)?|[ivxlcdm]+)/i;
+    const ROMAN_NUMERAL_PATTERN = /^[ivxlcdm]+$/i;
+    const MAX_COLLECTION_KEYWORD_OFFSET = 96;
+
+    let baseTitle = "";
+    let latestChapterLabel = null;
+    let latestCollectionInfo = null;
+    let selectedChapterCount = 0;
+    let enabled = true;
+    let fileNameMaxLength = 20;
+    let lastAutoFileName = "";
+    let fileNameOverride = false;
+    let isSuffixAutoManaged = true;
+    let lastAppliedSuffix = "";
+
+    function init() {
+        let titleInput = getTitleInput();
+        if (titleInput) {
+            titleInput.addEventListener("input", onTitleInput);
+            titleInput.addEventListener("blur", onTitleBlur);
+        }
+        let fileNameInput = getFileNameInput();
+        if (fileNameInput) {
+            fileNameInput.addEventListener("blur", onFileNameBlur);
+            fileNameInput.dataset.userOverride = fileNameInput.dataset.userOverride ?? "false";
+        }
+    }
+
+    function getTitleInput() {
+        return document.getElementById("titleInput");
+    }
+
+    function getFileNameInput() {
+        return document.getElementById("fileNameInput");
+    }
+
+    function onTitleInput() {
+        handleTitleInput(false);
+    }
+
+    function onTitleBlur() {
+        handleTitleInput(true);
+    }
+
+    function handleTitleInput(reapplySuffix) {
+        let titleInput = getTitleInput();
+        if (!titleInput) {
+            return;
+        }
+        let value = titleInput.value ?? "";
+        if (updateBaseTitleFromRenderedValue(value)) {
+            updateFileName();
+        }
+        if (reapplySuffix) {
+            updateTitleField();
+        }
+    }
+
+    function updateBaseTitleFromRenderedValue(value) {
+        let extractedBase = extractBaseFromRenderedValue(value);
+        if (extractedBase !== baseTitle) {
+            baseTitle = extractedBase;
+            return true;
+        }
+        return false;
+    }
+
+    function extractBaseFromRenderedValue(value) {
+        return stripManagedSuffix(value ?? "");
+    }
+
+    function stripManagedSuffix(value) {
+        let trimmed = value.toString().trimEnd();
+        let firstMatchedSuffix = null;
+        while (TITLE_SUFFIX_PATTERN.test(trimmed)) {
+            let match = trimmed.match(TITLE_SUFFIX_PATTERN);
+            if (!match) {
+                break;
+            }
+            if (!firstMatchedSuffix) {
+                firstMatchedSuffix = match[0];
+            }
+            let matchStart = (typeof match.index === "number") ? match.index : (trimmed.length - match[0].length);
+            trimmed = trimmed.slice(0, matchStart).trimEnd();
+        }
+        if (firstMatchedSuffix) {
+            evaluateSuffixOwnership(firstMatchedSuffix);
+        } else {
+            isSuffixAutoManaged = true;
+        }
+        return trimmed;
+    }
+
+    function evaluateSuffixOwnership(rawSuffix) {
+        let normalizedMatch = normalizeSuffixText(rawSuffix);
+        if (normalizedMatch === "") {
+            isSuffixAutoManaged = true;
+            return;
+        }
+        let normalizedLastApplied = normalizeSuffixText(lastAppliedSuffix);
+        if (normalizedMatch === normalizedLastApplied && normalizedLastApplied !== "") {
+            isSuffixAutoManaged = true;
+            return;
+        }
+        let normalizedCurrent = normalizeSuffixText(buildSuffix());
+        if (normalizedMatch === normalizedCurrent && normalizedCurrent !== "") {
+            isSuffixAutoManaged = true;
+            return;
+        }
+        isSuffixAutoManaged = false;
+    }
+
+    function normalizeSuffixText(value) {
+        if (util.isNullOrEmpty(value)) {
+            return "";
+        }
+        return value.replace(/\s+/g, " ").trim().toUpperCase();
+    }
+
+    function onFileNameBlur() {
+        let fileNameInput = getFileNameInput();
+        if (!fileNameInput) {
+            return;
+        }
+        fileNameOverride = (fileNameInput.value !== lastAutoFileName);
+        fileNameInput.dataset.userOverride = fileNameOverride ? "true" : "false";
+    }
+
+    function buildSuffix() {
+        if (!enabled || (selectedChapterCount <= 0)) {
+            return "";
+        }
+        let suffixParts = [];
+        if (latestCollectionInfo?.number) {
+            suffixParts.push(`${latestCollectionInfo.label} ${latestCollectionInfo.number}`);
+        }
+        if (!util.isNullOrEmpty(latestChapterLabel)) {
+            suffixParts.push(`Ch ${latestChapterLabel}`);
+        } else {
+            suffixParts.push(`Ch. Count of ${selectedChapterCount}`);
+        }
+        return `{To ${suffixParts.join(" ")}}`;
+    }
+
+    function updateTitleField() {
+        let titleInput = getTitleInput();
+        if (!titleInput) {
+            return;
+        }
+        if (!isSuffixAutoManaged) {
+            return;
+        }
+        let suffix = buildSuffix();
+        let titleValue = baseTitle ?? "";
+        if (!util.isNullOrEmpty(titleValue) && suffix !== "") {
+            titleValue = `${titleValue} ${suffix}`;
+            lastAppliedSuffix = suffix;
+        } else if (util.isNullOrEmpty(titleValue) && suffix !== "") {
+            titleValue = suffix;
+            lastAppliedSuffix = suffix;
+        } else {
+            lastAppliedSuffix = "";
+        }
+        if (titleInput.value !== titleValue) {
+            titleInput.value = titleValue;
+        }
+        if (suffix === "") {
+            isSuffixAutoManaged = true;
+        }
+    }
+
+    function updateFileName(force = false) {
+        let fileNameInput = getFileNameInput();
+        if (!fileNameInput) {
+            return;
+        }
+        let sanitized = util.safeForFileName(baseTitle || "web", fileNameMaxLength);
+        if (util.isNullOrEmpty(sanitized)) {
+            sanitized = "web";
+        }
+        if (fileNameOverride && !force && fileNameInput.value !== sanitized) {
+            return;
+        }
+        fileNameInput.value = sanitized;
+        fileNameInput.dataset.userOverride = "false";
+        lastAutoFileName = sanitized;
+        fileNameOverride = false;
+    }
+
+    function extractChapterLabel(title) {
+        if (util.isNullOrEmpty(title)) {
+            return null;
+        }
+        let normalized = title.replace(/\s+/g, " ").trim();
+        if (normalized === "") {
+            return null;
+        }
+        let keywordMatch = normalized.match(CHAPTER_KEYWORD_PATTERN);
+        if (keywordMatch && keywordMatch.index <= MAX_KEYWORD_OFFSET) {
+            return keywordMatch[1];
+        }
+        let leadingMatch = normalized.match(LEADING_NUMBER_PATTERN);
+        if (leadingMatch) {
+            return leadingMatch[1];
+        }
+        let genericMatch = normalized.match(GENERIC_NUMBER_PATTERN);
+        if (genericMatch && genericMatch.index <= MAX_GENERIC_NUMBER_OFFSET) {
+            return genericMatch[0];
+        }
+        return null;
+    }
+
+    function extractCollectionInfo(title) {
+        if (util.isNullOrEmpty(title)) {
+            return null;
+        }
+        let normalized = title.replace(/\s+/g, " ").trim();
+        if (normalized === "") {
+            return null;
+        }
+        let match = normalized.match(COLLECTION_KEYWORD_PATTERN);
+        if (!match) {
+            return null;
+        }
+        if (typeof match.index === "number" && match.index > MAX_COLLECTION_KEYWORD_OFFSET) {
+            return null;
+        }
+        let label = normalizeCollectionLabel(match[1]);
+        let normalizedNumber = normalizeCollectionNumber(match[2]);
+        if (!normalizedNumber) {
+            return null;
+        }
+        if (!hasValidCollectionSeparator(normalized, match)) {
+            return null;
+        }
+        return {
+            label: label,
+            number: normalizedNumber
+        };
+    }
+
+    function hasValidCollectionSeparator(normalizedTitle, match) {
+        let keywordEnd = match.index + match[1].length;
+        let numberStart = normalizedTitle.indexOf(match[2], keywordEnd);
+        if (numberStart === -1) {
+            return false;
+        }
+        let separator = normalizedTitle.slice(keywordEnd, numberStart);
+        if (separator.trim() !== "") {
+            return true;
+        }
+        if (!ROMAN_NUMERAL_PATTERN.test(match[2])) {
+            return true;
+        }
+        let afterNumberIndex = numberStart + match[2].length;
+        let charAfterNumber = normalizedTitle.charAt(afterNumberIndex);
+        if (charAfterNumber === "") {
+            return true;
+        }
+        return !(/\w/.test(charAfterNumber));
+    }
+
+    function normalizeCollectionLabel(keyword) {
+        switch ((keyword ?? "").toLowerCase()) {
+            case "vol":
+            case "volume":
+                return "Vol";
+            case "arc":
+                return "Arc";
+            default:
+                return "Book";
+        }
+    }
+
+    function normalizeCollectionNumber(rawValue) {
+        if (util.isNullOrEmpty(rawValue)) {
+            return null;
+        }
+        let trimmed = rawValue.toString().trim();
+        if (/^\d+(?:\.\d+)?$/.test(trimmed)) {
+            return trimmed;
+        }
+        if (ROMAN_NUMERAL_PATTERN.test(trimmed)) {
+            let numeric = parseRomanNumeral(trimmed);
+            if (numeric != null) {
+                return numeric.toString();
+            }
+        }
+        return null;
+    }
+
+    function parseRomanNumeral(value) {
+        let roman = (value ?? "").toUpperCase();
+        if (roman === "") {
+            return null;
+        }
+        const numerals = {
+            "I": 1,
+            "V": 5,
+            "X": 10,
+            "L": 50,
+            "C": 100,
+            "D": 500,
+            "M": 1000
+        };
+        let total = 0;
+        let previous = 0;
+        for (let i = roman.length - 1; i >= 0; i--) {
+            let currentValue = numerals[roman[i]];
+            if (!currentValue) {
+                return null;
+            }
+            if (currentValue < previous) {
+                total -= currentValue;
+            } else {
+                total += currentValue;
+                previous = currentValue;
+            }
+        }
+        return (total > 0) ? total : null;
+    }
+
+    return {
+        init,
+        onUserPreferencesUpdate(preferences) {
+            enabled = preferences?.appendLatestChapterInfo?.value !== false;
+            fileNameMaxLength = preferences?.useFullTitle?.value ? 512 : 20;
+            updateFileName();
+            updateTitleField();
+        },
+        setBaseTitle(title) {
+            baseTitle = title ?? "";
+            isSuffixAutoManaged = true;
+            lastAppliedSuffix = "";
+            updateFileName(true);
+            updateTitleField();
+        },
+        setInitialFileName(fileName) {
+            lastAutoFileName = fileName ?? "";
+            let input = getFileNameInput();
+            if (input) {
+                input.value = lastAutoFileName;
+                input.dataset.userOverride = "false";
+                fileNameOverride = false;
+            }
+        },
+        onChapterSelectionChanged(lastChapterTitle, chapterCount) {
+            let normalizedCount = Number(chapterCount);
+            if (!Number.isFinite(normalizedCount)) {
+                normalizedCount = 0;
+            }
+            selectedChapterCount = Math.max(0, Math.floor(normalizedCount));
+            latestChapterLabel = extractChapterLabel(lastChapterTitle);
+            latestCollectionInfo = extractCollectionInfo(lastChapterTitle);
+            updateTitleField();
+        }
+    };
+})();
+
+window.TitleSuffixController = TitleSuffixController;
+
 var main = (function() {
     "use strict";
 
@@ -17,11 +386,11 @@ var main = (function() {
         }
     }
 
-    // details 
+    // details
     let initialWebPage = null;
     let parser = null;
     let userPreferences = null;
-    let library = new Library; 
+    let library = new Library;
 
     // register listener that is invoked when script injected into HTML sends its results
     function addMessageListener() {
@@ -63,7 +432,7 @@ var main = (function() {
 
     function setUiToDefaultState() {
         document.getElementById("highestResolutionImagesRow").hidden = true;
-        document.getElementById("unSuperScriptAlternateTranslations").hidden = true; 
+        document.getElementById("unSuperScriptAlternateTranslations").hidden = true;
         document.getElementById("imageSection").hidden = true;
         document.getElementById("outputSection").hidden = false;
         document.getElementById("translatorRow").hidden = true;
@@ -74,9 +443,11 @@ var main = (function() {
     function populateMetaInfo(metaInfo) {
         setUiFieldToValue("startingUrlInput", metaInfo.uuid);
         setUiFieldToValue("titleInput", metaInfo.title);
+        TitleSuffixController.setBaseTitle(metaInfo.title);
         setUiFieldToValue("authorInput", metaInfo.author);
         setUiFieldToValue("languageInput", metaInfo.language);
         setUiFieldToValue("fileNameInput", metaInfo.fileName);
+        TitleSuffixController.setInitialFileName(metaInfo.fileName);
         setUiFieldToValue("subjectInput", metaInfo.subject);
         setUiFieldToValue("descriptionInput", metaInfo.description);
         if (metaInfo.seriesName !== null) {
@@ -202,7 +573,7 @@ var main = (function() {
     }
 
     function epubVersionFromPreferences() {
-        return userPreferences.createEpub3.value ? 
+        return userPreferences.createEpub3.value ?
             EpubPacker.EPUB_VERSION_3 : EpubPacker.EPUB_VERSION_2;
     }
 
@@ -258,6 +629,7 @@ var main = (function() {
     function loadUserPreferences() {
         userPreferences = UserPreferences.readFromLocalStorage();
         userPreferences.addObserver(library);
+        userPreferences.addObserver(TitleSuffixController);
         userPreferences.writeToUi();
         userPreferences.hookupUi();
         BakaTsukiSeriesPageParser.registerBakaParsers(userPreferences.autoSelectBTSeriesPage.value);
@@ -273,7 +645,7 @@ var main = (function() {
         initialWebPage = dom;
         setUiFieldToValue("startingUrlInput", url);
 
-        // set the base tag, in case server did not supply it 
+        // set the base tag, in case server did not supply it
         util.setBaseTag(url, initialWebPage);
         await processInitialHtml(url, initialWebPage);
         if (document.getElementById("autosearchmetadataCheckbox").checked == true) {
@@ -472,7 +844,7 @@ var main = (function() {
         sbShow();
         ChapterUrlsUI.Filters.init();
         document.getElementById("sbFilters").hidden = false;
-        
+
         let filtersForm = document.getElementById("sbFiltersForm");
         util.removeElements(filtersForm.children);
         filtersForm.appendChild(ChapterUrlsUI.Filters.generateFiltersTable());
@@ -545,8 +917,8 @@ var main = (function() {
         document.getElementById("viewReadingListButton").onclick = () => showReadingList();
         window.addEventListener("beforeunload", onUnloadEvent);
     }
-	
-	
+
+
     // Additional metadata
     async function autosearchadditionalmetadata() {
         getPackEpubButton().disabled = true;
@@ -555,11 +927,11 @@ var main = (function() {
         let url ="https://www.novelupdates.com/series-finder/?sf=1&sh="+titlename;
         if (getValueFromUiField("subjectInput")==null) {
             await autosearchnovelupdates(url, titlename);
-        }   
-        getPackEpubButton().disabled = false; 
-        document.getElementById("LibAddToLibrary").disabled = false;    
+        }
+        getPackEpubButton().disabled = false;
+        document.getElementById("LibAddToLibrary").disabled = false;
     }
-	
+
     async function autosearchnovelupdates(url, titlename) {
         try {
             let xhr = await HttpClient.wrapFetch(url);
@@ -571,7 +943,7 @@ var main = (function() {
     }
 
     async function findnovelupdatesurl(url, dom, titlename) {
-        try {    
+        try {
             let searchurl = [...dom.querySelectorAll("a")].filter(a => a.textContent==titlename)[0];
             setUiFieldToValue("metadataUrlInput", searchurl.href);
             url = getValueFromUiField("metadataUrlInput");
@@ -582,7 +954,7 @@ var main = (function() {
             //
         }
     }
-	
+
     async function onLoadMetadataButtonClick() {
         getPackEpubButton().disabled = true;
         document.getElementById("LibAddToLibrary").disabled = true;
@@ -616,8 +988,9 @@ var main = (function() {
 
     // actions to do when window opened
     window.onload = async () => {
+        TitleSuffixController.init();
         userPreferences = UserPreferences.readFromLocalStorage();
-        if (isRunningInTabMode()) { 
+        if (isRunningInTabMode()) {
             ErrorLog.SuppressErrorLog =  false;
             localizeHtmlPage();
             getAdvancedOptionsSection().hidden = !userPreferences.advancedOptionsVisibleByDefault.value;
