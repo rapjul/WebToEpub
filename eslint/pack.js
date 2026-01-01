@@ -44,7 +44,7 @@ var readFilePromise = function(fileName) {
 var writeFilePromise = function(fileName, buffer) {
     return new Promise(function(resolve, reject) {
         console.log("writing file: " + fileName);
-        fs.writeFile(fileName, new Buffer(buffer), function (err) {    
+        fs.writeFile(fileName, Buffer.from(buffer), function(err) {    // eslint-disable-line no-undef
             if (err) { 
                 reject(err); 
             } else {
@@ -115,9 +115,9 @@ var addToZipFile = function(zip, nameInZip, filePath) {
 var writeZipToDisk = function(zip, filePath) {
     console.log("writeZipToDisk " + filePath);
     return zip.close().then(function (buffer) {
-        buffer.arrayBuffer().then(function (arraybuffer) {
+        return buffer.arrayBuffer().then(function(arraybuffer) {
             return writeFilePromise(filePath, arraybuffer);
-        })
+        });
     });
 }
 
@@ -249,8 +249,10 @@ var packExtension = function(manifest, fileExtension) {
 // pack the extensions for Chrome and firefox
 readFilePromise("../plugin/manifest.json")
     .then(function (data) {
-        packExtension(makeManifestForFirefox(data), ".xpi");
-        packExtension(makeManifestForChrome(data), ".zip");
-    }).catch(function (err) {
+        return packExtension(makeManifestForFirefox(data), ".xpi")
+            .then(function() {
+                return packExtension(makeManifestForChrome(data), ".zip");
+            });
+    }).catch(function(err) {
         console.log(err);
     });
