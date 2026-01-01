@@ -209,9 +209,15 @@
                                 </td>
                             </tr>
                             <tr>
+                                <td id="LibTemplateTitle">__MSG_label_Lib_Template_Title__</td>
+                                <td>
+                                    <input type="text" value="Title Template">
+                                </td>
+                            </tr>
+                            <tr>
                                 <td id="LibTemplateFilename">__MSG_label_Lib_Template_Filename__</td>
                                 <td>
-                                    <input type="text" value="Library template">
+                                    <input type="text" value="Filename Template">
                                 </td>
                             </tr>
                             <tr>
@@ -427,6 +433,10 @@
                         <td><input id="useFullTitleAsFileNameCheckbox" type="checkbox" name="useFullTitleAsFileNameCheckbox" value="false"></td>
                         <td>__MSG_label_Use_Full_Title_As_File_Name__</td>
                     </tr>
+                    <tr id="appendLatestChapterInfoRow">
+                        <td><input id="appendLatestChapterInfoCheckbox" type="checkbox" name="appendLatestChapterInfoCheckbox" value="true"></td>
+                        <td>__MSG_label_Append_Latest_Chapter_Info__</td>
+                    </tr>
                     <tr id="overwriteEpubWhenDuplicateFilename">
                         <td><input id="overwriteEpubWhenDuplicateFilenameCheckbox" type="checkbox" name="overwriteEpubWhenDuplicateFilenameCheckbox" value="false"></td>
                         <td>__MSG_label_Overwrite_Epub_When_Filename_Duplicte__</td>
@@ -541,7 +551,7 @@
                         </td>
                     </tr>
                 </table>
-                <div>
+                <div id="chapterSelection">
                     <button id="selectAllUrlsButton">__MSG_button_Select_All__</button>
                     <button id="unselectAllUrlsButton">__MSG_button_Unselect_All__</button>
                     <button id="reverseChapterUrlsOrderButton">__MSG_button_Reverse_Chapter_Urls_Order__</button>

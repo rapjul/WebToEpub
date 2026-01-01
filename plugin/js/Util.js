@@ -226,6 +226,155 @@ const util = (function() {
         }
     }
 
+    function trimTextContent(element) {
+        if (!element || element.nodeType !== Node.ELEMENT_NODE || shouldSkipWhitespaceTrim(element)) {
+            return;
+        }
+        trimElementBoundaries(element);
+        for (let child = element.firstElementChild; child != null; child = child.nextElementSibling) {
+            trimTextContent(child);
+        }
+    }
+
+    function trimElementBoundaries(element) {
+        if (!element || shouldSkipWhitespaceTrim(element)) {
+            return;
+        }
+        trimBoundaryWhitespace(element, true);
+        trimBoundaryWhitespace(element, false);
+    }
+
+    function trimBoundaryWhitespace(element, fromStart) {
+        let child = fromStart ? element.firstChild : element.lastChild;
+        while (child != null) {
+            if (child.nodeType === Node.TEXT_NODE) {
+                if (isStringWhiteSpace(child.textContent)) {
+                    let next = fromStart ? child.nextSibling : child.previousSibling;
+                    child.remove();
+                    child = next;
+                    continue;
+                }
+
+                let trimmed = child.textContent.trim();
+                if (trimmed.length === 0) {
+                    let next = fromStart ? child.nextSibling : child.previousSibling;
+                    child.remove();
+                    child = next;
+                    continue;
+                }
+
+                if (trimmed !== child.textContent) {
+                    let startIndex = child.textContent.indexOf(trimmed);
+                    if (startIndex === -1) {
+                        startIndex = 0;
+                    }
+                    if (fromStart && 0 < startIndex) {
+                        child.textContent = child.textContent.substring(startIndex);
+                    } else if (!fromStart) {
+                        let endIndex = startIndex + trimmed.length;
+                        if (endIndex < child.textContent.length) {
+                            child.textContent = child.textContent.substring(0, endIndex);
+                        }
+                    }
+                }
+                break;
+            } else if (child.nodeType === Node.ELEMENT_NODE) {
+                if (isElementWhiteSpace(child)) {
+                    let next = fromStart ? child.nextSibling : child.previousSibling;
+                    child.remove();
+                    child = next;
+                    continue;
+                }
+                break;
+            } else {
+                let next = fromStart ? child.nextSibling : child.previousSibling;
+                child.remove();
+                child = next;
+            }
+        }
+    }
+
+    function shouldSkipWhitespaceTrim(element) {
+        if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+            return false;
+        }
+        let tag = element.tagName.toLowerCase();
+        return (tag === "pre") || (tag === "code");
+    }
+
+    function ensureSingleNewlineBetweenParagraphs(element) {
+        if (!element || element.nodeType !== Node.ELEMENT_NODE || shouldSkipWhitespaceTrim(element)) {
+            return;
+        }
+        normalizeParagraphSpacing(element);
+        for (let child = element.firstElementChild; child != null; child = child.nextElementSibling) {
+            ensureSingleNewlineBetweenParagraphs(child);
+        }
+    }
+
+    function normalizeParagraphSpacing(parent) {
+        let previousParagraph = null;
+        for (let node = parent.firstChild; node != null; node = node.nextSibling) {
+            if (isParagraphElement(node)) {
+                if (previousParagraph !== null) {
+                    enforceSingleNewlineBetweenParagraphs(parent, previousParagraph, node);
+                }
+                previousParagraph = node;
+            } else if (nodeHasVisibleContent(node)) {
+                previousParagraph = null;
+            }
+        }
+    }
+
+    function enforceSingleNewlineBetweenParagraphs(parent, firstParagraph, secondParagraph) {
+        let node = firstParagraph.nextSibling;
+        let newlinePlaced = false;
+        while ((node != null) && (node !== secondParagraph)) {
+            let next = node.nextSibling;
+            if (node.nodeType === Node.TEXT_NODE) {
+                if (isStringWhiteSpace(node.textContent)) {
+                    if (!newlinePlaced) {
+                        node.textContent = "\n";
+                        newlinePlaced = true;
+                    } else {
+                        node.remove();
+                    }
+                } else {
+                    newlinePlaced = false;
+                }
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                if (isElementWhiteSpace(node)) {
+                    node.remove();
+                } else {
+                    newlinePlaced = false;
+                }
+            } else {
+                node.remove();
+            }
+            node = next;
+        }
+        if (!newlinePlaced) {
+            parent.insertBefore(parent.ownerDocument.createTextNode("\n"), secondParagraph);
+        }
+    }
+
+    function nodeHasVisibleContent(node) {
+        if (node == null) {
+            return false;
+        }
+        if (node.nodeType === Node.TEXT_NODE) {
+            return !isStringWhiteSpace(node.textContent);
+        }
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            return !isElementWhiteSpace(node);
+        }
+        return false;
+    }
+
+    function isParagraphElement(node) {
+        return (node?.nodeType === Node.ELEMENT_NODE) && (node.tagName.toLowerCase() === "p");
+    }
+
     function removeHTMLUnknownElement(nodes) {
         let children = nodes.childNodes;
         for (let i = 0; i < children.length; i++) {
@@ -763,9 +912,13 @@ const util = (function() {
 
     function safeForFileName(title, maxLength = 20) {
         if (title) {
-            // Allow only a-z regardless of case and numbers as well as hyphens and underscores; replace spaces and no-break spaces with underscores
-            title = title.replace(/[ \u00a0]/gi, "_").replace(/([^a-z0-9_-]+)/gi, "");
-            // There is technically a 255-character limit in windows for file paths.
+            // // Allow only a-z regardless of case and numbers as well as hyphens and underscores; replace spaces and no-break spaces with underscores
+            // title = title.replace(/[ \u00a0]/gi, "_").replace(/([^a-z0-9_-]+)/gi, "");
+            // Allow common punctuation while keeping filenames filesystem safe
+            title = title.replace(/\//g, "+");
+            // eslint-disable-next-line no-useless-escape -- character class intentionally lists the punctuation we want to preserve
+            title = title.replace(/[ \u00a0]/gi, "_").replace(/([^a-z0-9_'"\-\+\(\)\[\]\{\}!\?]+)/gi, "");
+            // There is technically a 255-character limit in Windows for file paths.
             // So we will allow files to have 20 characters and when they go over we split them
             // we then truncate the middle so that the file name is always different
             const ellipsis = "...";
@@ -1171,6 +1324,7 @@ const util = (function() {
         removeEmptyDivElements: removeEmptyDivElements,
         removeTrailingWhiteSpace: removeTrailingWhiteSpace,
         removeLeadingWhiteSpace: removeLeadingWhiteSpace,
+        trimTextContent: trimTextContent,
         removeHTMLUnknownElement: removeHTMLUnknownElement,
         removeScriptableElements: removeScriptableElements,
         removeMicrosoftWordCrapElements: removeMicrosoftWordCrapElements,
@@ -1245,6 +1399,7 @@ const util = (function() {
         removeAttributes: removeAttributes,
         removeEmptyAttributes: removeEmptyAttributes,
         removeSpansWithNoAttributes: removeSpansWithNoAttributes,
+        ensureSingleNewlineBetweenParagraphs: ensureSingleNewlineBetweenParagraphs,
         replaceSemanticInlineStylesWithTags: replaceSemanticInlineStylesWithTags,
         wrapInnerContentInTag: wrapInnerContentInTag,
         getDefaultExtensionByMime: getDefaultExtensionByMime,

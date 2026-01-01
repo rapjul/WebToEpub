@@ -83,9 +83,13 @@
 		"message": "Story URL",
 		"description": "Label in front of 'Story URL' input"
 	},
+	"__MSG_label_Lib_Template_Title__": {
+		"message": "Title",
+		"description": "Label in front of 'Title Template' input"
+	},
 	"__MSG_label_Lib_Template_Filename__": {
 		"message": "Filename",
-		"description": "Label in front of 'Filename' input"
+		"description": "Label in front of 'Filename Template' input"
 	},
 	"__MSG_label_Lib_Template_Warning_URL_Change__": {
 		"message": "Warning: Change URL only if you know what you are doing.",
@@ -368,7 +372,7 @@
 		"description": "Label for drop down for maximum number of web pages to request at same time"
 	},
 	"__MSG_label_Metadata_description__": {
-		"message": "Epub description",
+		"message": "Epub Description",
 		"description": "Preview description from the epub in Calibre"
 	},
 	"__MSG_label_Custom_Filename__": {
@@ -478,6 +482,10 @@
 	"__MSG_label_Use_Full_Title_As_File_Name__": {
 		"message": "Use full title as file name",
 		"description": "Label in front of checkbox to choose if Epub's filename will be truncated or not."
+	},
+	"__MSG_label_Append_Latest_Chapter_Info__": {
+		"message": "Append latest chapter info to title",
+		"description": "Label for checkbox that toggles adding the latest chapter/count suffix to the EPUB title"
 	},
 	"__MSG_label_Use_SVG_for_Images__": {
 		"message": "Use <svg> for images",

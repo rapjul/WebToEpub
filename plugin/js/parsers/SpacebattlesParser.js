@@ -40,6 +40,23 @@ class SpacebattlesParser extends Parser {
         return (authorLabel === null) ? super.extractAuthor(dom) : authorLabel.textContent;
     }
 
+    findCoverImageUrl(dom) {
+        if (dom == null) {
+            return null;
+        }
+
+        let headerImg = dom.querySelector(".threadmarkListingHeader-icon img, .threadmarkListingHeader img");
+        if (headerImg != null) {
+            let src = headerImg.currentSrc || headerImg.src || headerImg.getAttribute("data-src");
+            if (!util.isNullOrEmpty(src)) {
+                return util.resolveRelativeUrl(dom.baseURI, src);
+            }
+        }
+
+        let fallback = util.getFirstImgSrc(dom, "div.block-body");
+        return fallback ? util.resolveRelativeUrl(dom.baseURI, fallback) : null;
+    }
+
     async fetchChapter(url) {
         let article = await this.fetchArticle(url);
         if (!article && this.expectedChapterUrl && (this.expectedChapterUrl != url)) {
@@ -63,8 +80,7 @@ class SpacebattlesParser extends Parser {
         let newUrl = new URL(url);
         let id = newUrl.hash.substring(1) || newUrl.href.substring(newUrl.href.lastIndexOf("/") + 1);
         let parent = fetchedDom.querySelector(`article.hasThreadmark[data-content='${id}']`);
-        if (parent === null)
-        {
+        if (parent === null) {
             parent = fetchedDom.querySelector("#" + id)?.parentElement;
         }
         return parent;
@@ -78,8 +94,7 @@ class SpacebattlesParser extends Parser {
 
     addTitleToChapter(newDoc, parent) {
         let titleElement = parent.querySelector("span.threadmarkLabel");
-        if (titleElement !== null)
-        {
+        if (titleElement !== null) {
             let title = newDoc.dom.createElement("h1");
             title.textContent = titleElement.textContent.trim();
             newDoc.content.appendChild(title);
