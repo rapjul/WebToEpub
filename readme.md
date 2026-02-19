@@ -625,7 +625,7 @@ The easiest set of steps is using Firefox.
 2. Open Firefox and type "about:debugging#/runtime/this-firefox" into the URL bar.
 3. Click "Load Temporary Add-on".
 4. Click on the zip file you downloaded in step 1.
-   ![Installing in Firefox screenshot](doc/FirefoxLoadFromSource.png?raw=true)
+   ![Installing in Firefox screenshot](doc/FirefoxLoadFromSource.png)
 
 ### Chrome
 
@@ -814,6 +814,7 @@ Don't forget to give the project a star! Thanks again!
     <li>Justin Mott</li>
     <li>mobedoor</li>
     <li>nitramkh</li>
+    <li>rapjul</li>
   </ul>
 </details>
 
