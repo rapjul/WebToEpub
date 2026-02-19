@@ -1032,11 +1032,11 @@ var main = (function() {
         let url ="https://www.novelupdates.com/series-finder/?sf=1&sh="+titlename;
         if (getValueFromUiField("subjectInput")==null) {
             await autosearchnovelupdates(url, titlename);
-        }   
-        getPackEpubButton().disabled = false; 
-        document.getElementById("LibAddToLibrary").disabled = false;    
+        }
+        getPackEpubButton().disabled = false;
+        document.getElementById("LibAddToLibrary").disabled = false;
     }
-	
+
     async function autosearchnovelupdates(url, titlename) {
         try {
             let xhr = await HttpClient.wrapFetch(url);
@@ -1048,7 +1048,7 @@ var main = (function() {
     }
 
     async function findnovelupdatesurl(url, dom, titlename) {
-        try {    
+        try {
             let searchurl = [...dom.querySelectorAll("a")].filter(a => a.textContent==titlename)[0];
             setUiFieldToValue("metadataUrlInput", searchurl.href);
             url = getValueFromUiField("metadataUrlInput");
