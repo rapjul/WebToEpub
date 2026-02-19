@@ -50,10 +50,10 @@ function makeEpubItemsToTestResolvingHyperlinks() {
     let dom = new DOMParser().parseFromString(
         "<head><title></title><base href=\"https://www.baka-tsuki.org/project/index.php?title=Fate/Zero:Prologue_1\" /></head> " +
         "<body>" +
-        "<sup class=\"footnote\"><a href=\"#fn-3352-1\" id=\"fnref-3352-1\">2</a></sup>" +     // already OK 
-        "<span class=\"mw-cite-backlink\"><a href=\"../Text/0010_Part_2.xhtml#cite_ref-2\"></a></span>" +  // already OK 
-        "<span id=\"homunculus\"><a href=\"/project/index.php?title=Fate/Zero:Translator%27s_Notes#homunculus\" title=\"Fate/Zero:Translator's Notes\">homunculus</a></span>" +  // to fix 
-        "<li id=\"fn-3352-1\"> I had the urge to type Truck-kun <span class=\"footnotereverse\"><a href=\"#fnref-3352-1\">↩</a></span>" + // already OK 
+        "<sup class=\"footnote\"><a href=\"#fn-3352-1\" id=\"fnref-3352-1\">2</a></sup>" +     // already OK
+        "<span class=\"mw-cite-backlink\"><a href=\"../Text/0010_Part_2.xhtml#cite_ref-2\"></a></span>" +  // already OK
+        "<span id=\"homunculus\"><a href=\"/project/index.php?title=Fate/Zero:Translator%27s_Notes#homunculus\" title=\"Fate/Zero:Translator's Notes\">homunculus</a></span>" +  // to fix
+        "<li id=\"fn-3352-1\"> I had the urge to type Truck-kun <span class=\"footnotereverse\"><a href=\"#fnref-3352-1\">↩</a></span>" + // already OK
         "</body>",
         "text/html"
     );
@@ -66,8 +66,8 @@ function makeEpubItemsToTestResolvingHyperlinks() {
         "<head><title></title><base href=\"https://www.baka-tsuki.org/project/index.php?title=Fate/Zero:Translator%27s_Notes\" /></head> " +
         "<body>" +
         "<span class=\"mw-headline\" id=\"homunculus\">Homunculus</span>" +
-        "<a href=\"/project/index.php?title=Fate/Zero:Prologue_1#homunculus\" title=\"Fate/Zero:Prologue 1\">Return to Text</a>" +     // to fix 
-        "<a href=\"/project/index.php?title=Fate/Zero:Prologue_1\" title=\"Fate/Zero:Prologue 1\">Return to Text</a>" +     // to fix 
+        "<a href=\"/project/index.php?title=Fate/Zero:Prologue_1#homunculus\" title=\"Fate/Zero:Prologue 1\">Return to Text</a>" +     // to fix
+        "<a href=\"/project/index.php?title=Fate/Zero:Prologue_1\" title=\"Fate/Zero:Prologue 1\">Return to Text</a>" +     // to fix
         "<a href=\"/project/index.php?title=Fate/Zero:AuthorNotes\" title=\"Fate/Zero:Prologue 1\">Return to Text</a>" +     // can't fix
         "</body>",
         "text/html"
@@ -187,3 +187,19 @@ QUnit.test("addTitleToContent-text", function (assert) {
     let actual = dom.body.innerHTML;
     assert.equal(actual, "<p>a</p><hr><p>b</p><hr>");
  });
+
+QUnit.test("normalizeChapterTitle-stripsAggregatePrefixWhenChapterDetected", function(assert) {
+    let parser = new Parser();
+    assert.equal(parser.normalizeChapterTitle("12: Chapter 105 The Turning Point"), "Chapter 105 The Turning Point");
+    assert.equal(parser.normalizeChapterTitle("12: A Completely Custom Title"), "12: A Completely Custom Title");
+});
+
+QUnit.test("removeDuplicateLeadingChapterTitles-removesRepeatedLeadingTitle", function(assert) {
+    let dom = TestUtils.makeDomWithBody(
+        "<h1>Chapter 7</h1><h1>Chapter 7</h1><p>content</p>"
+    );
+    let parser = new Parser();
+    parser.removeDuplicateLeadingChapterTitles(dom.body, "Chapter 7");
+    assert.equal(dom.body.querySelectorAll("h1").length, 1);
+    assert.equal(dom.body.querySelector("h1").textContent, "Chapter 7");
+});
