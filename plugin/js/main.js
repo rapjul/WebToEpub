@@ -3,6 +3,12 @@
 
 */
 
+const APOSTROPHE_NORMALIZE_REGEX = /\u2019/g;
+
+function normalizeApostrophes(value) {
+    return (value ?? "").replace(APOSTROPHE_NORMALIZE_REGEX, "'");
+}
+
 const TitleSuffixController = (function() {
     const TITLE_SUFFIX_PATTERN = /\s*\{To [^}]*\}\s*$/i;
     const CHAPTER_KEYWORD_PATTERN = /\b(?:chapter|chap|ch|episode|ep|part)\b[^\d]{0,32}(\d+(?:\.\d+)?)/i;
@@ -59,7 +65,10 @@ const TitleSuffixController = (function() {
         if (!titleInput) {
             return;
         }
-        let value = titleInput.value ?? "";
+        let value = normalizeApostrophes(titleInput.value ?? "");
+        if (titleInput.value !== value) {
+            titleInput.value = value;
+        }
         if (updateBaseTitleFromRenderedValue(value)) {
             updateFileName();
         }
@@ -78,7 +87,7 @@ const TitleSuffixController = (function() {
     }
 
     function extractBaseFromRenderedValue(value) {
-        return stripManagedSuffix(value ?? "");
+        return stripManagedSuffix(normalizeApostrophes(value ?? ""));
     }
 
     function stripManagedSuffix(value) {
@@ -138,6 +147,15 @@ const TitleSuffixController = (function() {
         fileNameInput.dataset.userOverride = fileNameOverride ? "true" : "false";
     }
 
+    /**
+     * Builds a formatted suffix describing the current collection and chapter selection.
+     *
+     * - Returns an empty string when suffix generation is disabled or no chapters are selected.
+     * - Includes the latest collection label and number when available.
+     * - Appends the latest chapter label, or a count of selected chapters if no label exists.
+     *
+     * @returns {string} Formatted suffix string or an empty string when not applicable.
+     */
     function buildSuffix() {
         if (!enabled || (selectedChapterCount <= 0)) {
             return "";
@@ -154,6 +172,12 @@ const TitleSuffixController = (function() {
         return `{To ${suffixParts.join(" ")}}`;
     }
 
+    /**
+     * Updates the title input field by combining the base title with a dynamically
+     * built suffix when auto-management is enabled. Safely exits if the input is not
+     * found or suffix auto-management is disabled, and keeps track of the last applied
+     * suffix while updating the global auto-management flag when no suffix is present.
+     */
     function updateTitleField() {
         let titleInput = getTitleInput();
         if (!titleInput) {
@@ -181,6 +205,14 @@ const TitleSuffixController = (function() {
         }
     }
 
+    /**
+     * Updates the filename input with a sanitized title, unless the user has overridden it.
+     *
+     * It derives a safe filename from the base title (defaulting to "web") with a maximum length,
+     * falls back to "web" when empty, and tracks whether the filename was auto-set or user overridden.
+     *
+     * @param {boolean} [force=false] - When true, updates the filename even if a user override is detected.
+     */
     function updateFileName(force = false) {
         let fileNameInput = getFileNameInput();
         if (!fileNameInput) {
@@ -199,6 +231,21 @@ const TitleSuffixController = (function() {
         fileNameOverride = false;
     }
 
+    /**
+     * Derives a chapter label from a title string by normalizing whitespace,
+     * validating against known "chapter" keywords and number patterns, and
+     * returning the matched label or number when appropriate.
+     *
+     * Rules:
+     * - Null, empty, or whitespace-only titles return `null`.
+     * - Titles ending with a number but lacking a preceding chapter keyword
+     *   return `null`.
+     * - Prefers explicit chapter keywords near the start; otherwise tries
+     *   leading numbers, then generic numbers within allowed offsets.
+     *
+     * @param {string} title - The raw title text to inspect.
+     * @returns {string|null} The extracted chapter label/number, or `null` if none is found.
+     */
     function extractChapterLabel(title) {
         if (util.isNullOrEmpty(title)) {
             return null;
@@ -207,6 +254,19 @@ const TitleSuffixController = (function() {
         if (normalized === "") {
             return null;
         }
+
+        // If the title ends with a number but the preceding words are not a Chapter variant, fall back to total count.
+        let trailingNumberMatch = normalized.match(/^(.*?)(\d+(?:\.\d+)?)\s*$/);
+        if (trailingNumberMatch) {
+            let beforeNumber = trailingNumberMatch[1].replace(/[:\-\u2013\u2014]+\s*$/, "").trim();
+            if (beforeNumber !== "") {
+                let chapterVariantAtEnd = /(\b(?:ch\.?,?|chap(?:ter)?|chapter)\b)$/i;
+                if (!chapterVariantAtEnd.test(beforeNumber)) {
+                    return null;
+                }
+            }
+        }
+
         let keywordMatch = normalized.match(CHAPTER_KEYWORD_PATTERN);
         if (keywordMatch && keywordMatch.index <= MAX_KEYWORD_OFFSET) {
             return keywordMatch[1];
@@ -222,6 +282,12 @@ const TitleSuffixController = (function() {
         return null;
     }
 
+    /**
+     * Extracts collection metadata from a title string.
+     *
+     * @param {string} title - The raw title to inspect for collection information.
+     * @returns {{label: string, number: string} | null} An object containing the normalized collection label and number, or null if no valid collection info is found.
+     */
     function extractCollectionInfo(title) {
         if (util.isNullOrEmpty(title)) {
             return null;
@@ -251,6 +317,16 @@ const TitleSuffixController = (function() {
         };
     }
 
+    /**
+     * Determines whether the separator between a detected collection keyword and a following number is valid.
+     *
+     * A separator is considered valid if it contains non-whitespace characters, if the number is not a Roman numeral,
+     * or if any character immediately after a Roman numeral is non-word or the end of the string.
+     *
+     * @param {string} normalizedTitle - The normalized title string to inspect.
+     * @param {RegExpMatchArray} match - Regex match object where `match[1]` is the collection keyword and `match[2]` is the number.
+     * @returns {boolean} True if the separator is valid; otherwise, false.
+     */
     function hasValidCollectionSeparator(normalizedTitle, match) {
         let keywordEnd = match.index + match[1].length;
         let numberStart = normalizedTitle.indexOf(match[2], keywordEnd);
@@ -272,6 +348,12 @@ const TitleSuffixController = (function() {
         return !(/\w/.test(charAfterNumber));
     }
 
+    /**
+     * Normalizes a collection label keyword to a standardized form.
+     *
+     * @param {string} [keyword] - The input keyword to normalize.
+     * @returns {string} The normalized collection label ("Vol", "Arc", or "Book").
+     */
     function normalizeCollectionLabel(keyword) {
         switch ((keyword ?? "").toLowerCase()) {
             case "vol":
@@ -284,6 +366,16 @@ const TitleSuffixController = (function() {
         }
     }
 
+    /**
+     * Normalizes a collection number into a numeric string.
+     *
+     * Accepts numeric strings, numbers, or Roman numerals; trims whitespace,
+     * validates decimal formats, and converts Roman numerals to their numeric
+     * representation. Returns `null` for null/empty input or invalid formats.
+     *
+     * @param {string|number|null|undefined} rawValue - The raw collection number to normalize.
+     * @returns {string|null} A normalized numeric string, or `null` if the input is invalid.
+     */
     function normalizeCollectionNumber(rawValue) {
         if (util.isNullOrEmpty(rawValue)) {
             return null;
@@ -301,6 +393,16 @@ const TitleSuffixController = (function() {
         return null;
     }
 
+    /**
+     * Parses a Roman numeral string and returns its integer value.
+     *
+     * Converts the input to uppercase, validates Roman numeral characters,
+     * and applies subtractive notation rules (e.g., IV = 4). Returns `null`
+     * for empty input, invalid characters, or non-positive results.
+     *
+     * @param {string} value - The Roman numeral string to parse.
+     * @returns {number|null} The parsed integer value, or `null` if invalid.
+     */
     function parseRomanNumeral(value) {
         let roman = (value ?? "").toUpperCase();
         if (roman === "") {
@@ -341,7 +443,7 @@ const TitleSuffixController = (function() {
             updateTitleField();
         },
         setBaseTitle(title) {
-            baseTitle = title ?? "";
+            baseTitle = normalizeApostrophes(title ?? "");
             isSuffixAutoManaged = true;
             lastAppliedSuffix = "";
             updateFileName(true);
@@ -364,6 +466,7 @@ const TitleSuffixController = (function() {
             selectedChapterCount = Math.max(0, Math.floor(normalizedCount));
             latestChapterLabel = extractChapterLabel(lastChapterTitle);
             latestCollectionInfo = extractCollectionInfo(lastChapterTitle);
+
             updateTitleField();
         }
     };
@@ -442,8 +545,9 @@ var main = (function() {
 
     function populateMetaInfo(metaInfo) {
         setUiFieldToValue("startingUrlInput", metaInfo.uuid);
-        setUiFieldToValue("titleInput", metaInfo.title);
-        TitleSuffixController.setBaseTitle(metaInfo.title);
+        const normalizedTitle = normalizeApostrophes(metaInfo.title);
+        setUiFieldToValue("titleInput", normalizedTitle);
+        TitleSuffixController.setBaseTitle(normalizedTitle);
         setUiFieldToValue("authorInput", metaInfo.author);
         setUiFieldToValue("languageInput", metaInfo.language);
         setUiFieldToValue("fileNameInput", metaInfo.fileName);
@@ -790,7 +894,8 @@ var main = (function() {
         // can't use a single select, because there are buttons in td elements
         for (let selector of ["button, option", "td, th", ".i18n"]) {
             for (let element of [...document.querySelectorAll(selector)]) {
-                if (element.textContent.startsWith("__MSG_")) {
+                const text = element.textContent.trim();
+                if (text.startsWith("__MSG_")) {
                     UIText.localizeElement(element);
                 }
             }

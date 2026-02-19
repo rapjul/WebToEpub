@@ -58,7 +58,7 @@ class FetchErrorHandler {
 
     promptUserForRetry(url, wrapOptions, response, failError) {
         let msg;
-        if (wrapOptions.retry.HTTP === 403) { 
+        if (wrapOptions.retry.HTTP === 403) {
             msg = new Error(UIText.Warning.warning403ErrorResponse(new URL(response.url).hostname) + this.makeFailCanRetryMessage(url, response.status));
         } else {
             msg = new Error(new Error(this.makeFailCanRetryMessage(url, response.status)));
@@ -100,8 +100,8 @@ class FetchErrorHandler {
             case 500:
             // is fault at server, retry might clear
                 return {retryDelay: retryDelay, promptUser: false};
-            case 502: 
-            case 503: 
+            case 502:
+            case 503:
             case 504:
             case 520:
             case 522:
@@ -350,34 +350,43 @@ class HttpClient {
 
         try {
             //  get all cookie from the site which use the partitionKey (e.g. cloudflare)
-            //keep old code for reference in case it changes again
-            //let cookies = await chrome.cookies.getAll({partitionKey: {topLevelSite: topLevelSite}});
-            
-            //set domain to the highest level from the website as all subdomains are included #1447 #1445
+            // keep old code for reference in case it changes again
+            // let cookies = await chrome.cookies.getAll({partitionKey: {topLevelSite: topLevelSite}});
+
+            // set domain to the highest level from the website as all subdomains are included #1447 #1445
             let urlparts = parsedUrl.hostname.split(".");
-            let cookies = "";
-            if (!util.isFirefox()) {
-                cookies = await chrome.cookies.getAll({domain: urlparts[urlparts.length-2]+"."+urlparts[urlparts.length-1],partitionKey: {}});
-            } else {
-                cookies = await browser.cookies.getAll({domain: urlparts[urlparts.length-2]+"."+urlparts[urlparts.length-1],partitionKey: {}});
-            }
-            cookies = cookies.filter(item => item.partitionKey != undefined);
-            //create new cookies for the site without the partitionKey
-            //cookies without the partitionKey get sent with fetch
-            cookies.forEach(element => chrome.cookies.set({
+            let domain = urlparts[urlparts.length - 2] + "." + urlparts[urlparts.length - 1];
+            let cookieApi = util.isFirefox() ? browser.cookies : chrome.cookies;
+            let partitionedCookies = await cookieApi.getAll({domain: domain, partitionKey: {}});
+            let unpartitionedCookies = await cookieApi.getAll({domain: domain});
+            HttpClient.logCookiesForDomain(domain, partitionedCookies, unpartitionedCookies);
+            let cookies = partitionedCookies.filter(item => item.partitionKey != undefined);
+            // create new cookies for the site without the partitionKey
+            // cookies without the partitionKey get sent with fetch
+            cookies.forEach(element => cookieApi.set({
                 domain: element.domain,
-                url: "https://"+element.domain.substring(1),
-                name: element.name, 
+                url: "https://" + element.domain.substring(1),
+                name: element.name,
                 value: element.value
             }));
         } catch {
             // Probably running browser that doesn't support partitionKey, e.g. Kiwi
             console.log("failed to set cookie");
-        } 
+        }
+    }
+
+    static logCookiesForDomain(domain, partitioned, unpartitioned) {
+        if (HttpClient.loggedCookieDomains.has(domain)) {
+            return;
+        }
+        HttpClient.loggedCookieDomains.add(domain);
+        let fmt = (list, label) => `${label}: ` + (list?.map(c => `${c.name}=${c.value}`).join("; ") || "<none>");
+        console.log(`[WebToEpub][HttpClient] cookies for ${domain}`, fmt(partitioned, "partitioned"), fmt(unpartitioned, "unpartitioned"));
     }
 }
 
 let BlockedHostNames = new Set();
+HttpClient.loggedCookieDomains = new Set();
 
 class FetchResponseHandler {
     isHtml() {

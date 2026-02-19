@@ -7,9 +7,20 @@
 
 "use strict";
 
+/**
+ * Utility module encapsulating helpers for DOM manipulation, sanitization, URL handling,
+ * whitespace and style normalization, file naming, MIME detection, HTML/XHTML document creation,
+ * and browser/runtime helpers for the WebToEpub extension.
+ */
 const util = (function() {
     var sleepController = new AbortController;
 
+    /**
+     * Pauses execution for a specified duration or until an abort signal is triggered.
+     *
+     * @param {number} ms - The number of milliseconds to wait before resolving.
+     * @returns {Promise<void>} A promise that resolves when the delay elapses or the abort signal fires.
+     */
     function sleep(ms) {
         return new Promise(resolve => {
             function finished() {
@@ -25,6 +36,11 @@ const util = (function() {
         return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
+    /**
+     * Determines whether the current runtime environment is Firefox.
+     *
+     * @returns {boolean} `true` if the `browser` global is defined (typically in Firefox), otherwise `false`.
+     */
     function isFirefox() {
         if (navigator.brave && navigator.brave.isBrave)
         {
@@ -43,12 +59,24 @@ const util = (function() {
         }
     }
 
+    /**
+     * Retrieves the extension's version string from the runtime manifest.
+     * Falls back to "unknown" when the runtime is unavailable (e.g., during unit tests).
+     *
+     * @returns {string} The extension version or "unknown" if the runtime is undefined.
+     */
     function extensionVersion() {
         let runtime = isFirefox() ? browser.runtime : chrome.runtime;
         // when running unit tests, runtime is not available
         return (typeof (runtime) === "undefined") ? "unknown" : runtime.getManifest().version;
     }
 
+    /**
+     * Creates a new empty XHTML document with the proper doctype, html/head/body elements,
+     * and a populated head section.
+     *
+     * @returns {Document} A newly initialized XHTML document ready for content insertion.
+     */
     function createEmptyXhtmlDoc() {
         let doc = document.implementation.createDocument(XMLNS, "", null);
         addXhtmlDocTypeToStart(doc);
@@ -63,6 +91,12 @@ const util = (function() {
         return doc;
     }
 
+    /**
+     * Appends a stylesheet link element to the provided document head.
+     *
+     * @param {Document} doc - The document to create the link element within.
+     * @param {HTMLElement} head - The head element to which the stylesheet link will be appended.
+     */
     function populateHead(doc, head) {
         let style = doc.createElementNS(XMLNS, "link");
         head.appendChild(style);
@@ -71,12 +105,32 @@ const util = (function() {
         style.setAttribute("rel", "stylesheet");
     }
 
+    /**
+     * Creates a new empty HTML document, initializes its head section, and returns the Document instance.
+     *
+     * @returns {Document} A newly created HTML document with its head populated.
+     */
     function createEmptyHtmlDoc() {
         let doc = document.implementation.createHTMLDocument("");
         populateHead(doc, doc.querySelector("head"));
         return doc;
     }
 
+    /**
+     * Creates a div element containing an SVG image wrapper for the specified source.
+     *
+     * Builds an XHTML document fragment with a wrapping div, an SVG element configured
+     * with sizing and viewBox attributes, and an embedded image whose `xlink:href` is
+     * set to the provided `href` (made relative). Optionally includes the original
+     * image source URL either as a `<desc>` element or as an XML comment.
+     *
+     * @param {string} href - The image source URL to embed; will be converted to a relative path.
+     * @param {number|string} width - The intrinsic width of the image, applied to the SVG image element and viewBox.
+     * @param {number|string} height - The intrinsic height of the image, applied to the SVG image element and viewBox.
+     * @param {string} origin - The original source URL; data URIs are cleared before use in metadata/comment.
+     * @param {boolean} includeImageSourceUrl - When true, inserts the origin URL as a `<desc>`; otherwise adds it as a comment.
+     * @returns {HTMLDivElement} A div element containing the configured SVG with the embedded image.
+     */
     function createSvgImageElement(href, width, height, origin, includeImageSourceUrl) {
         let svg_ns = "http://www.w3.org/2000/svg";
         let xlink_ns = "http://www.w3.org/1999/xlink";
@@ -197,7 +251,11 @@ const util = (function() {
         return email;
     }
 
-    // delete all nodes in the supplied array
+    /**
+     * Removes all provided DOM elements from the document.
+     *
+     * @param {Iterable<Element>} elements - Collection of DOM elements to remove.
+     */
     function removeElements(elements) {
         for (let e of elements) {
             e.remove();
@@ -222,10 +280,20 @@ const util = (function() {
     }
 
     // discard empty divs created when moving elements
+    /**
+     * Removes all child `<div>` elements of the provided element that contain only whitespace.
+     *
+     * @param {Element} element - The root element whose descendant divs should be scanned and removed if empty.
+     */
     function removeEmptyDivElements(element) {
         removeElements(getElements(element, "div", e => isElementWhiteSpace(e)));
     }
 
+    /**
+     * Removes whitespace-only text nodes from the end of an element’s child node list.
+     *
+     * @param {Node} element - The DOM element whose trailing whitespace child nodes should be removed.
+     */
     function removeTrailingWhiteSpace(element) {
         let children = element.childNodes;
         while ((0 < children.length) && isElementWhiteSpace(children[children.length - 1])) {
@@ -233,6 +301,11 @@ const util = (function() {
         }
     }
 
+    /**
+     * Removes leading whitespace-only child nodes from the specified DOM element.
+     *
+     * @param {Node} element - The DOM node whose leading whitespace child nodes will be removed.
+     */
     function removeLeadingWhiteSpace(element) {
         let children = element.childNodes;
         while ((0 < children.length) && isElementWhiteSpace(children[0])) {
@@ -240,6 +313,13 @@ const util = (function() {
         }
     }
 
+    /**
+     * Recursively trims whitespace from the text nodes at the boundaries of the given element
+     * and all of its descendant elements, skipping any elements where whitespace trimming
+     * is not applicable.
+     *
+     * @param {Element} element - The DOM element whose text content boundaries should be trimmed.
+     */
     function trimTextContent(element) {
         if (!element || element.nodeType !== Node.ELEMENT_NODE || shouldSkipWhitespaceTrim(element)) {
             return;
@@ -250,6 +330,13 @@ const util = (function() {
         }
     }
 
+    /**
+     * Trims leading and trailing whitespace from the text boundaries of the given element,
+     * skipping elements that should not have whitespace trimmed.
+     *
+     * @param {Element|null} element - The DOM element whose boundary whitespace should be trimmed.
+     * @returns {void}
+     */
     function trimElementBoundaries(element) {
         if (!element || shouldSkipWhitespaceTrim(element)) {
             return;
@@ -258,6 +345,15 @@ const util = (function() {
         trimBoundaryWhitespace(element, false);
     }
 
+    /**
+     * Trims leading or trailing whitespace-only nodes and whitespace characters from an element's boundary.
+     *
+     * Iterates from either the first or last child (based on `fromStart`), removing whitespace text nodes
+     * and elements considered whitespace, and trimming boundary text nodes when necessary.
+     *
+     * @param {Node} element - The DOM element whose boundary whitespace should be trimmed.
+     * @param {boolean} fromStart - If true, trims from the start (first child); otherwise trims from the end.
+     */
     function trimBoundaryWhitespace(element, fromStart) {
         let child = fromStart ? element.firstChild : element.lastChild;
         while (child != null) {
@@ -308,6 +404,14 @@ const util = (function() {
         }
     }
 
+    /**
+     * Determines whether whitespace trimming should be skipped for a given DOM element.
+     *
+     * Skipping occurs when the node is an element whose tag is either `<pre>` or `<code>`.
+     *
+     * @param {Node} element - The DOM node to evaluate.
+     * @returns {boolean} True if the element is a PRE or CODE element; otherwise, false.
+     */
     function shouldSkipWhitespaceTrim(element) {
         if (!element || element.nodeType !== Node.ELEMENT_NODE) {
             return false;
@@ -316,6 +420,12 @@ const util = (function() {
         return (tag === "pre") || (tag === "code");
     }
 
+    /**
+     * Recursively normalizes paragraph spacing within an element so that only a single
+     * newline separates paragraphs, skipping elements that shouldn't be trimmed.
+     *
+     * @param {Element} element - The root DOM element to process; ignored if null, non-element, or marked to skip whitespace trimming.
+     */
     function ensureSingleNewlineBetweenParagraphs(element) {
         if (!element || element.nodeType !== Node.ELEMENT_NODE || shouldSkipWhitespaceTrim(element)) {
             return;
@@ -326,6 +436,14 @@ const util = (function() {
         }
     }
 
+    /**
+     * Normalizes spacing between paragraph elements within a container by ensuring only a single newline
+     * is inserted between consecutive paragraphs. Iterates the container's child nodes, applies spacing
+     * enforcement between adjacent paragraph elements, and resets tracking when non-paragraph nodes with
+     * visible content are encountered.
+     *
+     * @param {Node | HTMLElement} parent - The container whose child nodes are inspected and adjusted for consistent paragraph spacing.
+     */
     function normalizeParagraphSpacing(parent) {
         let previousParagraph = null;
         for (let node = parent.firstChild; node != null; node = node.nextSibling) {
@@ -340,6 +458,14 @@ const util = (function() {
         }
     }
 
+    /**
+     * Ensures exactly one newline text node exists between two paragraph nodes within a parent,
+     * collapsing excess whitespace and removing extraneous nodes as needed.
+     *
+     * @param {Node} parent - The parent node containing the paragraphs and any intervening nodes.
+     * @param {Node} firstParagraph - The paragraph node preceding the area to normalize.
+     * @param {Node} secondParagraph - The paragraph node following the area to normalize.
+     */
     function enforceSingleNewlineBetweenParagraphs(parent, firstParagraph, secondParagraph) {
         let node = firstParagraph.nextSibling;
         let newlinePlaced = false;
@@ -372,6 +498,12 @@ const util = (function() {
         }
     }
 
+    /**
+     * Determines whether a given DOM node contains non-whitespace visible content.
+     *
+     * @param {Node|null} node - The DOM node to evaluate; can be a text node, element node, or null.
+     * @returns {boolean} `true` if the node contains visible (non-whitespace) content; otherwise `false`.
+     */
     function nodeHasVisibleContent(node) {
         if (node == null) {
             return false;
@@ -385,6 +517,12 @@ const util = (function() {
         return false;
     }
 
+    /**
+     * Determines whether the provided DOM node is a paragraph (`<p>`) element.
+     *
+     * @param {Node} node - The DOM node to test.
+     * @returns {boolean} `true` if the node is an element node with a tag name of "p"; otherwise, `false`.
+     */
     function isParagraphElement(node) {
         return (node?.nodeType === Node.ELEMENT_NODE) && (node.tagName.toLowerCase() === "p");
     }
@@ -400,17 +538,34 @@ const util = (function() {
         }
     }
 
+    /**
+     * Removes potentially scriptable content from the provided DOM element by
+     * deleting any child <script> or <iframe> elements and stripping inline event
+     * handlers from the element and its descendants.
+     *
+     * @param {Element} element - The DOM element to sanitize.
+     */
     function removeScriptableElements(element) {
         removeChildElementsMatchingSelector(element, "script, iframe");
         removeEventHandlers(element);
     }
 
+    /**
+     * Cleans up content imported from Microsoft Word by flattening all "O:P" elements within the provided DOM node.
+     *
+     * @param {Element} element - Root DOM element to search for and sanitize "O:P" elements.
+     */
     function removeMicrosoftWordCrapElements(element) {
         for (let node of getElements(element, "O:P")) {
             flattenNode(node);
         }
     }
 
+    /**
+     * Moves all child nodes of the given node to its parent and removes the node itself.
+     *
+     * @param {Node} node - The DOM node to flatten by hoisting its children into its parent.
+     */
     function flattenNode(node) {
         while (node.hasChildNodes()) {
             node.parentNode.insertBefore(node.childNodes[0], node);
@@ -419,7 +574,11 @@ const util = (function() {
     }
 
     /**
-     * @todo expand to remove ALL event handlers
+     * Removes inline click event handlers from the specified element and all of its descendant elements.
+     *
+     * @todo Expand to remove ALL event handlers
+     *
+     * @param {Element} contentElement - The root element whose descendants will be stripped of `onclick` attributes.
      */
     function removeEventHandlers(contentElement) {
         let walker = contentElement.ownerDocument.createTreeWalker(contentElement, NodeFilter.SHOW_ELEMENT);
@@ -430,6 +589,11 @@ const util = (function() {
         }
     }
 
+    /**
+     * Removes height and width styling from all ancestor elements of a given element until the `<body>` is reached.
+     *
+     * @param {HTMLElement} element - The element whose parent chain will be traversed to clear height and width styles.
+     */
     function removeHeightAndWidthStyleFromParents(element) {
         let parent = element.parentElement;
         while ((parent != null) && (parent.tagName.toLowerCase() !== "body")) {
@@ -452,6 +616,11 @@ const util = (function() {
         element.removeAttribute("height");
     }
 
+    /**
+     * Removes common WordPress-specific UI and advertisement elements from the given DOM element.
+     *
+     * @param {Element} element - Root DOM element whose matching child elements should be removed.
+     */
     function removeUnwantedWordpressElements(element) {
         let ccs = "div.sharedaddy, div.wpcnt, ul.post-categories, div.mistape_caption, "
             + "div.wpulike, div.wp-next-post-navi, .ezoic-adpicker-ad, .ezoic-ad, "
@@ -459,6 +628,12 @@ const util = (function() {
         removeChildElementsMatchingSelector(element, ccs);
     }
 
+    /**
+     * Removes share link elements from the specified content element.
+     *
+     * @param {HTMLElement} contentElement - The root element whose child elements matching
+     *     the selector `div.sharepost` will be removed.
+     */
     function removeShareLinkElements(contentElement) {
         removeChildElementsMatchingSelector(contentElement, "div.sharepost");
     }
@@ -508,6 +683,12 @@ const util = (function() {
         }
     }
 
+    /**
+     * Replaces a DOM element with a provided replacement node while preserving children and attributes.
+     *
+     * @param {HTMLElement} element - The original element to be replaced.
+     * @param {HTMLElement} replacement - The new element to insert in place of the original.
+     */
     function convertElement(element, replacement) {
         let parent = element.parentElement;
         parent.insertBefore(replacement, element);
@@ -522,6 +703,13 @@ const util = (function() {
         }
     }
 
+    /**
+     * Copies all attributes from a source element to a target element.
+     * Silently skips attributes that cannot be set on the target.
+     *
+     * @param {Element} from - The source element whose attributes will be copied.
+     * @param {Element} to - The target element to receive the copied attributes.
+     */
     function copyAttributes(from, to) {
         for (let i = 0; i < from.attributes.length; ++i) {
             let attr = from.attributes[i];
@@ -533,6 +721,15 @@ const util = (function() {
         }
     }
 
+    /**
+     * Updates the `src` attribute of all images within the given element that use a delay-loading attribute.
+     *
+     * Iterates over descendant `<img>` elements and, when the specified delay attribute contains a non-empty URL,
+     * assigns that URL to the image's `src` to trigger loading.
+     *
+     * @param {Element} element - The root DOM element to search for delayed images.
+     * @param {string} delayAttrib - The name of the attribute holding the deferred image URL (e.g., "data-src").
+     */
     function fixDelayLoadedImages(element, delayAttrib) {
         for (let i of element.querySelectorAll("img")) {
             let url = i.getAttribute(delayAttrib);
@@ -561,6 +758,12 @@ const util = (function() {
         }
     }
 
+    /**
+     * Checks whether the given inline element contains any descendant block-level elements.
+     *
+     * @param {Element} inlineElement - The DOM element to inspect for nested block elements.
+     * @returns {boolean} True if a block-level descendant is found; otherwise, false.
+     */
     function isBlockElementInside(inlineElement) {
         let walker = inlineElement.ownerDocument.createTreeWalker(inlineElement, NodeFilter.SHOW_ELEMENT);
         let element = null;
@@ -574,6 +777,12 @@ const util = (function() {
         return false;
     }
 
+    /**
+     * Moves all child nodes from the given inline element to its parent (before the inline element),
+     * preserving their order and normalizing any block elements nested within inline tags.
+     *
+     * @param {HTMLElement} inlineElement - The inline element whose child nodes should be moved to its parent.
+     */
     function moveElementsOutsideTag(inlineElement) {
         while (inlineElement.hasChildNodes()) {
             let node = inlineElement.childNodes[0];
@@ -593,6 +802,12 @@ const util = (function() {
         }
     }
 
+    /**
+     * Determines whether the provided DOM node should be treated as an inline element.
+     *
+     * @param {Node} node - The DOM node to evaluate.
+     * @returns {boolean} True if the node represents an inline element; otherwise, false.
+     */
     function isInlineElement(node) {
         return isNodeInTag(INLINE_ELEMENTS, node);
     }
@@ -601,6 +816,13 @@ const util = (function() {
         return isNodeInTag(BLOCK_ELEMENTS, node);
     }
 
+    /**
+     * Retrieves the `src` of the first <img> within the first element matching the selector under the given DOM root.
+     *
+     * @param {Document|Element} dom - The DOM root to search within.
+     * @param {string} selector - A CSS selector used to locate a parent element.
+     * @returns {string|null} The image `src` if found, otherwise `null`.
+     */
     function getFirstImgSrc(dom, selector) {
         return dom.querySelector(selector)?.querySelector("img")?.src ?? null;
     }
@@ -610,6 +832,13 @@ const util = (function() {
         return (index === -1) ? null : uri.substring(index + 1);
     }
 
+    /**
+     * Resolves lazy-loaded images by copying a specified data attribute to the image `src`.
+     *
+     * @param {Document|Element} content - Root node in which to search for images.
+     * @param {string} imgCss - CSS selector matching the images to update.
+     * @param {string} [attrName="data-src"] - Attribute containing the actual image URL.
+     */
     function resolveLazyLoadedImages(content, imgCss, attrName) {
         attrName = attrName || "data-src";
         for (let img of content.querySelectorAll(imgCss)) {
@@ -743,10 +972,28 @@ const util = (function() {
         }
     }
 
+    /**
+     * Determines whether a given value is null or an empty/whitespace-only string.
+     *
+     * @param {*} s - The value to test.
+     * @returns {boolean} True if the value is null, undefined, or a string containing only whitespace; otherwise, false.
+     */
     function isNullOrEmpty(s) {
         return ((s == null) || isStringWhiteSpace(s));
     }
 
+    /**
+     * Converts hyperlinks within a content element into a list of chapter objects.
+     *
+     * It filters out links without text or href, ignores duplicates (by normalized URL),
+     * and optionally applies a predicate to determine whether a link is a chapter.
+     * It can also group chapters into arcs by tracking changes returned from `getChapterArc`.
+     *
+     * @param {Element|null} contentElement - The root element containing anchor tags to process.
+     * @param {(link: HTMLAnchorElement) => boolean} [isChapterPredicate] - Optional predicate to decide if a link represents a chapter.
+     * @param {(link: HTMLAnchorElement) => any} [getChapterArc] - Optional function to derive the chapter arc; changes in returned value mark new arcs.
+     * @returns {Array} An array of chapter entries produced from the valid hyperlinks.
+     */
     function hyperlinksToChapterList(contentElement, isChapterPredicate, getChapterArc) {
         if (contentElement == null) {
             return [];
@@ -822,6 +1069,10 @@ const util = (function() {
         return doc.createComment("  " + escaped + "  ");
     }
 
+    /**
+     * Adds an XML declaration processing instruction to the start of the given DOM document.
+     * @param {Document} dom - The DOM document to prepend with the XML declaration.
+     */
     function addXmlDeclarationToStart(dom) {
         // As JavaScript doesn't support this directly, need to do a dirty hack using
         // a processing instruction
@@ -836,10 +1087,26 @@ const util = (function() {
         dom.insertBefore(docType, dom.children[0]);
     }
 
+    /**
+     * Determines whether the provided string contains only whitespace characters (or is empty).
+     *
+     * @param {string} s - The string to evaluate.
+     * @returns {boolean} Returns `true` if the string has no non-whitespace characters; otherwise, `false`.
+     */
     function isStringWhiteSpace(s) {
         return !(/\S/.test(s));
     }
 
+    /**
+     * Determines whether the given DOM element contains only whitespace content.
+     *
+     * Treats text nodes consisting solely of whitespace as white space,
+     * ignores comment nodes, and considers elements containing images (directly
+     * or nested) as non-whitespace.
+     *
+     * @param {Node} element - The DOM node to evaluate.
+     * @returns {boolean} True if the element contains only whitespace (or is a comment); otherwise, false.
+     */
     function isElementWhiteSpace(element) {
         switch (element.nodeType) {
             case Node.TEXT_NODE:
@@ -856,6 +1123,12 @@ const util = (function() {
         return isStringWhiteSpace(element.innerText);
     }
 
+    /**
+     * Determines whether the provided DOM node is an HTML header element.
+     *
+     * @param {Node} node - The DOM node to test.
+     * @returns {boolean} True if the node is an element whose tag matches one of the header tags; otherwise, false.
+     */
     function isHeaderTag(node) {
         if (node.nodeType !== Node.ELEMENT_NODE) {
             return false;
@@ -864,6 +1137,11 @@ const util = (function() {
         return HEADER_TAGS.some(t => tag === t);
     }
 
+    /**
+     * Determines whether the provided string is a valid HTTP or HTTPS URL.
+     * @param {string} string - The string to validate as a URL.
+     * @returns {boolean} True if the string is a valid HTTP/HTTPS URL; otherwise, false.
+     */
     function isUrl(string) {
         try {
             let url = new URL(string);
@@ -874,11 +1152,23 @@ const util = (function() {
         }
     }
 
+    /**
+     * Converts an XML DOM document into a serialized string after ensuring it has an XML declaration.
+     *
+     * @param {Document} dom - The XML DOM to serialize. This document is modified to include an XML declaration if missing.
+     * @returns {string} The serialized XML as a string.
+     */
     function xmlToString(dom) {
         addXmlDeclarationToStart(dom);
         return new XMLSerializer().serializeToString(dom);
     }
 
+    /**
+     * Pads the given number with leading zeros to ensure a fixed length of four characters.
+     *
+     * @param {number} num - The number to pad.
+     * @returns {string} The zero-padded string representation of the number.
+     */
     function zeroPad(num) {
         let padded = "000" + num;
         padded = padded.substring(padded.length - 4, padded.length);
@@ -924,14 +1214,24 @@ const util = (function() {
         return element;
     }
 
+    /**
+     * Sanitizes a string to be safe for use as a filename by replacing spaces and no-break spaces
+     * with underscores, removing disallowed characters, preserving common punctuation, and optionally
+     * truncating long names with an ellipsis in the middle to respect a maximum length.
+     *
+     * @param {string} title - The original filename candidate to sanitize.
+     * @param {number} [maxLength=20] - The maximum allowed length of the resulting filename.
+     * @returns {string} A filesystem-safe filename derived from the provided title.
+     */
     function safeForFileName(title, maxLength = 20) {
         if (title) {
             // // Allow only a-z regardless of case and numbers as well as hyphens and underscores; replace spaces and no-break spaces with underscores
             // title = title.replace(/[ \u00a0]/gi, "_").replace(/([^a-z0-9_-]+)/gi, "");
+
             // Allow common punctuation while keeping filenames filesystem safe
             title = title.replace(/\//g, "+");
             // eslint-disable-next-line no-useless-escape -- character class intentionally lists the punctuation we want to preserve
-            title = title.replace(/[ \u00a0]/gi, "_").replace(/([^a-z0-9_'"\-\+\(\)\[\]\{\}!\?]+)/gi, "");
+            title = title.replace(/[ \u00a0]/gi, "_").replace(/([^a-z0-9_'"\-\+\&\(\)\[\]\{\}!\?]+)/gi, "");
             // There is technically a 255-character limit in Windows for file paths.
             // So we will allow files to have 20 characters and when they go over we split them
             // we then truncate the middle so that the file name is always different
@@ -944,6 +1244,16 @@ const util = (function() {
         return "";
     }
 
+    /**
+     * Creates a storage file path by combining a subdirectory, zero-padded index,
+     * an optional sanitized title, and an extension.
+     *
+     * @param {string} subdirectory - The directory path prefix for the file.
+     * @param {number} index - The numeric index to include, zero-padded.
+     * @param {string} [title] - Optional title to include; sanitized and suffixed with a dot if provided.
+     * @param {string} extension - The file extension (without the leading dot if the title is provided).
+     * @returns {string} The assembled storage file name/path.
+     */
     function makeStorageFileName(subdirectory, index, title, extension) {
         if (title) {
             const safeLengthForNameInZip = 200;
@@ -997,7 +1307,12 @@ const util = (function() {
         }
     }
 
-    // allow disabling logging from one place
+    /**
+     * Logs the provided argument for debugging purposes.
+     * Allows disabling logging from one place
+     *
+     * @param {*} arg - The value to log.
+     */
     function log(arg) { // eslint-disable-line no-unused-vars
         // ToDo: uncomment this for debug logging
         // console.log(arg);
@@ -1112,6 +1427,12 @@ const util = (function() {
         });
     }
 
+    /**
+     * Removes one or more attributes from a DOM element.
+     *
+     * @param {Element} element - The DOM element from which attributes will be removed.
+     * @param {string|string[]} attributeNames - A single attribute name or an array of attribute names to remove.
+     */
     function removeAttributes(element, attributeNames) {
         if (!element || attributeNames == null) return;
 
@@ -1131,6 +1452,12 @@ const util = (function() {
         }
     }
 
+    /**
+     * Removes attributes with empty string values from all elements within the provided DOM fragment.
+     *
+     * @param {Document|Element} content - A DOM root (e.g., Document, DocumentFragment, or Element) whose descendants will be cleaned of empty attributes.
+     * @returns {void}
+     */
     function removeEmptyAttributes(content) {
         const elements = content.querySelectorAll("*");
 
@@ -1150,6 +1477,13 @@ const util = (function() {
         }
     }
 
+    /**
+     * Removes empty `<span>` elements from `<p>` and `<div>` containers within the provided DOM subtree.
+     * For each `<span>` inside a paragraph or div that has no attributes, its child nodes are promoted
+     * to the parent before the span itself is removed.
+     *
+     * @param {Document|Element} content - The root DOM node to search for spans to normalize.
+     */
     function removeSpansWithNoAttributes(content) {
         // within p or div tags, spans with no attributes have no purpose
         const spans = content.querySelectorAll("p span, div span");
@@ -1164,6 +1498,17 @@ const util = (function() {
         }
     }
 
+    /**
+     * Converts semantic inline styles on an element into corresponding HTML tags and optionally cleans up remaining styles.
+     *
+     * Scans the element's inline style for italic, bold, underline, and line-through declarations, wraps inner content
+     * with the matching semantic tags (`<i>`, `<b>`, `<u>`, `<s>`), and removes those style declarations. Non-semantic
+     * font-weight values (normal or 100–400) are removed. Remaining styles are retained unless `removeLeftoverStyles`
+     * is false and only a centered text-align style persists.
+     *
+     * @param {HTMLElement} element - The element whose semantic inline styles should be converted to tags.
+     * @param {boolean} [removeLeftoverStyles=false] - Whether to remove any leftover non-semantic style declarations.
+     */
     function replaceSemanticInlineStylesWithTags(element, removeLeftoverStyles = false) {
         if (element.hasAttribute("style")) {
             let styleText = element.getAttribute("style");
@@ -1201,18 +1546,37 @@ const util = (function() {
         }
     }
 
+    /**
+     * Wraps all child elements of the specified element inside a newly created wrapper element.
+     *
+     * @param {Element} element - The DOM element whose child elements will be wrapped.
+     * @param {string} tagName - The tag name of the wrapper element to create.
+     */
     function wrapInnerContentInTag(element, tagName) {
         const wrapper = document.createElement(tagName);
         moveChildElements(element, wrapper);
         element.appendChild(wrapper);
     }
 
-    function getDefaultExtensionByMime(mimeType)
-    {
+    /**
+     * Retrieves the default file extension for a given MIME type.
+     *
+     * @param {string} mimeType - The MIME type to look up.
+     * @returns {string|undefined} The default file extension, or undefined if no match is found.
+     */
+    function getDefaultExtensionByMime(mimeType) {
         let retval = MIME_TYPE_EXTENSIONS[mimeType];
         if (retval) retval = retval[0];
         return retval;
     }
+
+    /**
+     * Detects the MIME type of base64-encoded data by matching known file
+     * signatures in the provided string against predefined `MIME_TYPE_SIGNATURES`.
+     *
+     * @param {string} b64 - Base64-encoded string to inspect.
+     * @returns {string|undefined} The detected MIME type if a signature matches; otherwise `undefined`.
+     */
     function detectMimeType(b64) {
         let b64b = atob(b64);
         for (var s in MIME_TYPE_SIGNATURES) {
@@ -1222,6 +1586,16 @@ const util = (function() {
         }
     }
 
+    /**
+     * Sanitizes potentially unsafe HTML content while preserving its original base URI.
+     *
+     * The input is passed through DOMPurify for sanitization, then parsed into a new
+     * `Document`. If the original content had a `baseURI`, a `<base>` tag is injected
+     * to maintain correct relative URL resolution.
+     *
+     * @param {string|Document} dirty - Raw HTML content or document to sanitize.
+     * @returns {Document} A sanitized HTML document with the original base URI restored.
+     */
     function sanitize(dirty) {
         let savedBaseURI = dirty.baseURI;
         const clean = DOMPurify.sanitize(dirty);
@@ -1232,23 +1606,53 @@ const util = (function() {
         return html;
     }
 
-    function sanitizeNode(dirty) {
+    /**
+     * Sanitizes a DOM node by cloning text nodes or purifying element nodes.
+     *
+     * If the input node is a text node, it is cloned to preserve whitespace that
+     * might otherwise be removed by the sanitizer. For other node types, the node
+     * is sanitized and the first sanitized child is returned.
+     *
+     * @param {Node} dirtyNode - The potentially unsafe DOM node to sanitize.
+     * @returns {Node} A safe clone of the text node or the first child of the sanitized node.
+     */
+    function sanitizeNode(dirtyNode) {
         // don't need to sanitize text nodes
         // and DOMPurify deletes them if they're whitespace
-        return (dirty?.nodeType === 3)
-            ? dirty.cloneNode(true)
-            : sanitize(dirty).body.firstChild;
+        return (dirtyNode?.nodeType === 3)
+            ? dirtyNode.cloneNode(true)
+            : sanitize(dirtyNode).body.firstChild;
     }
 
-    // Define constants
+
+
+    // ------------------------------
+    // ------ Define constants ------
+    // ------------------------------
+
+    /**
+     * XML namespace URI for XHTML elements used throughout the plugin.
+     * @constant {string}
+     */
     const XMLNS = "http://www.w3.org/1999/xhtml";
 
-    // ugly, but we're treating <u> and <s> as inline (they are not)
+    /**
+     * Array of HTML inline element tag names recognized by the utility module.
+     * Includes semantic inline elements, form controls, media, and formatting tags
+     * used to identify elements that should be treated as inline content.
+     *
+     * It's ugly, but we're treating <u> and <s> as inline (they are not)
+     */
     const INLINE_ELEMENTS = ["b", "big", "i", "small", "tt", "abbr", "acronym", "cite",
         "code", "dfn", "em", "kbd", "strong", "samp", "time", "var", "a", "bdo",
         "br", "img", "map", "object", "q", "script", "span", "sub", "sup",
         "button", "input", "label", "select", "textarea", "u", "s"];
 
+    /**
+     * List of HTML tag names considered as block-level elements.
+     * Used for layout or parsing logic to identify elements that should
+     * start on a new line in typical document flow.
+     */
     const BLOCK_ELEMENTS = ["address", "article", "aside", "blockquote", "canvas",
         "dd", "div", "dl", "fieldset", "figcaption", "figure", "footer",
         "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hgroup", "hr",
@@ -1257,6 +1661,34 @@ const util = (function() {
 
     const HEADER_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"];
 
+    /**
+     * Maps common image MIME types to their corresponding filename extensions.
+     *
+     * @constant
+     * @type {Object<string, string[]>}
+     * @property {string[]} image/jpeg           - Extensions: jpg, jpeg, jpe.
+     * @property {string[]} image/png            - Extensions: png.
+     * @property {string[]} image/gif            - Extensions: gif.
+     * @property {string[]} image/webp           - Extensions: webp.
+     * @property {string[]} image/bmp            - Extensions: bmp, dib.
+     * @property {string[]} image/tiff           - Extensions: tif, tiff.
+     * @property {string[]} image/svg+xml        - Extensions: svg.
+     * @property {string[]} image/x-icon         - Extensions: ico.
+     * @property {string[]} image/vnd.microsoft.icon - Extensions: ico.
+     * @property {string[]} image/heif           - Extensions: heif.
+     * @property {string[]} image/heic           - Extensions: heic.
+     * @property {string[]} image/x-xbitmap      - Extensions: xbm.
+     * @property {string[]} image/x-portable-bitmap   - Extensions: pbm.
+     * @property {string[]} image/x-portable-graymap  - Extensions: pgm.
+     * @property {string[]} image/x-portable-pixmap   - Extensions: ppm.
+     * @property {string[]} image/x-portable-anymap   - Extensions: pnm.
+     * @property {string[]} image/x-cmu-raster    - Extensions: ras.
+     * @property {string[]} image/x-tga           - Extensions: tga.
+     * @property {string[]} image/jxr             - Extensions: jxr.
+     * @property {string[]} image/ktx             - Extensions: ktx.
+     * @property {string[]} image/apng            - Extensions: apng.
+     * @property {string[]} image/avif            - Extensions: avif.
+     */
     const MIME_TYPE_EXTENSIONS = {
         "image/jpeg": ["jpg", "jpeg", "jpe"],
         "image/png": ["png"],
@@ -1282,6 +1714,12 @@ const util = (function() {
         "image/avif": ["avif"]
     };
 
+    /**
+     * Maps base64-encoded magic number prefixes to an array of corresponding MIME types.
+     * Keys represent the leading bytes of file signatures encoded in base64, while values
+     * list one or more MIME types that share that signature.
+     * Useful for inferring image MIME types when only the raw binary signature is available.
+     */
     const MIME_TYPE_SIGNATURES = {
         "/9j/": ["image/jpeg"],
         "iVBORw0KGgo=": ["image/png", "image/apng"],

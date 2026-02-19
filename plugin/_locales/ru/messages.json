@@ -215,6 +215,10 @@
 		"message": "Удалить авторские заметки",
 		"description": "Label for checkbox to remove Author Notes from chapters"
 	},
+	"__MSG_label_Webnovel_Download_Paragraph_Images__": {
+		"message": "Загрузите изображения абзацев веб-новеллы",
+		"description": "Label for checkbox to download paragraph comment images from webnovel.com"
+	},
 	"__MSG_label_Remove_Original__": {
 		"message": "Удалить оригинальный (необработанный) текст",
 		"description": "Label for checkbox to remove Original text from chapters"

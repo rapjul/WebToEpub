@@ -162,7 +162,7 @@
 	"__MSG_button_load_Metadata__": {
 		"message": "Load Additional Metadata",
 		"description": "Label on button to toggle Load and Analyse Additional Metadata"
-	},	
+	},
 	"__MSG_button_Pack_EPUB__": {
 		"message": "Pack EPUB",
 		"description": "Label on button to create the EPUB"
@@ -422,6 +422,10 @@
 	"__MSG_label_Remove_Chapter_Number__": {
 		"message": "Remove Chapter Numbers",
 		"description": "Label for checkbox to remove Chapter Numbers from chapter titles"
+	},
+	"__MSG_label_Webnovel_Download_Paragraph_Images__": {
+		"message": "Download Webnovel Paragraph Images",
+		"description": "Label for checkbox to download paragraph comment images from webnovel.com"
 	},
 	"__MSG_label_Remove_Original__": {
 		"message": "Remove Original/Raw Text",

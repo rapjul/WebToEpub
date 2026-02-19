@@ -118,6 +118,10 @@
                     <td><input id="removeChapterNumberCheckbox" type="checkbox" name="removeChapterNumberCheckbox" value="false"></td>
                     <td>__MSG_label_Remove_Chapter_Number__</td>
                 </tr>
+                <tr id="webnovelDownloadImagesRow" hidden="true">
+                    <td><input id="webnovelDownloadImagesCheckbox" type="checkbox" name="webnovelDownloadImagesCheckbox" value="true"></td>
+                    <td>__MSG_label_Webnovel_Download_Paragraph_Images__</td>
+                </tr>
                 <tr id="removeOriginalRow" hidden="true">
                     <td><input id="removeOriginalCheckbox" type="checkbox" name="removeOriginalCheckbox" value="true"></td>
                     <td>__MSG_label_Remove_Original__</td>
@@ -540,7 +544,9 @@
                     <tr id="rangeEndChapterRow">
                         <td>__MSG_label_Range_End_Chapter__</td>
                         <td><select id="selectRangeEndChapter" /></td>
-                        <td colspan="2">&nbsp; <button id="viewFiltersButton">__MSG_button_View_Filters__</button></td>
+                        <td colspan="2">&nbsp;
+                            <button id="viewFiltersButton">__MSG_button_View_Filters__</button>
+                        </td>
                     </tr>
                     <tr id="rangeChapterCountRow">
                         <td>__MSG_label_Chapter_Count__</td>
