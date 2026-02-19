@@ -31,6 +31,43 @@ QUnit.test("extractTitle", function (assert) {
     assert.equal(actual, "King of Gods");
 });
 
+QUnit.test("constructor_readsWebnovelDownloadImagesCheckbox", function(assert) {
+    let checkbox = document.createElement("input");
+    checkbox.id = "webnovelDownloadImagesCheckbox";
+    checkbox.type = "checkbox";
+    checkbox.checked = true;
+    document.body.appendChild(checkbox);
+
+    let parser = new QidianParser();
+    assert.equal(parser.downloadAndIncludeImages, true);
+
+    checkbox.remove();
+});
+
+QUnit.test("cleanRawDom_replacesAndNormalizesHeaderFromCache", function(assert) {
+    let checkbox = document.createElement("input");
+    checkbox.id = "removeChapterNumberCheckbox";
+    checkbox.type = "checkbox";
+    checkbox.checked = true;
+    document.body.appendChild(checkbox);
+
+    let dom = new DOMParser().parseFromString(
+        "<html><head><base href='https://www.webnovel.com/book/1/chapter/2'></head>" +
+        "<body><div class='chapter_content'><h1>Old Title</h1><h1>Chapter 10</h1><p>Body</p></div></body></html>",
+        "text/html"
+    );
+    let content = dom.querySelector("div.chapter_content");
+    let parser = new QidianParser();
+    parser.ChacheChapterTitle.set(content.baseURI, parser.normalizeChapterTitle("2: Chapter 10"));
+
+    parser.cleanRawDom(content, true);
+
+    assert.equal(content.querySelector("h1").textContent, "Chapter 10");
+    assert.equal(content.querySelectorAll("h1").length, 1);
+
+    checkbox.remove();
+});
+
 let QidianChatperLinkSample =
 `<!DOCTYPE html>
 <html lang="en-US" class="dark-skin">
