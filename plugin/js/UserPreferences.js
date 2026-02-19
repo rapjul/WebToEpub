@@ -104,6 +104,7 @@ class UserPreferences { // eslint-disable-line no-unused-vars
         this.webnovelDownloadParagraphImages = this.addPreference("webnovelDownloadParagraphImages", "webnovelDownloadImagesCheckbox", true);
         this.removeOriginal = this.addPreference("removeOriginal", "removeOriginalCheckbox", true);
         this.selectTranslationAi = this.addPreference("selectTranslationAi", "selectTranslationAiCheckbox", false);
+        this.selectRetryLonger = this.addPreference("selectRetryLonger", "selectRetryLongerCheckbox", false);
         this.removeTranslated = this.addPreference("removeTranslated", "removeTranslatedCheckbox", false);
         this.skipChaptersThatFailFetch = this.addPreference("skipChaptersThatFailFetch", "skipChaptersThatFailFetchCheckbox", false);
         this.maxChaptersPerEpub = this.addPreference("maxChaptersPerEpub", "maxChaptersPerEpubTag", "10,000");

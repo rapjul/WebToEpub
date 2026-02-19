@@ -124,6 +124,7 @@ class Parser {
             this.removeNextAndPreviousChapterHyperlinks(webPage, content);
         }
         this.removeUnwantedElementsFromContentElement(content);
+        this.replaceWpBlockSpacersWithHR(content);
         this.addTitleToContent(webPage, content);
         util.fixBlockTagsNestedInInlineTags(content);
         this.imageCollector.replaceImageTags(content);
@@ -241,6 +242,12 @@ class Parser {
             }
             break;
         }
+    }
+
+    replaceWpBlockSpacersWithHR(content) {
+        [...content.querySelectorAll("div.wp-block-spacer")].forEach(
+            e => e.replaceWith(content.ownerDocument.createElement("hr"))
+        );
     }
 
     /**
@@ -1133,6 +1140,19 @@ class Parser {
 
     static findConstrutedContent(dom) {
         return dom.querySelector("div." + Parser.WEB_TO_EPUB_CLASS_NAME);
+    }
+
+    static addTextToChapterContent(newDoc, contentText) {
+        let lines = contentText
+            .replace(/\r/g, "\n")
+            .replace(/\n\n/g, "\n")
+            .split("\n")
+            .filter(s => !util.isNullOrEmpty(s));
+        for (let line of lines) {
+            let pnode = newDoc.dom.createElement("p");
+            pnode.textContent = line;
+            newDoc.content.appendChild(pnode);
+        }
     }
 
     async getChapterUrlsFromMultipleTocPages(dom, extractPartialChapterList, getUrlsOfTocPages, chapterUrlsUI)  {

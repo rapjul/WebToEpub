@@ -42,7 +42,21 @@ const util = (function() {
      * @returns {boolean} `true` if the `browser` global is defined (typically in Firefox), otherwise `false`.
      */
     function isFirefox() {
-        return (typeof (browser) !== "undefined");
+        if (navigator.brave && navigator.brave.isBrave)
+        {
+            return false;
+        }
+        else if (typeof (browser) === "undefined")
+        {
+            // old version of chrome
+            return false;
+        }
+        else
+        {
+            // this only works as long as firefox hasn't implemented this 
+            // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/PlatformNaclArch
+            return (typeof (browser.runtime.PlatformNaclArch) == "undefined");
+        }
     }
 
     /**
