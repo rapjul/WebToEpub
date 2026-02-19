@@ -129,7 +129,14 @@ input[type=text], input[type=url], textarea, select, #manualDelayPerChapterTag {
     /* Optional: set a width less than 100% to see the centering effect */
     width: 80%;
     margin-top: 2rem;
-    margin-bottom: 2rem;
+    /* margin-bottom: 2rem; */
+}
+
+#chapterSelectControlsDiv #chapterSelection {
+    display: flex;
+    justify-content: space-evenly;
+    margin-top: 2rem;
+    margin-bottom: 5pt;
 }
 
 textarea.allSpace {
@@ -295,7 +302,7 @@ button {
         width: 30%;
         min-width: 300px;
     }
-    
+
     .sidebar .closebtn {
         width: calc(100% - 10px);
         padding-top: 5px;
@@ -313,7 +320,7 @@ button {
     .sidebar th {
         text-align: center;
     }
-    
+
     .sidebar input.exclude {
         accent-color: #bb0000;
     }
@@ -341,3 +348,11 @@ button {
     #sbFilters input[type=text], #sbFilters input[type=url], #sbFilters textarea, #sbFilters select {
         width: calc(100% - 15px);
     }
+
+
+ pre {
+    width: 100%;
+    white-space: pre-wrap;
+    /* Optional: allows very long unbroken words (like URLs) to break to fit the container */
+    overflow-wrap: break-word;
+}

@@ -159,6 +159,10 @@
         "message": "Xóa Ghi Chú Tác Giả",
         "description": ""
     },
+    "__MSG_label_Webnovel_Download_Paragraph_Images__": {
+        "message": "Tải xuống hình ảnh đoạn Webnovel",
+        "description": "Label for checkbox to download paragraph comment images from webnovel.com"
+    },
     "__MSG_label_Remove_Original__": {
         "message": "Loại bỏ Chữ Bản Gốc/Raw",
         "description": ""

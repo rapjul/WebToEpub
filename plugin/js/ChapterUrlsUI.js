@@ -150,17 +150,17 @@ class ChapterUrlsUI {
 
         rangeStart.onchange = null;
         rangeEnd.onchange = null;
-        
+
         rangeStart.selectedIndex = (rangeStart.length > 0) ? 0 : -1;
         rangeEnd.selectedIndex = (rangeEnd.length > 0) ? (rangeEnd.length - 1) : -1;
         let startIndex = ChapterUrlsUI.selectionToRowIndex(rangeStart);
         let endIndex = ChapterUrlsUI.selectionToRowIndex(rangeEnd);
         ChapterUrlsUI.setChapterCount(startIndex, endIndex);
-        
+
         rangeStart.onchange = ChapterUrlsUI.onRangeChanged;
         rangeEnd.onchange = ChapterUrlsUI.onRangeChanged;
     }
- 
+
     /** @private */
     static onRangeChanged() {
         let startIndex = ChapterUrlsUI.selectionToRowIndex(ChapterUrlsUI.getRangeStartChapterSelect());
@@ -175,6 +175,15 @@ class ChapterUrlsUI {
         ChapterUrlsUI.setChapterCount(startIndex, endIndex);
     }
 
+    /**
+     * Computes a one-based row index from a select element's current selection.
+     * Returns `0` when the element is missing or has no selection; otherwise,
+     * if the selected option has a numeric value, that value plus one is returned,
+     * falling back to the selected index plus one.
+     *
+     * @param {HTMLSelectElement|null|undefined} selectElement - The select element to read the selection from.
+     * @returns {number} The one-based row index, or `0` if no valid selection exists.
+     */
     static selectionToRowIndex(selectElement) {
         if (!selectElement || selectElement.selectedIndex < 0) {
             return 0;
@@ -189,18 +198,50 @@ class ChapterUrlsUI {
         return selectElement.selectedIndex + 1;
     }
 
-    /** @private */
+    /**
+     * Updates the chapter count display based on the current selection and notifies the title suffix controller.
+     *
+     * @private
+     * @param {number} startIndex - The zero-based index of the first selected chapter.
+     * @param {number} endIndex - The zero-based index of the last selected chapter.
+     */
     static setChapterCount(startIndex, endIndex) {
-        let count = ChapterUrlsUI.calculateChapterCount(startIndex, endIndex);
-        document.getElementById("spanChapterCount").textContent = count;
+        let summary = ChapterUrlsUI.getSelectionSummary(startIndex, endIndex);
+        document.getElementById("spanChapterCount").textContent = summary.count;
         if (window.TitleSuffixController) {
-            let lastTitle = (count > 0)
-                ? ChapterUrlsUI.getLastVisibleChapterTitle(startIndex, endIndex)
-                : "";
-            window.TitleSuffixController.onChapterSelectionChanged(lastTitle, count);
+            window.TitleSuffixController.onChapterSelectionChanged(summary.lastTitle, summary.count);
         }
     }
 
+    /**
+     * Computes a summary of the selected chapter rows within an optional index range.
+     *
+     * @param {number} startIndex - The first index (1-based) of the chapter rows to include; ignored if not finite or non-positive.
+     * @param {number} endIndex - The last index (1-based) of the chapter rows to include; ignored if not finite or non-positive.
+     * @returns {{count: number, lastTitle: string}} An object containing the number of selected chapters and the title of the last selected chapter (empty string if none).
+     */
+    static getSelectionSummary(startIndex, endIndex) {
+        let rows = ChapterUrlsUI.getTableRowsWithChapters();
+        if (Number.isFinite(startIndex) && Number.isFinite(endIndex) && (startIndex > 0) && (endIndex > 0)) {
+            rows = rows.filter(row => ChapterUrlsUI.rowIsWithinRange(row, startIndex, endIndex));
+        }
+        let selected = rows.filter(row => ChapterUrlsUI.getRowCheckbox(row)?.checked);
+        let count = selected.length;
+        let lastTitle = (count > 0)
+            ? ChapterUrlsUI.getRowTitle(selected[count - 1])
+            : "";
+        return {count, lastTitle};
+    }
+
+    /**
+     * Calculates the number of chapters in an inclusive range.
+     *
+     * Returns `0` if either index is not finite, non-positive, or if `endIndex` is less than `startIndex`.
+     *
+     * @param {number} startIndex - The first chapter index (1-based).
+     * @param {number} endIndex - The last chapter index (1-based).
+     * @returns {number} The total number of chapters in the range, or `0` if invalid.
+     */
     static calculateChapterCount(startIndex, endIndex) {
         if (!Number.isFinite(startIndex) || !Number.isFinite(endIndex)) {
             return 0;
@@ -211,6 +252,14 @@ class ChapterUrlsUI {
         return endIndex - startIndex + 1;
     }
 
+    /**
+     * Returns the title of the last chapter within the specified index range,
+     * preferring visible rows and falling back to any rows if none are visible.
+     *
+     * @param {number} startIndex - The starting index of the chapter range to consider.
+     * @param {number} endIndex - The ending index of the chapter range to consider.
+     * @returns {string} The title of the last chapter found in range, or an empty string if none exist.
+     */
     static getLastVisibleChapterTitle(startIndex, endIndex) {
         let rows = ChapterUrlsUI.getTableRowsWithChapters()
             .filter(row => ChapterUrlsUI.rowIsWithinRange(row, startIndex, endIndex) && !row.hidden);
@@ -231,11 +280,27 @@ class ChapterUrlsUI {
         return (row.rowIndex >= startIndex) && (row.rowIndex <= endIndex);
     }
 
+    /**
+     * Retrieves the text value from the first text input within the given row element.
+     *
+     * @param {HTMLElement | null | undefined} row - The row DOM element containing the text input.
+     * @returns {string} The extracted text value, or an empty string if no input is found.
+     */
     static getRowTitle(row) {
         return row?.querySelector("input[type='text']")?.value ?? "";
     }
-    
-    /** 
+
+    /**
+     * Retrieves the first checkbox input element within the specified row.
+     *
+     * @param {HTMLElement} row - The row element to search for a checkbox input.
+     * @returns {HTMLInputElement|null} The checkbox element if found, otherwise `null`.
+     */
+    static getRowCheckbox(row) {
+        return row?.querySelector("input[type='checkbox']") ?? null;
+    }
+
+    /**
     * @private
     */
     static getChapterUrlsTable() {
@@ -259,7 +324,7 @@ class ChapterUrlsUI {
             : "title";
     }
 
-    /** 
+    /**
     * @private
     */
     static modifyApplyChangesButtons(mutator) {
@@ -267,7 +332,7 @@ class ChapterUrlsUI {
         mutator(document.getElementById("applyChangesButton2"));
     }
 
-    /** 
+    /**
     * @private
     */
     static getEditChaptersUrlsInput() {
@@ -303,9 +368,14 @@ class ChapterUrlsUI {
             .filter(r => r.querySelector("th") === null);
     }
 
-    /** 
-    * @private
-    */
+    /**
+     * Appends an inclusion checkbox to a chapter table row and wires up selection behavior,
+     * updating chapter selection state, range selection with shift-click, and title suffix syncing.
+     *
+     * @private
+     * @param {HTMLTableRowElement} row - The table row element to which the checkbox will be added.
+     * @param {Object} chapter - The chapter data object whose selection and download state are managed.
+     */
     static appendCheckBoxToRow(row, chapter) {
         chapter.isIncludeable = chapter.isIncludeable ?? true;
         chapter.previousDownload = chapter.previousDownload ?? false;
@@ -314,7 +384,7 @@ class ChapterUrlsUI {
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.checked = chapter.isIncludeable;
-        checkbox.onclick = (event) => { 
+        checkbox.onclick = (event) => {
             chapter.isIncludeable = checkbox.checked;
             if (!event) return;
 
@@ -325,12 +395,28 @@ class ChapterUrlsUI {
             } else {
                 ChapterUrlsUI.lastSelectedRow = row.rowIndex;
             }
+
+            // Keep title suffix/count in sync with actual selected chapters.
+            if (window.TitleSuffixController) {
+                let summary = ChapterUrlsUI.getSelectionSummary(
+                    ChapterUrlsUI.selectionToRowIndex(ChapterUrlsUI.getRangeStartChapterSelect()),
+                    ChapterUrlsUI.selectionToRowIndex(ChapterUrlsUI.getRangeEndChapterSelect())
+                );
+                window.TitleSuffixController.onChapterSelectionChanged(summary.lastTitle, summary.count);
+            }
         };
         col.appendChild(checkbox);
         ChapterUrlsUI.addDownloadStateToCheckboxColumn(col, chapter.previousDownload);
         row.appendChild(col);
     }
 
+    /**
+     * Adds a download state indicator to the given checkbox column element.
+     *
+     * @param {HTMLElement} col - The table cell element to which the download state indicator will be appended.
+     * @param {boolean} previousDownload - Indicates whether a previous download exists; controls the initial state image.
+     * @returns {void}
+     */
     static addDownloadStateToCheckboxColumn(col, previousDownload) {
         let downloadStateDiv = document.createElement("div");
         downloadStateDiv.className = "downloadStateDiv";
@@ -344,9 +430,13 @@ class ChapterUrlsUI {
         col.appendChild(downloadStateDiv);
     }
 
-    /** 
-    * @private
-    */
+    /**
+     * Appends a table cell containing a text input to the specified row for editing a chapter title.
+     *
+     * @private
+     * @param {HTMLTableRowElement} row - The table row to which the input cell will be added.
+     * @param {{ title: string }} chapter - The chapter object whose title is displayed and updated via the input.
+     */
     static appendInputTextToRow(row, chapter) {
         let col = document.createElement("td");
         let input = document.createElement("input");
@@ -358,6 +448,14 @@ class ChapterUrlsUI {
         row.appendChild(col);
     }
 
+    /**
+     * Appends a new option element to a select element using chapter data.
+     *
+     * @param {HTMLSelectElement} select - The select element to which the option will be added.
+     * @param {string|number} value - The value attribute for the newly created option.
+     * @param {Object<string, any>} chapter - The chapter object containing display text.
+     * @param {string} memberForTextOption - The property name in `chapter` used as the option's display text.
+     */
     static appendOptionToSelect(select, value, chapter, memberForTextOption) {
         let option = new Option(chapter[memberForTextOption], value);
         select.add(option);
@@ -368,11 +466,11 @@ class ChapterUrlsUI {
         let inputs = [...linksTable.querySelectorAll("input[type='text']")];
         let width = inputs.reduce((acc, element) => Math.max(acc, element.value.length), 0);
         if (0 < width) {
-            inputs.forEach(i => i.size = width); 
+            inputs.forEach(i => i.size = width);
         }
     }
 
-    /** 
+    /**
     * @private
     */
     static appendColumnDataToRow(row, textData) {
@@ -383,7 +481,7 @@ class ChapterUrlsUI {
         return col;
     }
 
-    /** 
+    /**
     * @public
     */
     static setVisibleUI(toTable) {
@@ -397,7 +495,7 @@ class ChapterUrlsUI {
         document.getElementById("editURLsHint").hidden = toTable;
     }
 
-    /** 
+    /**
     * @private
     */
     setTableMode() {
@@ -432,7 +530,7 @@ class ChapterUrlsUI {
         }
     }
 
-    /** 
+    /**
     * @private
     */
     htmlToChapters(innerHtml) {
@@ -441,7 +539,7 @@ class ChapterUrlsUI {
         return [...doc.body.querySelectorAll("a")].map(a => util.hyperLinkToChapter(a));
     }
 
-    /** 
+    /**
     * @private
     */
     URLsToChapters(URLs) {
@@ -465,7 +563,12 @@ class ChapterUrlsUI {
         this.toggleShowUrlsForChapterRange(ChapterUrlsUI.getRangeEndChapterSelect(), chapters);
         this.showHideChapterUrlsColumn();
     }
-    
+
+    /**
+     * Toggles the visibility of the Chapter URLs column based on the
+     * "Show Chapter URLs" checkbox state. When unchecked, the third
+     * column (headers and cells) in the chapter URLs table is hidden.
+     */
     showHideChapterUrlsColumn() {
         let hidden = !document.getElementById("showChapterUrlsCheckbox").checked;
         let table = ChapterUrlsUI.getChapterUrlsTable();
@@ -474,8 +577,14 @@ class ChapterUrlsUI {
         }
     }
 
+    /**
+     * Updates the displayed option text for a select element to show URLs (or titles) for each chapter in the current range,
+     * preserving the selected index and reattaching the range-change handler afterward.
+     *
+     * @param {HTMLSelectElement} select - The select element whose option labels will be updated for the current chapter range.
+     * @param {Array<Object>} chapters - The list of chapter metadata objects, indexed to match the select options.
+     */
     toggleShowUrlsForChapterRange(select, chapters) {
-        
         select.onchange = null;
         let memberForTextOption = ChapterUrlsUI.textToShowInRange();
         for (let o of [...select.querySelectorAll("Option")]) {
@@ -486,7 +595,7 @@ class ChapterUrlsUI {
         select.onchange = ChapterUrlsUI.onRangeChanged;
     }
 
-    /** 
+    /**
     * @private
     */
     setEditInputMode() {
@@ -497,6 +606,12 @@ class ChapterUrlsUI {
         input.value = this.chaptersToHTML([...this.parser.getPagesToFetch().values()]);
     }
 
+    /**
+     * Converts an array of includeable chapter objects into an HTML string of links separated by carriage returns.
+     *
+     * @param {Array<{ isIncludeable: boolean }>} chapters - Collection of chapter objects to render as links.
+     * @returns {string} The generated HTML markup for the body containing chapter links.
+     */
     chaptersToHTML(chapters) {
         let doc = util.sanitize("<html><head><title></title><body></body></html>");
         for (let chapter of chapters.filter(c => c.isIncludeable)) {
@@ -506,6 +621,13 @@ class ChapterUrlsUI {
         return doc.body.innerHTML;
     }
 
+    /**
+     * Creates an anchor element linking to the chapter's source URL with the chapter title as text.
+     *
+     * @param {Document} doc - The document used to create the anchor element.
+     * @param {{ sourceUrl: string, title: string }} chapter - The chapter metadata containing the URL and display title.
+     * @returns {HTMLAnchorElement} The constructed anchor element pointing to the chapter's source.
+     */
     makeLink(doc, chapter) {
         let link = doc.createElement("a");
         link.href = chapter.sourceUrl;
@@ -562,16 +684,16 @@ class ChapterUrlsUI {
             var filterTermsFrequency = {};
             let constantTerms = false; // To become a collection of all terms used in every link.
             var chapterList = ChapterUrlsUI.getTableRowsWithChapters().filter(item => rc.rowInRange(item)).map(item => {
-                let filterObj = 
-                { 
-                    row: item, 
+                let filterObj =
+                {
+                    row: item,
                     values: Array.from(item.querySelectorAll("td")).map(item => item.innerText).join("/").split("/"),
                     valueString: ""
                 };
                 filterObj.values.push(item.querySelector("input[type='text']").value);
                 filterObj.values = filterObj.values.filter(item => item.length > 3 && !item.startsWith("http"));
                 filterObj.valueString = filterObj.values.join(" ");
-                
+
                 let recordFilterTerms = filterObj.valueString.toLowerCase().split(" ");
                 recordFilterTerms.forEach(item => {
                     filterTermsFrequency[item] = (parseInt(filterTermsFrequency[item]) || 0) + 1;
@@ -628,14 +750,12 @@ class ChapterUrlsUI {
                 excludeChaps = new RegExp(formResults.filter(item => item.searchType == -1).map(item => item.value).join("|"), "i");
             }
 
-            ChapterUrlsUI.Filters.chapterList.forEach(item =>{
+            ChapterUrlsUI.Filters.chapterList.forEach(item => {
                 let showChapter = rc.rowInRange(item.row);
-                if (includeChaps)
-                {
+                if (includeChaps) {
                     showChapter = showChapter && includeChaps.test(item.valueString);
                 }
-                if (excludeChaps)
-                {
+                if (excludeChaps) {
                     showChapter = showChapter && !excludeChaps.test(item.valueString);
                 }
                 ChapterUrlsUI.setRowCheckboxState(item.row, showChapter);
@@ -658,14 +778,12 @@ class ChapterUrlsUI {
                     return;
                 }
 
-                if (event.target.classList.contains("exclude"))
-                {
+                if (event.target.classList.contains("exclude")) {
                     event.target.checked = false;
                     event.target.classList.remove("exclude");
                     event.target.value = 1;
                 }
-                else if (!event.target.indeterminate && !event.target.checked)
-                {
+                else if (!event.target.indeterminate && !event.target.checked) {
                     event.target.value = -1;
                     event.target.checked = true;
                     event.target.indeterminate = true;
@@ -713,7 +831,7 @@ class ChapterUrlsUI {
                 row = document.createElement("tr");
                 col = document.createElement("td");
                 col.setAttribute("width", "10px");
-                
+
                 checkboxId = "chkFilter" + id;
                 let el = document.createElement("input");
                 el.type = "checkbox";
@@ -722,7 +840,7 @@ class ChapterUrlsUI {
                 el.value = 1;
                 el.onclick = onClickEvent;
                 col.appendChild(el);
-                
+
                 el = document.createElement("input");
                 el.type = "hidden";
                 el.name = checkboxId+"Hidden";
@@ -747,8 +865,7 @@ class ChapterUrlsUI {
     };
 }
 ChapterUrlsUI.RangeCalculator = class {
-    constructor()
-    {
+    constructor() {
         this.startIndex = ChapterUrlsUI.selectionToRowIndex(ChapterUrlsUI.getRangeStartChapterSelect());
         this.endIndex = ChapterUrlsUI.selectionToRowIndex(ChapterUrlsUI.getRangeEndChapterSelect());
     }
