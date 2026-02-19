@@ -156,20 +156,23 @@ class QidianParser extends Parser {
     cleanRawDom(content, webPage) {
         // Remove repeating & unused metadata from document. Approximately halves body length.
         content.querySelectorAll("i.para-comment_num, i.para-comment").forEach(i => i.remove());
+        let chapterContent = content.matches?.("div.chapter_content")
+            ? content
+            : content.querySelector("div.chapter_content") ?? content;
         let tmptitle = this.ChacheChapterTitle.get(content.baseURI);
         let newtitlenode = document.createElement("h1");
         let resolvedTitle = tmptitle;
         if (util.isNullOrEmpty(resolvedTitle) || (resolvedTitle == "[placeholder]")) {
-            let titleEl = content.querySelector("div.chapter_content h1");
+            let titleEl = chapterContent.querySelector("h1");
             resolvedTitle = this.normalizeChapterTitle(titleEl?.textContent ?? "");
         }
         if (!util.isNullOrEmpty(resolvedTitle)) {
             newtitlenode.appendChild(document.createTextNode(resolvedTitle));
-            let existingHeader = content.querySelector("div.chapter_content h1");
+            let existingHeader = chapterContent.querySelector("h1");
             if (existingHeader) {
                 existingHeader.replaceWith(newtitlenode);
             } else {
-                content.insertBefore(newtitlenode, content.firstChild);
+                chapterContent.insertBefore(newtitlenode, chapterContent.firstChild);
             }
         }
         if (webPage) {
