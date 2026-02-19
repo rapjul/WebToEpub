@@ -1,3 +1,7 @@
+/*
+ * Parser for Spacebattles and related forums.
+ */
+
 "use strict";
 
 parserFactory.register("forums.spacebattles.com", () => new SpacebattlesParser());
@@ -12,7 +16,7 @@ class SpacebattlesParser extends Parser {
     constructor() {
         super();
         this.cache = new FetchCache();
-        this.minimumThrottle = 50; //182 at 20
+        this.minimumThrottle = 50; // 182 at 20
         this.expectedChapterUrl = null;
     }
 
@@ -44,17 +48,28 @@ class SpacebattlesParser extends Parser {
         if (dom == null) {
             return null;
         }
-
-        let headerImg = dom.querySelector(".threadmarkListingHeader-icon img, .threadmarkListingHeader img");
-        if (headerImg != null) {
-            let src = headerImg.currentSrc || headerImg.src || headerImg.getAttribute("data-src");
+        // Prefer explicit cover images from the header block when available.
+        let header = dom.querySelector(".threadmarkListingHeader");
+        if (header) {
+            util.resolveLazyLoadedImages(header, "img");
+            let headerImg = header.querySelector(".threadmarkListingHeader-icon img, img");
+            let src = headerImg?.currentSrc || headerImg?.src || headerImg?.getAttribute("data-src");
             if (!util.isNullOrEmpty(src)) {
                 return util.resolveRelativeUrl(dom.baseURI, src);
             }
         }
 
-        let fallback = util.getFirstImgSrc(dom, "div.block-body");
-        return fallback ? util.resolveRelativeUrl(dom.baseURI, fallback) : null;
+        // Fallback: first image inside the story content.
+        let body = dom.querySelector("article.message-body") || dom.querySelector("div.block-body");
+        if (body) {
+            util.resolveLazyLoadedImages(body, "img.lazyload");
+            let firstImg = body.querySelector("img");
+            let src = firstImg?.currentSrc || firstImg?.src || firstImg?.getAttribute("data-src");
+            if (!util.isNullOrEmpty(src)) {
+                return util.resolveRelativeUrl(dom.baseURI, src);
+            }
+        }
+        return null;
     }
 
     async fetchChapter(url) {
