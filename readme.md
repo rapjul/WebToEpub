@@ -625,7 +625,7 @@ The easiest set of steps is using Firefox.
 2. Open Firefox and type "about:debugging#/runtime/this-firefox" into the URL bar.
 3. Click "Load Temporary Add-on".
 4. Click on the zip file you downloaded in step 1.
-   ![Installing in Firefox screenshot](doc/FirefoxLoadFromSource.png?raw=true)
+   ![Installing in Firefox screenshot](doc/FirefoxLoadFromSource.png)
 
 ### Chrome
 
@@ -810,6 +810,7 @@ Don't forget to give the project a star! Thanks again!
     <li>meson1271 (Parser for jadescrolls.com)</li>
     <li>AgatZan (Parser for ficbook.net)</li>
     <li>nothing0074</li>
+    <li>rapjul</li>
   </ul>
 </details>
 
