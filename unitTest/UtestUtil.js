@@ -241,14 +241,14 @@ test("hyperlinksToChapterListEmptyElement", function (assert) {
 
 test("removeTrailingSlash", function (assert) {
     let expected = "http://www.wuxiaworld.com/wmw-index/wmw-chapter-2";
-    
+
     assert.equal(util.removeTrailingSlash(expected), expected);
     assert.equal(util.removeTrailingSlash(expected + "/"), expected);
 });
 
 test("normalizeUrlForCompare", function (assert) {
     let expected = "www.wuxiaworld.com/wmw-index/wmw-chapter-2";
-    
+
     assert.equal(util.normalizeUrlForCompare(expected), expected);
     assert.equal(util.normalizeUrlForCompare("http://" + expected), expected);
     assert.equal(util.normalizeUrlForCompare("http://" + expected +"/"), expected);
@@ -306,7 +306,7 @@ test("removeStyleValue", function (assert) {
     util.removeStyleValue(dom.body, "fontSize", "10pt");
     assert.equal(dom.body.innerHTML,
             "<div><p>1234</p></div>" +
-            "<div style=\"color:#999999\">0<p>1234</p>5678<p style=\"color:#111111\">1</p></div>" 
+            "<div style=\"color:#999999\">0<p>1234</p>5678<p style=\"color:#111111\">1</p></div>"
     );
     util.removeStyleValue(dom.body, "color", "rgb(17, 17, 17)");
     assert.equal(dom.body.innerHTML,
@@ -346,7 +346,7 @@ test("findIndexOfClosingBracket", function (assert) {
     assert.equal(test("images\":[", 0), "{\"hash\":\"zNuo7hV\",\"ext\":\".png\"}");
     assert.equal(test("\"images\":", 0), "[{\"hash\":\"zNuo7hV\",\"ext\":\".png\"},{\"hash\":\"bi7LaVD\",\"ext\":\".png\"}]");
     assert.equal(test("_images\":", 0), "{\"count\":21,\"images\":[{\"hash\":\"zNuo7hV\",\"ext\":\".png\"},{\"hash\":\"bi7LaVD\",\"ext\":\".png\"}]}");
-    
+
     // unbalanced case
     assert.equal(util.findIndexOfClosingBracket(testString, 0), -1);
 });
@@ -356,11 +356,11 @@ test("locateAndExtractJson", function (assert) {
     let test = function(startPattern) {
         return util.locateAndExtractJson(testString, startPattern);
     }
-    
+
     assert.deepEqual(test("images\":[", 0), {hash: "zNuo7hV", ext: ".png"});
     assert.deepEqual(test("\"images\":", 0), [{hash: "zNuo7hV", ext: ".png"},{hash:"bi7LaVD",ext:".png"}]);
     assert.deepEqual(test("_images\":", 0), {count:21, images: [{hash:"zNuo7hV",ext:".png"},{hash:"bi7LaVD",ext:".png"}]});
-    
+
     // unbalanced case
     assert.equal(test("a", 0), null);
 
@@ -398,19 +398,19 @@ QUnit.test("extractFilename", function (assert) {
     hyperlink.href = "http://dummy.com/K4CZyyP.jpg";
     actual = util.extractFilename(hyperlink);
     assert.equal(actual, "K4CZyyP.jpg");
-    
+
     hyperlink.href = "http://dummy.com/K4CZyyP.png/";
     actual = util.extractFilename(hyperlink);
     assert.equal(actual, "K4CZyyP.png");
-    
+
     hyperlink.href = "http://dummy.com/K4CZyyP.jpeg?src=dummy.txt";
     actual = util.extractFilename(hyperlink);
     assert.equal(actual, "K4CZyyP.jpeg");
-    
+
     hyperlink.href = "http://dummy.com/folder/K4CZyyP.gif?src=dummy.txt";
     actual = util.extractFilename(hyperlink);
     assert.equal(actual, "K4CZyyP.gif");
-    
+
     hyperlink.href = "http://dummy.com/folder";
     actual = util.extractFilename(hyperlink);
     assert.equal(actual, "folder");
@@ -429,7 +429,7 @@ QUnit.test("iterateElements", function (assert) {
     assert.equal(actual[1].id, "p1");
     assert.equal(actual[2].id, "p2");
 
-    actual = util.iterateElements(root, 
+    actual = util.iterateElements(root,
         n => (n.tagName === "P") ? NodeFilter.FILTER_ACCEPT : NodeFilter.SKIP);
     assert.equal(actual.length, 2);
     assert.equal(actual[0].id, "p1");
@@ -454,7 +454,7 @@ QUnit.test("decodeCloudflareProtectedEmails", function (assert) {
     );
     let div = dom.querySelector("div");
     util.decodeCloudflareProtectedEmails(div);
-    assert.equal(div.innerHTML, 
+    assert.equal(div.innerHTML,
         "<p>me@usamaejaz.com</p><p>me@usamaejaz.com</p><a href=\"https://www.baka-tsuki.org/project/test:Volume_1#cite_note-1\">[1]</a>" +
         "<a href=\"https://www.webnovel.com/book/8527113906000305/Reincarnation-Of-The-Strongest-Sword-God\">RSSG@Webnovel</a>"
     );
@@ -503,6 +503,12 @@ test("isUrl", function (assert) {
 test("safeForFileName", function (assert) {
     assert.equal(util.safeForFileName("aAzZ 0-9\\_"), "aAzZ_0-9_");
 
+    // ? is illegal on Windows and must be stripped
+    assert.equal(util.safeForFileName("title?"), "title", "trailing ? is stripped");
+    assert.equal(util.safeForFileName("What?A?Question"), "WhatAQuestion", "multiple ? stripped");
+    // ! is still allowed
+    assert.equal(util.safeForFileName("title!"), "title!", "! is preserved");
+
     // 20 chars, won't slice
     let actual = util.safeForFileName("01234567890123456789");
     assert.equal(actual, "01234567890123456789");
@@ -514,6 +520,17 @@ test("safeForFileName", function (assert) {
     // 21 chars, but allow longer
     actual = util.safeForFileName("0123456789A0123456789", 21);
     assert.equal(actual, "0123456789A0123456789");
+});
+
+test("applyUnicodeLookalikes", function (assert) {
+    assert.strictEqual(util.applyUnicodeLookalikes("?"), "\uff1f", "? \u2192 \uff1f");
+    assert.strictEqual(util.applyUnicodeLookalikes("*"), "\uff0a", "* \u2192 \uff0a");
+    assert.strictEqual(util.applyUnicodeLookalikes(":"), "\uff1a", ": \u2192 \uff1a");
+    assert.strictEqual(util.applyUnicodeLookalikes("<title>"), "\uff1ctitle\uff1e", "< and > replaced");
+    assert.strictEqual(util.applyUnicodeLookalikes("a|b"), "a\uff5cb", "| \u2192 \uff5c");
+    assert.strictEqual(util.applyUnicodeLookalikes("no change"), "no change", "safe chars unchanged");
+    assert.strictEqual(util.applyUnicodeLookalikes("what?when:where"), "what\uff1fwhen\uff1awhere", "multiple replacements");
+    assert.strictEqual(util.safeForFileName(util.applyUnicodeLookalikes("title?query")), "title\uff1fquery", "lookalike survives safeForFileName");
 });
 
 test("extractSubstring", function (assert) {
