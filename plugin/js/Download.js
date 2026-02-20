@@ -96,9 +96,18 @@ class Download {
                     // on Firefox, resolves when "Save As" dialog CLOSES, so no
                     // need to delay past this point.
                     downloadId => Download.onDownloadStarted(downloadId, cleanup)
-                );
+                ).catch(err => {
+                    // saveAs:true requires user activation which may expire during
+                    // long chapter fetches; retry silently to the default Downloads folder.
+                    if (options.saveAs) {
+                        return browser.downloads.download({...options, saveAs: false}).then(
+                            downloadId => Download.onDownloadStarted(downloadId, cleanup)
+                        );
+                    }
+                    throw err;
+                });
             }
-        }).catch(cleanup);
+        }).catch(err => { cleanup(); throw err; });
     }
 
     static saveOnFirefoxForAndroid(options, cleanup) {

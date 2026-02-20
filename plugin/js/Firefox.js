@@ -27,13 +27,10 @@ class Firefox { // eslint-disable-line no-unused-vars
     }
 
     static injectContentScript(tabId) {
-        chrome.tabs.executeScript(tabId, { file: "js/ContentScript.js", runAt: "document_end" },
-            function(result) {   // eslint-disable-line no-unused-vars
-                if (chrome.runtime.lastError) {
-                    util.log(chrome.runtime.lastError.message);
-                }
-            }
-        );
+        chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            files: ["js/ContentScript.js"],
+        }).catch(err => util.log(err.message));
     }
 }
 
