@@ -637,10 +637,14 @@ var main = (function() {
         let overwriteExisting = userPreferences.overwriteExistingEpub.value;
         let backgroundDownload = userPreferences.noDownloadPopup.value;
         let fileName = Download.CustomFilename();
-        if ("yes" == libclick.dataset.libclick || util.sleepController.signal.aborted) {
-            await library.LibAddToLibrary(content, fileName, document.getElementById("startingUrlInput").value, overwriteExisting, backgroundDownload);
-        } else {
-            await Download.save(content, fileName, overwriteExisting, backgroundDownload);
+        try {
+            if ("yes" == libclick.dataset.libclick || util.sleepController.signal.aborted) {
+                await library.LibAddToLibrary(content, fileName, document.getElementById("startingUrlInput").value, overwriteExisting, backgroundDownload);
+            } else {
+                await Download.save(content, fileName, overwriteExisting, backgroundDownload);
+            }
+        } catch (err) {
+            ErrorLog.showErrorMessage(err);
         }
         try {
             parser.updateReadingList();

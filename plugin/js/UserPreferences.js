@@ -94,7 +94,7 @@ class UserPreferences { // eslint-disable-line no-unused-vars
         this.useSvgForImages = this.addPreference("useSvgForImages", "useSvgForImagesInput", true);
         this.removeNextAndPreviousChapterHyperlinks = this.addPreference("removeNextAndPreviousChapterHyperlinks", "removeNextAndPreviousChapterHyperlinksInput", true);
         this.advancedOptionsVisibleByDefault = this.addPreference("advancedOptionsVisibleByDefault", "advancedOptionsVisibleByDefaultCheckbox", false);
-        this.noDownloadPopup = this.addPreference("noDownloadPopup", "noDownloadPopupCheckbox", false);
+        this.noDownloadPopup = this.addPreference("noDownloadPopup", "noDownloadPopupCheckbox", true);
         this.writeErrorHistoryToFile = this.addPreference("writeErrorHistoryToFile", "writeErrorHistoryToFileCheckbox", false);
         this.createEpub3 = this.addPreference("createEpub3", "createEpub3Checkbox", false);
         this.chaptersPageInChapterList = this.addPreference("chaptersPageInChapterList", "chaptersPageInChapterListCheckbox", false);
@@ -108,8 +108,8 @@ class UserPreferences { // eslint-disable-line no-unused-vars
         this.removeTranslated = this.addPreference("removeTranslated", "removeTranslatedCheckbox", false);
         this.skipChaptersThatFailFetch = this.addPreference("skipChaptersThatFailFetch", "skipChaptersThatFailFetchCheckbox", false);
         this.maxChaptersPerEpub = this.addPreference("maxChaptersPerEpub", "maxChaptersPerEpubTag", "10,000");
-        this.manualDelayPerChapter = this.addPreference("manualDelayPerChapter", "manualDelayPerChapterTag", "0");
-        this.overrideMinimumDelay = this.addPreference("overrideMinimumDelay", "overrideMinimumDelayCheckbox", false);
+        this.manualDelayPerChapter = this.addPreference("manualDelayPerChapter", "manualDelayPerChapterTag", "500");
+        this.overrideMinimumDelay = this.addPreference("overrideMinimumDelay", "overrideMinimumDelayCheckbox", true);
         this.skipImages = this.addPreference("skipImages", "skipImagesCheckbox", false);
         this.compressImages = this.addPreference("compressImages", "compressImagesCheckbox", false);
         this.compressImagesJpgCover = this.addPreference("compressImagesJpgCover", "compressImagesJpgCoverCheckbox", false);
@@ -117,7 +117,7 @@ class UserPreferences { // eslint-disable-line no-unused-vars
         this.compressImagesMaxResolution = this.addPreference("compressImagesMaxResolution", "compressImagesMaxResolutionTag", "1080");
         this.overwriteExistingEpub = this.addPreference("overwriteExistingEpub", "overwriteEpubWhenDuplicateFilenameCheckbox", false);
         this.themeColor = this.addPreference("themeColor", "themeColorTag", "");
-        this.useFullTitle = this.addPreference("useFullTitle", "useFullTitleAsFileNameCheckbox", false);
+        this.useFullTitle = this.addPreference("useFullTitle", "useFullTitleAsFileNameCheckbox", true);
         this.appendLatestChapterInfo = this.addPreference("appendLatestChapterInfo", "appendLatestChapterInfoCheckbox", true);
         this.addInformationPage = this.addPreference("addInformationPage", "addInformationPageToEpubCheckbox", true);
         this.lesstags = this.addPreference("lesstags", "lesstagsCheckbox", true);
@@ -128,8 +128,8 @@ class UserPreferences { // eslint-disable-line no-unused-vars
         this.LibShowCompactView = this.addPreference("LibShowCompactView", "LibShowCompactViewCheckbox", false);
         this.LibDownloadEpubAfterUpdate = this.addPreference("LibDownloadEpubAfterUpdate", "LibDownloadEpubAfterUpdateCheckbox", false);
         this.disableShiftClickAlert = this.addPreference("disableShiftClickAlert", "disableShiftClickAlertCheckbox", false);
-        this.disableImageResError = this.addPreference("disableImageResError", "disableImageResErrorCheckbox", false);
-        this.disableWebpImageFormatError = this.addPreference("disableWebpImageFormatError", "disableWebpImageFormatErrorCheckbox", false);
+        this.disableImageResError = this.addPreference("disableImageResError", "disableImageResErrorCheckbox", true);
+        this.disableWebpImageFormatError = this.addPreference("disableWebpImageFormatError", "disableWebpImageFormatErrorCheckbox", true);
 
         document.getElementById("themeColorTag").addEventListener("change", UserPreferences.SetTheme);
     }

@@ -53,7 +53,7 @@ const util = (function() {
         }
         else
         {
-            // this only works as long as firefox hasn't implemented this 
+            // this only works as long as firefox hasn't implemented this
             // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/PlatformNaclArch
             return (typeof (browser.runtime.PlatformNaclArch) == "undefined");
         }
@@ -67,8 +67,11 @@ const util = (function() {
      */
     function extensionVersion() {
         let runtime = isFirefox() ? browser.runtime : chrome.runtime;
-        // when running unit tests, runtime is not available
-        return (typeof (runtime) === "undefined") ? "unknown" : runtime.getManifest().version;
+        // when running unit tests, runtime is not available or getManifest is not exposed
+        if (typeof (runtime) === "undefined" || typeof (runtime.getManifest) !== "function") {
+            return "unknown";
+        }
+        return runtime.getManifest().version;
     }
 
     /**
