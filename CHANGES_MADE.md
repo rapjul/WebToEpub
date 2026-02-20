@@ -13,15 +13,21 @@
 
 ## Filename Sanitization Updates
 
-- Filenames now preserve parentheses `()`, brackets `[]`, braces `{}`, exclamation marks `!`, and question marks `?`.
+- Filenames now preserve parentheses `()`, brackets `[]`, braces `{}`, and exclamation marks `!`.
+- Question marks `?` are now **stripped** during auto-sanitization (consistent with `illegalWindowsFileNameChars`); they were previously preserved but would cause an error at pack time if left in the filename.
 - Forward slashes `/` are converted to plus signs `+` instead of being stripped entirely, keeping filenames closer to the source title.
+- A new Advanced Option, **"Replace illegal filename characters with Unicode lookalikes"**, lets users preserve visual readability by substituting illegal characters with full-width equivalents (for example `? → ？`, `: → ：`) before sanitization.
+- Lookalike replacement is platform-aware: Windows applies the full replacement set, macOS applies colon replacement, and Linux/other platforms leave these characters unchanged (with `/` still normalized by filename sanitization).
+- Auto-sanitization now preserves non-ASCII Unicode characters, allowing lookalike substitutions to survive into the final filename.
 - The sanitizer still removes other illegal characters, and filenames are re-generated automatically unless the user manually overrides them.
 - Sanitization still enforces Windows path safety: backslashes `\\`, pipes `|`, asterisks `*`, trailing dots/spaces, and reserved device names (e.g., `CON`, `PRN`) remain blocked. When the title resolves to an empty string after filtering, the logic now injects a generic `WebToEpub` filename so the download can proceed.
 - Because `/` now maps to `+`, titles that signal ranges such as `Arc 5 / Part 2` keep their intent both in the visible filename and in the eventual EPUB metadata.
 - The UI disables auto-regeneration of filenames once the user types in the field, but the sanitized preview still shows how prohibited characters will be handled.
+- The popup now shows an unobtrusive amber hint row directly below the filename field whenever auto-sanitization removes characters from the title. The hint lists the exact characters that were stripped (e.g., `Removed from filename: ? *`), so the user immediately knows what changed without any intrusive error dialog.
+- When lookalikes are enabled, the hint switches to replacement mode and shows explicit mappings (for example `Replaced in filename: ?→？  :→：`).
 
-## Buffer Deprecation Fix
+## Download/Error Handling Updates
 
-- The ESLint packaging script replaces the deprecated `new Buffer()` usage with `Buffer.from()` to eliminate the `[DEP0005]` warning while writing bundled files.
-- The change lives in `eslint/pack.js`; lint directives were added nearby to acknowledge that `Buffer` is a Node global while keeping the rest of the file ESLint-clean.
-- The rest of the packaging flow (reading the source, minifying, writing `packed.js`, and generating the `.xpi`) is untouched, so existing release steps remain the same—just without the warning noise.
+- Custom filename validation now throws a proper UI error when illegal characters remain, instead of silently falling back to an `IllegalFileName.epub` placeholder.
+- If packing fails before the download step, the popup now restores button state and reports the error without leaving the UI in a locked work-in-progress state.
+- If a browser download API call returns no download ID, the code now throws an explicit error so the failure is visible and traceable.
