@@ -10,7 +10,7 @@ class Firefox { // eslint-disable-line no-unused-vars
     /** fetch() calls on Firefox include an origin header.
         Which makes some sites fail with a CORS violation.
         Need to use a webRequest to remove origin from header.
-    */    
+    */
     static filterHeaders(e) {
         return {requestHeaders: e.requestHeaders.filter(
             h => ((h.name.toLowerCase() !== "origin")
