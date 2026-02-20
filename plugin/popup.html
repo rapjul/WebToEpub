@@ -110,6 +110,9 @@
                     <td>__MSG_label_Filename__</td>
                     <td><input id="fileNameInput" type="text" name="fileNameInput" /></td>
                 </tr>
+                <tr id="fileNameSanitizedRow" hidden="true">
+                    <td colspan="2" style="text-align: center"><span id="fileNameSanitizedHint" class="sanitizationHint"></span></td>
+                </tr>
                 <tr id="removeAuthorNotesRow" hidden="true">
                     <td><input id="removeAuthorNotesCheckbox" type="checkbox" name="removeAuthorNotesCheckbox" value="false"></td>
                     <td>__MSG_label_Remove_Author_Notes__</td>
@@ -315,6 +318,10 @@
                         <td><input id="CustomFilenameInput" type="text" name="CustomFilenameInput"></td>
                         <td><button id="CustomFilenameHelpButton">__MSG_button_Help__</button></td>
                     </tr>
+                    <tr id="useUnicodeLookalikeRow">
+                        <td><input id="useUnicodeLookalikesCheckbox" type="checkbox" name="useUnicodeLookalikesCheckbox" value="false"></td>
+                        <td>__MSG_label_Use_Unicode_Lookalikes__</td>
+                    </tr>
                     <tr id="translatorRow" hidden="true">
                         <td>__MSG_label_Translator__</td>
                         <td><input id="translatorInput" type="text" name="translatorInput" size="80" /></td>
@@ -438,7 +445,7 @@
                         <td>__MSG_label_Create_Epub_3__</td>
                     </tr>
                     <tr id="useFullTitleAsFileName">
-                        <td><input id="useFullTitleAsFileNameCheckbox" type="checkbox" name="useFullTitleAsFileNameCheckbox" value="false"></td>
+                        <td><input id="useFullTitleAsFileNameCheckbox" type="checkbox" name="useFullTitleAsFileNameCheckbox" value="true"></td>
                         <td>__MSG_label_Use_Full_Title_As_File_Name__</td>
                     </tr>
                     <tr id="appendLatestChapterInfoRow">

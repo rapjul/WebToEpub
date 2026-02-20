@@ -42,8 +42,7 @@ class Download {
             CustomFilename = CustomFilename.replaceAll(key, value);
         }
         if (Download.isFileNameIllegalOnWindows(CustomFilename)) {
-            ErrorLog.showErrorMessage(UIText.Error.errorIllegalFileName(CustomFilename, Download.illegalWindowsFileNameChars));
-            return EpubPacker.addExtensionIfMissing("IllegalFileName");
+            throw UIText.Error.errorIllegalFileName(CustomFilename, Download.illegalWindowsFileNameChars);
         }
         return EpubPacker.addExtensionIfMissing(CustomFilename);
     }
@@ -148,6 +147,7 @@ class Download {
     static onDownloadStarted(downloadId, action) {
         if (downloadId === undefined) {
             action();
+            throw new Error("browser.downloads.download() returned no ID; EPUB was not saved");
         } else {
             Download.toCleanup.set(downloadId, action);
         }
@@ -155,5 +155,5 @@ class Download {
 }
 
 Download.toCleanup = new Map();
-Download.illegalWindowsFileNameChars = "~/<>\\:*|\"";
+Download.illegalWindowsFileNameChars = "~/<>\\:*|\"?";
 Download.init();

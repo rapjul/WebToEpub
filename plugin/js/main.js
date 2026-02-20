@@ -30,6 +30,7 @@ const TitleSuffixController = (function() {
     let fileNameOverride = false;
     let isSuffixAutoManaged = true;
     let lastAppliedSuffix = "";
+    let useLookalikes = false;
 
     function init() {
         let titleInput = getTitleInput();
@@ -218,7 +219,12 @@ const TitleSuffixController = (function() {
         if (!fileNameInput) {
             return;
         }
-        let sanitized = util.safeForFileName(baseTitle || "web", fileNameMaxLength);
+        let rawTitle = baseTitle || "web";
+        // applyPlatformLookalikes handles the per-platform character set internally:
+        // Windows→all 8 chars, macOS→colon only, Linux→nothing.
+        let effectiveLookalikes = useLookalikes;
+        let processedTitle = effectiveLookalikes ? util.applyPlatformLookalikes(rawTitle) : rawTitle;
+        let sanitized = util.safeForFileName(processedTitle, fileNameMaxLength);
         if (util.isNullOrEmpty(sanitized)) {
             sanitized = "web";
         }
@@ -229,6 +235,35 @@ const TitleSuffixController = (function() {
         fileNameInput.dataset.userOverride = "false";
         lastAutoFileName = sanitized;
         fileNameOverride = false;
+
+        // Show an inline hint listing any characters stripped/replaced during auto-sanitization
+        let hintRow = document.getElementById("fileNameSanitizedRow");
+        if (hintRow) {
+            let hintSpan = document.getElementById("fileNameSanitizedHint");
+            if (effectiveLookalikes) {
+                // Show chars that were substituted with their lookalike replacement
+                let unique = [...new Set([...rawTitle].filter(c => util.applyPlatformLookalikes(c) !== c))];
+                if (unique.length > 0) {
+                    hintSpan.textContent = `Replaced in filename: ${unique.map(c => `${c}\u2192${util.applyPlatformLookalikes(c)}`).join("  ")}`;
+                    hintRow.hidden = false;
+                } else {
+                    hintRow.hidden = true;
+                }
+            } else {
+                // Mirror the keep-set from safeForFileName (spaces/nbsp→_, slash→+ are transforms, not strips)
+                // Non-ASCII Unicode (≥ U+0080) is also preserved now, matching the updated regex
+                let stripped = [...new Set([...rawTitle].filter(c =>
+                    c !== " " && c !== "\u00a0" && c !== "/" &&
+                    !/[a-z0-9_'"\-\+\&\(\)\[\]\{\}!\u0080-\uffff]/i.test(c)
+                ))];
+                if (stripped.length > 0) {
+                    hintSpan.textContent = `Removed from filename: ${stripped.join(" ")}`;
+                    hintRow.hidden = false;
+                } else {
+                    hintRow.hidden = true;
+                }
+            }
+        }
     }
 
     /**
@@ -437,6 +472,7 @@ const TitleSuffixController = (function() {
     return {
         init,
         onUserPreferencesUpdate(preferences) {
+            useLookalikes = preferences?.useUnicodeLookalikes?.value === true;
             enabled = preferences?.appendLatestChapterInfo?.value !== false;
             fileNameMaxLength = preferences?.useFullTitle?.value ? 512 : 20;
             updateFileName();
@@ -628,7 +664,16 @@ var main = (function() {
         replaceLibAddToLibrary();
         parser.onStartCollecting();
         await parser.fetchContent();
-        let content = await packEpub(metaInfo);
+        let content;
+        try {
+            content = await packEpub(metaInfo);
+        } catch (err) {
+            window.workInProgress = false;
+            main.getPackEpubButton().disabled = false;
+            replaceLibAddToLibrary();
+            ErrorLog.showErrorMessage(err);
+            return;
+        }
         // Enable button here.  If user cancels save dialog
         // the promise never returns
         window.workInProgress = false;
@@ -636,8 +681,8 @@ var main = (function() {
         replaceLibAddToLibrary();
         let overwriteExisting = userPreferences.overwriteExistingEpub.value;
         let backgroundDownload = userPreferences.noDownloadPopup.value;
-        let fileName = Download.CustomFilename();
         try {
+            let fileName = Download.CustomFilename();
             if ("yes" == libclick.dataset.libclick || util.sleepController.signal.aborted) {
                 await library.LibAddToLibrary(content, fileName, document.getElementById("startingUrlInput").value, overwriteExisting, backgroundDownload);
             } else {

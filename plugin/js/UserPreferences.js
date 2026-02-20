@@ -119,6 +119,7 @@ class UserPreferences { // eslint-disable-line no-unused-vars
         this.themeColor = this.addPreference("themeColor", "themeColorTag", "");
         this.useFullTitle = this.addPreference("useFullTitle", "useFullTitleAsFileNameCheckbox", true);
         this.appendLatestChapterInfo = this.addPreference("appendLatestChapterInfo", "appendLatestChapterInfoCheckbox", true);
+        this.useUnicodeLookalikes = this.addPreference("useUnicodeLookalikes", "useUnicodeLookalikesCheckbox", false);
         this.addInformationPage = this.addPreference("addInformationPage", "addInformationPageToEpubCheckbox", true);
         this.lesstags = this.addPreference("lesstags", "lesstagsCheckbox", true);
         this.autosearchmetadata = this.addPreference("autosearchmetadata", "autosearchmetadataCheckbox", false);

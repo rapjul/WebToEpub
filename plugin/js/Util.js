@@ -1218,9 +1218,96 @@ const util = (function() {
     }
 
     /**
+     * Maps characters that are illegal in Windows filenames to Unicode fullwidth
+     * lookalike equivalents. Seven of the eight entries are Windows-only
+     * restrictions. The colon (":") is additionally illegal on macOS because
+     * HFS+/APFS uses ":" as its internal path separator. Linux permits all eight
+     * characters freely. The only characters universally illegal across all three
+     * platforms are "/" (converted to "+" by {@link safeForFileName}) and NUL
+     * (never present in page titles).
+     */
+    const unicodeLookalikeMap = new Map([
+        ["?", "？"],  // U+FF1F FULLWIDTH QUESTION MARK    — illegal on Windows only
+        ["*", "＊"],  // U+FF0A FULLWIDTH ASTERISK          — illegal on Windows only
+        [":", "："],  // U+FF1A FULLWIDTH COLON             — illegal on Windows and macOS
+        ["<", "＜"],  // U+FF1C FULLWIDTH LESS-THAN SIGN    — illegal on Windows only
+        [">", "＞"],  // U+FF1E FULLWIDTH GREATER-THAN SIGN — illegal on Windows only
+        ["|", "｜"],  // U+FF5C FULLWIDTH VERTICAL LINE     — illegal on Windows only
+        ["\\","＼"],  // U+FF3C FULLWIDTH REVERSE SOLIDUS   — illegal on Windows only
+        ["~", "～"],  // U+FF5E FULLWIDTH TILDE             — illegal on Windows only
+    ]);
+
+    /**
+     * Replaces characters that are illegal in Windows filenames with their
+     * Unicode fullwidth lookalike equivalents so that the filename remains
+     * readable after sanitization instead of simply discarding the characters.
+     *
+     * Characters not present in {@link unicodeLookalikeMap} are left unchanged.
+     * The slash (/) character is handled separately by {@link safeForFileName}
+     * (converted to "+") and is therefore not included here.
+     *
+     * @param {string} title - The title string to transform.
+     * @returns {string} The title with illegal characters replaced by lookalikes.
+     */
+    function applyUnicodeLookalikes(title) {
+        return [...title].map(c => unicodeLookalikeMap.get(c) ?? c).join("");
+    }
+
+    /**
+     * Returns true when the browser is running on Windows.
+     * @returns {boolean}
+     */
+    function isWindowsPlatform() {
+        return /^Win/i.test(navigator.platform);
+    }
+
+    /**
+     * Returns true when the browser is running on macOS.
+     * @returns {boolean}
+     */
+    function isMacPlatform() {
+        return /^Mac/i.test(navigator.platform);
+    }
+
+    /**
+     * Returns the Map of lookalike substitutions appropriate for the current
+     * platform:
+     * - Windows: all eight entries from {@link unicodeLookalikeMap}
+     * - macOS:   colon only (HFS+/APFS uses ":" as an internal path separator)
+     * - Linux/other: empty map (only "/" and NUL are restricted, both handled
+     *   elsewhere)
+     *
+     * @returns {Map<string,string>}
+     */
+    function platformLookalikeMap() {
+        if (isWindowsPlatform()) return unicodeLookalikeMap;
+        if (isMacPlatform())     return new Map([[":", "："]]);
+        return new Map();
+    }
+
+    /**
+     * Replaces filename-illegal characters with their Unicode fullwidth lookalike
+     * equivalents, substituting only those characters that are actually restricted
+     * on the current platform. See {@link platformLookalikeMap} for the per-platform
+     * character sets.
+     *
+     * @param {string} title - The title string to transform.
+     * @returns {string} Title with platform-illegal characters replaced by lookalikes.
+     */
+    function applyPlatformLookalikes(title) {
+        const map = platformLookalikeMap();
+        if (map.size === 0) return title;
+        return [...title].map(c => map.get(c) ?? c).join("");
+    }
+
+    /**
      * Sanitizes a string to be safe for use as a filename by replacing spaces and no-break spaces
      * with underscores, removing disallowed characters, preserving common punctuation, and optionally
      * truncating long names with an ellipsis in the middle to respect a maximum length.
+     *
+     * Non-ASCII Unicode characters (code points \u2265 U+0080) are preserved as-is, which allows
+     * fullwidth lookalike substitutions (applied by {@link applyUnicodeLookalikes}) to survive
+     * sanitization.
      *
      * @param {string} title - The original filename candidate to sanitize.
      * @param {number} [maxLength=20] - The maximum allowed length of the resulting filename.
@@ -1233,8 +1320,10 @@ const util = (function() {
 
             // Allow common punctuation while keeping filenames filesystem safe
             title = title.replace(/\//g, "+");
+            // Non-ASCII Unicode (\u2265 U+0080) is intentionally preserved so that fullwidth lookalike
+            // substitutions applied before this call survive sanitization.
             // eslint-disable-next-line no-useless-escape -- character class intentionally lists the punctuation we want to preserve
-            title = title.replace(/[ \u00a0]/gi, "_").replace(/([^a-z0-9_'"\-\+\&\(\)\[\]\{\}!\?]+)/gi, "");
+            title = title.replace(/[ \u00a0]/gi, "_").replace(/([^a-z0-9_'"\-\+\&\(\)\[\]\{\}!\u0080-\uffff]+)/gi, "");
             // There is technically a 255-character limit in Windows for file paths.
             // So we will allow files to have 20 characters and when they go over we split them
             // we then truncate the middle so that the file name is always different
@@ -1830,6 +1919,11 @@ const util = (function() {
         getElements: getElements,
         moveIfParent: moveIfParent,
         safeForFileName: safeForFileName,
+        applyUnicodeLookalikes: applyUnicodeLookalikes,
+        isWindowsPlatform: isWindowsPlatform,
+        isMacPlatform: isMacPlatform,
+        platformLookalikeMap: platformLookalikeMap,
+        applyPlatformLookalikes: applyPlatformLookalikes,
         styleSheetFileName: styleSheetFileName,
         isStringWhiteSpace: isStringWhiteSpace,
         isElementWhiteSpace: isElementWhiteSpace,
