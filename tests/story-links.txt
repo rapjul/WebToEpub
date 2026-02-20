@@ -1,0 +1,12 @@
+# Story URLs for local dev testing with run-story-local.sh
+# One URL per line. Lines starting with # are comments.
+# Usage: npm run dev:story         (opens first URL)
+#        npm run dev:story:all     (opens all URLs)
+
+https://www.royalroad.com/fiction/39408/beware-of-chicken
+https://www.royalroad.com/fiction/147030/transmigrated-into-a-cultivation-world-good-thing
+https://forums.spacebattles.com/threads/i-am-the-main-character-no-thanks.1185592/
+https://forums.spacebattles.com/threads/dragonlord-hp-%C3%97-asoiaf.961798/
+https://www.webnovel.com/book/percy-jackson-the-god-of-magic_19053991605083905
+https://www.webnovel.com/book/god-of-internet_30294441405277805
+https://forum.questionablequesting.com/threads/the-titan-of-tarth-asoaif-got-si-oc.23580/

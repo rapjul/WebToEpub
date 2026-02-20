@@ -251,3 +251,5 @@ eslint/index.csv
 
 /plugin/dompurify/
 /plugin/@zip.js/
+
+/tmp
