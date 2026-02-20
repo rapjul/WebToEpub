@@ -476,13 +476,85 @@ window.TitleSuffixController = TitleSuffixController;
 
 var main = (function() {
     "use strict";
+    const PARSE_RESULTS_TIMEOUT_MS = 15000;
+    let parseResultsTimeoutId = null;
+
+    function clearParseResultsTimeout() {
+        if (parseResultsTimeoutId != null) {
+            clearTimeout(parseResultsTimeoutId);
+            parseResultsTimeoutId = null;
+        }
+    }
+
+    async function tryFallbackAnalyzeUsingStartingUrl(reason) {
+        let startingUrl = getValueFromUiField("startingUrlInput");
+        if (util.isNullOrEmpty(startingUrl)) {
+            util.log(`Fallback analyze skipped: no starting URL (${reason})`);
+            return false;
+        }
+
+        util.log(`Attempting fallback analyze for ${startingUrl} (${reason})`);
+        setProgressString("Analysing via URL…");
+        await onLoadAndAnalyseButtonClick();
+        if (parser != null) {
+            setProgressString("Loaded via direct URL analysis");
+        }
+        return parser != null;
+    }
+
+    function setProgressString(text) {
+        let el = document.getElementById("progressString");
+        if (el != null) { el.textContent = text; }
+    }
+
+    async function onContentScriptInjectionFailed(message) {
+        clearParseResultsTimeout();
+        chrome.runtime.onMessage.removeListener(onMessageListener);
+        let requestedTabId = extractTabIdFromQueryParameter();
+        let tab = await getTab(requestedTabId);
+        let tabUrl = tab?.url ?? "unknown";
+        util.log(`Content script injection failed for tab ${requestedTabId ?? "unknown"} (${tabUrl}): ${message ?? "unknown error"}`);
+        let fallbackSucceeded = await tryFallbackAnalyzeUsingStartingUrl("content-script-injection-failed");
+        if (fallbackSucceeded) {
+            util.log("Fallback analyze succeeded after content script injection failure.");
+            return;
+        }
+        let details = util.isNullOrEmpty(message) ? "" : ` (${message})`;
+        ErrorLog.showErrorMessage(`Unable to inject content script into active tab ${requestedTabId ?? "unknown"} (${tabUrl})${details}. Activate the story page and retry.`);
+    }
+
+    function startParseResultsTimeout(tabId) {
+        clearParseResultsTimeout();
+        parseResultsTimeoutId = setTimeout(async () => {
+            parseResultsTimeoutId = null;
+            chrome.runtime.onMessage.removeListener(onMessageListener);
+            let tab = await getTab(tabId);
+            let tabUrl = tab?.url ?? "unknown";
+            util.log(`Timed out waiting for ParseResults from tab ${tabId} (${tabUrl})`);
+            let fallbackSucceeded = await tryFallbackAnalyzeUsingStartingUrl("parse-results-timeout");
+            if (fallbackSucceeded) {
+                util.log("Fallback analyze succeeded after ParseResults timeout.");
+                return;
+            }
+            ErrorLog.showErrorMessage(`Timed out waiting for page analysis from tab ${tabId} (${tabUrl}). Activate the story tab and retry.`);
+        }, PARSE_RESULTS_TIMEOUT_MS);
+    }
 
     // this will be called when message listener fires
     function onMessageListener(message, sender, sendResponse) {  // eslint-disable-line no-unused-vars
         if (message.messageType == "ParseResults") {
+            clearParseResultsTimeout();
             chrome.runtime.onMessage.removeListener(onMessageListener);
-            util.log("addListener");
-            util.log(message);
+            util.log(`Received ParseResults from sender tab ${sender?.tab?.id ?? "unknown"}`);
+            util.log({ parseResultUrl: message?.url, parseResultDocumentLength: message?.document?.length ?? 0 });
+            if (!util.isNullOrEmpty(message?.contentScriptError)) {
+                ErrorLog.showErrorMessage(`Content script failed to serialize page: ${message.contentScriptError}`);
+                return;
+            }
+            if (util.isNullOrEmpty(message?.document)) {
+                ErrorLog.showErrorMessage("Content script returned empty page HTML.");
+                return;
+            }
             // convert the string returned from content script back into a DOM
             let dom = new DOMParser().parseFromString(message.document, "text/html");
             populateControlsWithDom(message.url, dom);
@@ -541,6 +613,26 @@ var main = (function() {
         document.getElementById("translatorRow").hidden = true;
         document.getElementById("fileAuthorAsRow").hidden = true;
         document.getElementById("defaultParserSection").hidden = true;
+
+        // Reset parser-specific rows so they start hidden before each parser's
+        // populateUIImpl() shows the ones it actually needs.
+        for (const id of [
+            "removeAuthorNotesRow",
+            "removeChapterNumberRow",
+            "webnovelDownloadImagesRow",
+            "removeOriginalRow",
+            "selectTranslationAiRow",
+            "selectRetryLongerRow",
+            "removeTranslatedRow",
+            "passwordRow",
+        ]) {
+            let el = document.getElementById(id);
+            if (el != null) { el.hidden = true; }
+        }
+
+        // Hide cover-URL section; each parser's populateUI() re-shows it if needed.
+        let coverSection = document.getElementById("coverUrlSection");
+        if (coverSection != null) { coverSection.hidden = true; }
     }
 
     function populateMetaInfo(metaInfo) {
@@ -698,14 +790,25 @@ var main = (function() {
         }
     }
 
-    function getActiveTabDOM(tabId) {
+    async function prefillStartingUrlFromTab(tabId) {
+        let tab = await getTab(tabId);
+        if ((tab != null) && !util.isNullOrEmpty(tab.url)) {
+            setUiFieldToValue("startingUrlInput", tab.url);
+            util.log(`Prefilled starting URL from tab ${tabId}: ${tab.url}`);
+        }
+    }
+
+    async function getActiveTabDOM(tabId) {
+        util.log(`Preparing to analyze tab ${tabId}`);
+        await prefillStartingUrlFromTab(tabId);
         addMessageListener();
+        startParseResultsTimeout(tabId);
         injectContentScript(tabId);
     }
 
     function injectContentScript(tabId) {
         if (util.isFirefox()) {
-            Firefox.injectContentScript(tabId);
+            Firefox.injectContentScript(tabId, onContentScriptInjectionFailed);
         } else {
             chromeInjectContentScript(tabId);
         }
@@ -716,10 +819,16 @@ var main = (function() {
             chrome.scripting.executeScript({
                 target: {tabId: tabId},
                 files: ["js/ContentScript.js"]
+            }, () => {
+                if (chrome.runtime.lastError) {
+                    util.log(chrome.runtime.lastError.message);
+                    onContentScriptInjectionFailed(chrome.runtime.lastError.message);
+                }
             });
         } catch {
             if (chrome.runtime.lastError) {
                 util.log(chrome.runtime.lastError.message);
+                onContentScriptInjectionFailed(chrome.runtime.lastError.message);
             }
         }
     }
@@ -827,15 +936,87 @@ var main = (function() {
         window.close();
     }
 
-    function getActiveTab() {
-        return new Promise((resolve, reject) => {
-            chrome.tabs.query({ currentWindow: true, active: true }, (tabs) => {
-                if ((tabs != null) && (0 < tabs.length)) {
-                    resolve(tabs[0].id);
+    function isNonStoryTabUrl(url) {
+        if (util.isNullOrEmpty(url)) {
+            return true;
+        }
+        return /^(moz-extension:|chrome-extension:|about:|chrome:|edge:|view-source:)/.test(url);
+    }
+
+    function queryTabs(queryInfo) {
+        return new Promise((resolve) => {
+            chrome.tabs.query(queryInfo, (tabs) => {
+                if (chrome.runtime.lastError) {
+                    resolve([]);
                 } else {
-                    reject();
+                    resolve(tabs ?? []);
                 }
             });
+        });
+    }
+
+    function getTab(tabId) {
+        return new Promise((resolve) => {
+            if ((tabId === undefined) || Number.isNaN(tabId)) {
+                resolve(null);
+                return;
+            }
+            chrome.tabs.get(tabId, (tab) => {
+                if (chrome.runtime.lastError) {
+                    resolve(null);
+                } else {
+                    resolve(tab ?? null);
+                }
+            });
+        });
+    }
+
+    async function findBestContentTabId() {
+        let tabs = await queryTabs({ active: true, lastFocusedWindow: true });
+        let tab = tabs.find(t => !isNonStoryTabUrl(t.url));
+        if (tab != null) {
+            return tab.id;
+        }
+
+        tabs = await queryTabs({ currentWindow: true });
+        tab = tabs.find(t => t.active && !isNonStoryTabUrl(t.url));
+        if (tab != null) {
+            return tab.id;
+        }
+
+        tab = tabs.find(t => !isNonStoryTabUrl(t.url));
+        if (tab != null) {
+            return tab.id;
+        }
+
+        tabs = await queryTabs({});
+        tab = tabs.find(t => !isNonStoryTabUrl(t.url));
+        return tab?.id;
+    }
+
+    async function resolveTargetTabId() {
+        let requestedTabId = extractTabIdFromQueryParameter();
+        let requestedTab = await getTab(requestedTabId);
+        util.log({ requestedTabId, requestedTabUrl: requestedTab?.url ?? null });
+        if ((requestedTab != null) && !isNonStoryTabUrl(requestedTab.url)) {
+            return requestedTab.id;
+        }
+        let fallbackTabId = await findBestContentTabId();
+        util.log(`Using fallback tab id: ${fallbackTabId ?? "none"}`);
+        return fallbackTabId;
+    }
+
+    async function getActiveTab() {
+        return new Promise((resolve, reject) => {
+            findBestContentTabId()
+                .then((tabId) => {
+                    if (tabId != null) {
+                        resolve(tabId);
+                    } else {
+                        reject(new Error("Could not find an active story tab"));
+                    }
+                })
+                .catch(reject);
         });
     }
 
@@ -853,8 +1034,14 @@ var main = (function() {
         }
     }
 
-    function configureForTabMode() {
-        getActiveTabDOM(extractTabIdFromQueryParameter());
+    async function configureForTabMode() {
+        let tabId = await resolveTargetTabId();
+        util.log(`configureForTabMode selected tab ${tabId ?? "none"}`);
+        if (tabId == null) {
+            ErrorLog.showErrorMessage("Could not determine which browser tab to analyze. Please activate the story tab and retry.");
+            return;
+        }
+        await getActiveTabDOM(tabId);
     }
 
     function extractTabIdFromQueryParameter() {

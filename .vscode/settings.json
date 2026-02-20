@@ -1,0 +1,8 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "/^npm run -s dev:story:all -- --help \\| head -n 25$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
+}

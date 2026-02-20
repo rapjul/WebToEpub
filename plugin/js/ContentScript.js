@@ -4,9 +4,19 @@
 */
 "use strict";
 
-var parseResults = { 
+try {
+  var pageHtml = document.documentElement?.outerHTML ?? "";
+  var parseResults = {
     messageType: "ParseResults",
-    document: document.all[0].outerHTML,
+    document: pageHtml,
     url: document.URL
-};
-chrome.runtime.sendMessage(parseResults);
+  };
+  chrome.runtime.sendMessage(parseResults);
+} catch (error) {
+  chrome.runtime.sendMessage({
+    messageType: "ParseResults",
+    document: "",
+    url: document.URL,
+    contentScriptError: error?.message ?? String(error)
+  });
+}

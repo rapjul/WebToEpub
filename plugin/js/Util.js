@@ -53,7 +53,7 @@ const util = (function() {
         }
         else
         {
-            // this only works as long as firefox hasn't implemented this 
+            // this only works as long as firefox hasn't implemented this
             // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/PlatformNaclArch
             return (typeof (browser.runtime.PlatformNaclArch) == "undefined");
         }
@@ -1314,8 +1314,17 @@ const util = (function() {
      * @param {*} arg - The value to log.
      */
     function log(arg) { // eslint-disable-line no-unused-vars
-        // ToDo: uncomment this for debug logging
-        // console.log(arg);
+        try {
+            let fromStorage = localStorage.getItem("WebToEpubDebugLogging");
+            let fromQuery = (typeof window?.location?.search === "string") && /(?:\?|&)debug=1(?:&|$)/.test(window.location.search);
+            let versionName = chrome?.runtime?.getManifest?.()?.version_name ?? "";
+            let isDevBuild = versionName.includes("dev");
+            if (fromStorage === "1" || fromStorage === "true" || fromQuery || isDevBuild) {
+                console.log("[WebToEpub]", arg);
+            }
+        } catch {
+            // Intentionally swallow logging errors.
+        }
     }
 
     // This is for Unit Testing only

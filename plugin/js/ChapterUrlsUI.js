@@ -35,6 +35,8 @@ class ChapterUrlsUI {
     populateChapterUrlsTable(chapters) {
         ChapterUrlsUI.getPleaseWaitMessageRow().hidden = true;
         ChapterUrlsUI.clearChapterUrlsTable();
+        let chapterTableWrap = document.getElementById("chapterTableWrap");
+        if (chapterTableWrap) chapterTableWrap.hidden = false;
         let linksTable = ChapterUrlsUI.getChapterUrlsTable();
         let index = 0;
         let rangeStart = ChapterUrlsUI.getRangeStartChapterSelect();
@@ -368,6 +370,8 @@ class ChapterUrlsUI {
             .filter(r => r.querySelector("th") === null);
     }
 
+
+
     /**
      * Appends an inclusion checkbox to a chapter table row and wires up selection behavior,
      * updating chapter selection state, range selection with shift-click, and title suffix syncing.
@@ -489,8 +493,9 @@ class ChapterUrlsUI {
         ChapterUrlsUI.getEditChaptersUrlsInput().hidden = toTable;
         ChapterUrlsUI.getChapterUrlsTable().hidden = !toTable;
         document.getElementById("inputSection").hidden = !toTable;
-        document.getElementById("coverUrlSection").hidden = !toTable;
         document.getElementById("chapterSelectControlsDiv").hidden = !toTable;
+        let chapterTableWrap = document.getElementById("chapterTableWrap");
+        if (chapterTableWrap) chapterTableWrap.hidden = !toTable;
         ChapterUrlsUI.modifyApplyChangesButtons(button => button.hidden = toTable);
         document.getElementById("editURLsHint").hidden = toTable;
     }

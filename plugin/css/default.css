@@ -1,33 +1,128 @@
+/* ══════════════════════════════════════════════════════════════════
+   WebToEpub — Design Tokens
+   Light-mode defaults; overridden in autoDark.css / alwaysDark.css
+   ══════════════════════════════════════════════════════════════════ */
+:root {
+    /* Backgrounds */
+    --bg:              #f8f9fa;
+    --surface:         #ffffff;
+    --surface-alt:     #f1f3f5;
+
+    /* Borders */
+    --border:          #dee2e6;
+    --border-focus:    #4361ee;
+
+    /* Text */
+    --text:            #212529;
+    --text-muted:      #6c757d;
+
+    /* Accent (progress fill, buttons, focus ring) */
+    --accent:          #4361ee;
+    --accent-dark:     #3652d8;
+    --accent-text:     #ffffff;
+
+    /* Buttons */
+    --btn-bg:          #ffffff;
+    --btn-border:      #ced4da;
+    --btn-text:        #343a40;
+    --btn-hover-bg:    #f1f3f5;
+
+    /* Status strip */
+    --warning-bg:      #fff3cd;
+    --warning-border:  #ffc107;
+    --warning-text:    #664d03;
+
+    /* Geometry & motion */
+    --radius:          7px;
+    --radius-sm:       5px;
+    --shadow-sm:       0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-md:       0 4px 16px rgba(0,0,0,.10);
+    --transition:      .15s ease;
+
+    /* Typography */
+    --font:            -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+                       Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+}
+
 .expandedButton {
     padding: 5px 10px;
 }
 
 .warning {
-    color: #ff0000;
-    font-size: 2em;
-    font-weight: bold;
+    background: var(--warning-bg);
+    border: 1px solid var(--warning-border);
+    border-radius: var(--radius-sm);
+    color: var(--warning-text);
+    padding: 8px 12px;
+    margin: 6px 0;
 }
 
 .scrollingtable {
-    overflow: scroll;
-    height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 560px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
 }
 
 #progressString {
-    width: 36px;
-    display: inline-block;
     position: absolute;
-    left: 46%;
-    color: white;
-    z-index: 1000;
-    font-weight: bolder;
-    margin-top: 7px;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-text);
+    font-size: 12px;
+    font-weight: 600;
+    pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0,0,0,.4);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 6px;
+    z-index: 10;
 }
 
 #advancedOptionsSection {
     margin-top: 3px;
     margin-bottom: 20px;
-    border-bottom: 1px #CCC solid;
+    border-bottom: 1px solid var(--border);
+}
+
+#AdditionalMetadatatable {
+    margin-bottom: 14px;
+}
+
+.settingsGrid {
+    display: grid;
+    gap: 10px;
+}
+
+.settingRow {
+    display: grid;
+    grid-template-columns: minmax(130px, 220px) minmax(260px, 1fr);
+    align-items: center;
+    gap: 10px;
+}
+
+.settingRowWide {
+    grid-template-columns: minmax(130px, 220px) minmax(260px, 1fr) auto;
+}
+
+.settingCheckboxRow {
+    display: grid;
+    grid-template-columns: 24px minmax(260px, 1fr);
+    align-items: center;
+    gap: 10px;
 }
 
 
@@ -71,6 +166,35 @@ section.minWidth {
     min-width: 600px;
 }
 
+#errorBackdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 2000;
+}
+
+#errorSection {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2001;
+    width: min(760px, calc(100vw - 48px));
+    max-height: calc(100vh - 48px);
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+#errorSectionTable {
+    width: 100%;
+}
+
 .withBorder {
     border: 1px solid black;
 }
@@ -90,27 +214,50 @@ button:disabled {
 /*----------------------------------------------------*/
 
 .container {
-    border: 1px #CCC solid;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
     display: block;
-    padding: 10px 16px;
+    padding: 12px 18px;
     margin: 10px auto;
-    border-radius: 5px;
     position: relative;
     width: min(1000px, calc(100vw - 20px));
-    min-width: 640px;
+    min-width: 320px;
     max-width: 100%;
     box-sizing: border-box;
 }
 
 
-input[type=text], input[type=url], textarea, select, #manualDelayPerChapterTag {
-    padding: 4px;
-    border: 1px #CCC solid;
-    border-radius: 3px;
+input[type=text], input[type=url], input[type=password], textarea, select, #manualDelayPerChapterTag {
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
     width: 100%;
     max-width: 100%;
     min-width: min(350px, 100%);
     box-sizing: border-box;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--surface);
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+input[type=text]:focus, input[type=url]:focus, input[type=password]:focus,
+textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, .15);
+}
+
+input[type="checkbox"], input[type="radio"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin: 0;
 }
 
 
@@ -137,6 +284,62 @@ input[type=text], input[type=url], textarea, select, #manualDelayPerChapterTag {
     justify-content: space-evenly;
     margin-top: 2rem;
     margin-bottom: 5pt;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+#rangeControlsRow {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+#rangeSelectTable {
+    flex: 1 1 560px;
+    display: grid;
+    gap: 10px;
+}
+
+.rangeRow {
+    display: grid;
+    grid-template-columns: minmax(140px, 220px) 1fr;
+    align-items: center;
+    gap: 10px;
+}
+
+#rangeChapterCountRow {
+    align-items: flex-start;
+}
+
+#chapterCountStats {
+    display: grid;
+    grid-template-columns: minmax(70px, 1fr) minmax(180px, 2fr) minmax(70px, 1fr);
+    gap: 10px;
+    align-items: center;
+}
+
+#chapterRangeOptions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 210px;
+}
+
+#showChapterUrlsLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#showChapterUrlsLabel input[type=checkbox] {
+    margin: 0;
+}
+
+#chapterRangeOptions #viewFiltersButton {
+    width: fit-content;
 }
 
 textarea.allSpace {
@@ -146,9 +349,75 @@ textarea.allSpace {
     max-width: none;
 }
 
-#inputSection input {
-    width: 69%;
-    max-width: 100%;
+#inputForm {
+    width: 100%;
+}
+
+.inputGrid {
+    display: grid;
+    gap: 10px;
+}
+
+.inputRow {
+    display: grid;
+    grid-template-columns: minmax(120px, 190px) minmax(260px, 1fr);
+    align-items: center;
+    gap: 8px;
+}
+
+/* Right-align non-checkbox labels so text visually hugs the input */
+.inputRow:not(.inputRowCheckbox) > label {
+    text-align: right;
+}
+
+.inputRow input {
+    width: 100%;
+    min-width: 0;
+}
+
+.inputRowWide {
+    grid-template-columns: minmax(120px, 190px) minmax(260px, 1fr) auto;
+}
+
+.inputRowCheckbox {
+    grid-template-columns: 20px 1fr;
+    gap: 8px;
+    padding: 3px 4px;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition);
+}
+
+.inputRowCheckbox:hover {
+    background: var(--surface-alt);
+}
+
+.inputRowCheckbox label {
+    cursor: pointer;
+    user-select: none;
+}
+
+.inputRowCover {
+    grid-template-columns: minmax(120px, 190px) minmax(280px, 1fr) auto;
+    align-items: start;
+}
+
+.coverUrlControls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.coverUrlControls input {
+    flex: 1 1 auto;
+}
+
+#sampleCoverImg {
+    max-height: 360px;
+    max-width: 240px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    object-fit: contain;
+    display: block;
 }
 
 #inputSection table, #chapterUrlsTable {
@@ -196,10 +465,25 @@ textarea.allSpace {
         max-width: none;
     }
 
-    #chapterUrlsTable tbody > tr > th {
-        text-align: center;
-        border-bottom: 1px #CCC solid;
-        padding: 0;
+    #chapterUrlsTable thead th {
+        position: sticky;
+        top: 0;
+        background: var(--surface);
+        z-index: 1;
+        text-align: left;
+        border-bottom: 2px solid var(--border);
+        padding: 6px 8px;
+        font-weight: 600;
+    }
+
+    /* Zebra striping */
+    #chapterUrlsTable tbody tr:nth-child(even) {
+        background: var(--surface-alt);
+    }
+
+    /* Row hover */
+    #chapterUrlsTable tbody tr:hover {
+        background: color-mix(in srgb, var(--accent) 10%, transparent);
     }
 
 #inputSection tbody > tr > td:first-child {
@@ -211,24 +495,27 @@ textarea.allSpace {
 }
 
 button {
-    box-shadow: inset 0px 1px 0px 0px #ffffff;
-    background: linear-gradient(to bottom, #ffffff 5%, #f6f6f6 100%);
-    background-color: #ffffff;
-    border-radius: 6px;
-    border: 1px solid #dcdcdc;
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    border-radius: var(--radius-sm);
     display: inline-block;
     cursor: pointer;
-    color: #666666;
-    font-family: Arial;
-    font-size: 12px;
-    padding: 4px 8px;
+    color: var(--btn-text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 5px 10px;
+    line-height: 1.4;
     text-decoration: none;
-    max-height: 30px;
+    white-space: nowrap;
+    transition: background var(--transition), border-color var(--transition),
+                box-shadow var(--transition);
 }
 
     button:hover {
-        background: linear-gradient(to bottom, #f6f6f6 5%, #ffffff 100%);
-        background-color: #f6f6f6;
+        background: var(--btn-hover-bg);
+        border-color: #adb5bd;
+        box-shadow: var(--shadow-sm);
     }
 
     button:active {
@@ -236,27 +523,51 @@ button {
         top: 1px;
     }
 
-.progressSection {
-    width: min(900px, 95%);
-    position: relative;
-    display: flex;
-    height: 60px;
-    border: 1px #CCC solid;
-    padding-left: 30px;
-    padding-right: 30px;
-    border-radius: 8px;
-    max-width: none;
-    box-sizing: border-box;
-    justify-content: space-between;
-    align-items: center;
+/* Primary action — Pack EPUB */
+#packEpubButton {
+    background: var(--accent);
+    border-color: var(--accent-dark);
+    color: var(--accent-text);
+    font-size: 14px;
+    padding: 6px 14px;
 }
 
-#coverUrlSection img {
+    #packEpubButton:hover {
+        background: var(--accent-dark);
+        border-color: var(--accent-dark);
+        box-shadow: var(--shadow-sm);
+    }
+
+.progressSection {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 16px;
+    margin: 8px 0;
+    box-sizing: border-box;
+    background: var(--surface);
+}
+
+/* Wrapper that lets #progressString center-overlay the <progress> bar */
+.progressBarWrap {
+    position: relative;
+    flex: 1 1 auto;
+    display: flex;
+    align-items: stretch;
+    min-width: 0;
+}
+
+/* Cover image — always static inside the .inputRowCover grid cell */
+#coverUrlSection img,
+.inputRowCover img {
     max-height: 142px;
     max-width: 106.5px;
-    position: absolute;
-    top: 14px;
-    right: 7%;
+    position: static;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
 }
 
 .LibCover {
@@ -274,28 +585,27 @@ button {
 }
 
 .HiddenButtonSection {
-    position: relative;
     display: flex;
     justify-content: center;
-    border-radius: 8px;
-    margin-top: 1rem;
-    margin-bottom: 1rem;
+    gap: 8px;
+    margin-top: 10px;
+    margin-bottom: 10px;
 }
 
 .sidebar {
-    background-color:rgba(40, 40, 40, 0.85);
-    float:left;
-    margin-right:5px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    box-shadow: -2px 0 12px rgba(0,0,0,.12);
+    float: left;
     height: 100%;
-    width: 0px;
+    width: 0;
     position: fixed;
-    z-index: 1;
+    z-index: 200;
     top: 0;
     right: 0;
     overflow-x: hidden;
     box-sizing: border-box;
-    margin: 0 auto;
-    transition: 0.25s;
+    transition: width var(--transition);
 }
 
     .sidebar.sidebarOpen {
@@ -305,16 +615,14 @@ button {
 
     .sidebar .closebtn {
         width: calc(100% - 10px);
-        padding-top: 5px;
-        padding-bottom: 5px;
-        border: 2px;
-        border-color: #dcdcdc75;
-        border-style: solid;
-        border-radius: 10px;
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
         text-align: center;
+        cursor: pointer;
     }
     .sidebar .closebtn:hover {
-        background-color: #cccccc75;
+        background: var(--btn-hover-bg);
     }
 
     .sidebar th {
@@ -325,9 +633,9 @@ button {
         accent-color: #bb0000;
     }
     .sidebar input[type=text], .sidebar input[type=url], .sidebar textarea, .sidebar select {
-        padding: 4px;
-        border: 1px #CCC solid;
-        border-radius: 3px;
+        padding: 5px 8px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
         max-width: 100%;
         min-width: 100px;
     }
@@ -339,7 +647,7 @@ button {
         user-select: none;
     }
     .sidebar tr label:hover {
-        background-color:rgba(40, 40, 40);
+        background: var(--surface-alt);
     }
     #sbFilters {
         max-height: calc(50% - 30px);
@@ -350,9 +658,57 @@ button {
     }
 
 
- pre {
+pre {
     width: 100%;
     white-space: pre-wrap;
-    /* Optional: allows very long unbroken words (like URLs) to break to fit the container */
     overflow-wrap: break-word;
+    font-size: 12px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Responsive — narrow viewports (< 640 px)
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+    .container {
+        min-width: unset;
+        border-radius: 0;
+        margin: 0;
+        padding: 10px 12px;
+    }
+
+    /* Stack label above input on small screens */
+    .inputRow,
+    .inputRowWide {
+        grid-template-columns: 1fr;
+    }
+
+    .inputRowWide > :last-child { width: 100%; }
+
+    .inputRowCover {
+        grid-template-columns: 1fr auto;
+    }
+
+    /* Progress section: stack vertically */
+    .progressSection {
+        flex-wrap: wrap;
+        padding: 8px;
+    }
+
+    .progressBarWrap {
+        width: 100%;
+        order: 3;
+    }
+
+    #packEpubButton   { order: 1; }
+    #LibAddToLibrary  { order: 2; }
+
+    /* Chapter range */
+    #rangeControlsRow         { flex-direction: column; }
+    #chapterSelectControlsDiv { width: 100%; }
+
+    /* Settings rows in advanced options */
+    .settingRow,
+    .settingCheckboxRow {
+        grid-template-columns: 1fr;
+    }
 }

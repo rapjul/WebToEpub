@@ -1,14 +1,29 @@
-body {
-    background: #2f2f2f;
-    color: #eee;
+:root {
+    --bg:             #1a1b1e;
+    --surface:        #25262b;
+    --surface-alt:    #2c2e33;
+    --border:         #373a40;
+    --border-focus:   #748ffc;
+    --text:           #ced4da;
+    --text-muted:     #868e96;
+    --accent:         #748ffc;
+    --accent-dark:    #5c7cfa;
+    --accent-text:    #ffffff;
+    --btn-bg:         #2c2e33;
+    --btn-border:     #373a40;
+    --btn-text:       #ced4da;
+    --btn-hover-bg:   #373a40;
+    --warning-bg:     #3d2c00;
+    --warning-border: #c18500;
+    --warning-text:   #ffd43b;
+    --shadow-sm:      0 1px 3px rgba(0,0,0,.25), 0 1px 2px rgba(0,0,0,.18);
+    --shadow-md:      0 4px 16px rgba(0,0,0,.40);
 }
-
+body { background: var(--bg); color: var(--text); }
 input, button, select, progress, textarea {
-    background: #2b2b2b;
-    color: #eee;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    border-color: var(--border);
 }
-
-    button:hover {
-        color: #222222;
-    }
+button:hover { background: var(--btn-hover-bg); color: var(--btn-text); }
 

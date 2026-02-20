@@ -11,7 +11,7 @@ class ErrorLog {
 
     static showErrorMessage(msg) {
         // if already showing an error message, queue the new one to display
-        // when currently showing is closed. 
+        // when currently showing is closed.
         if (this.SuppressErrorLog && msg.retryAction == null) {
             return;
         }
@@ -19,21 +19,21 @@ class ErrorLog {
         if (1 < ErrorLog.queue.length) {
             return;
         }
-
-        let sections = ErrorLog.hideAllSectionsSavingVisibility();
+        ErrorLog.getErrorBackdrop().hidden = false;
         ErrorLog.getErrorSection().hidden = false;
 
         ErrorLog.setErrorMessageText(msg);
-        ErrorLog.setErrorMessageButtons(msg, sections);
+        ErrorLog.setErrorMessageButtons(msg);
     }
 
-    static onCloseError(sections) {
+    static onCloseError() {
         ErrorLog.queue.shift();
         if (ErrorLog.queue.length === 0) {
-            ErrorLog.restoreSectionVisibility(sections);
+            ErrorLog.getErrorSection().hidden = true;
+            ErrorLog.getErrorBackdrop().hidden = true;
         } else {
             ErrorLog.setErrorMessageText(ErrorLog.queue[0]);
-            ErrorLog.setErrorMessageButtons(ErrorLog.queue[0], sections);
+            ErrorLog.setErrorMessageButtons(ErrorLog.queue[0]);
         }
     }
 
@@ -56,6 +56,11 @@ class ErrorLog {
     /** private */
     static getErrorSection() {
         return document.getElementById("errorSection");
+    }
+
+    /** private */
+    static getErrorBackdrop() {
+        return document.getElementById("errorBackdrop");
     }
 
     /** private */
@@ -88,8 +93,8 @@ class ErrorLog {
     }
 
     /** private */
-    static setErrorMessageButtons(msg, sections) {
-        let close = () => ErrorLog.onCloseError(sections);
+    static setErrorMessageButtons(msg) {
+        let close = () => ErrorLog.onCloseError();
         let okButton = document.getElementById("errorButtonOk");
         let retryButton = document.getElementById("errorButtonRetry");
         let cancelButton = document.getElementById("errorButtonCancel");

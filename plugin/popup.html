@@ -15,7 +15,8 @@
             <table id="readingListTable">
             </table>
         </section>
-        <section id="errorSection" class="minWidth" hidden="true">
+        <div id="errorBackdrop" hidden="true"></div>
+        <section id="errorSection" class="minWidth" role="dialog" aria-modal="true" aria-labelledby="errorMessageText" hidden="true">
             <table id="errorSectionTable">
                 <tr>
                     <td>
@@ -84,78 +85,82 @@
             </div>
         </section>
         <section id="inputSection">
-            <table id="inputTable">
-                <tr>
-                    <td>__MSG_label_Starting_URL__</td>
-                    <td>
+            <form id="inputForm" autocomplete="off">
+                <div class="inputGrid">
+                    <div class="inputRow inputRowWide">
+                        <label class="i18n" for="startingUrlInput">__MSG_label_Starting_URL__</label>
                         <input id="startingUrlInput" type="url" name="startingUrlInput" />
-                    </td>
-                    <td>
-                        <button id="loadAndAnalyseButton">__MSG_button_load_and_analyse__</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>__MSG_label_Title__</td>
-                    <td><input id="titleInput" type="text" name="titleInput" /></td>
-                </tr>
-                <tr>
-                    <td>__MSG_label_Author__</td>
-                    <td><input id="authorInput" type="text" name="authorInput" /></td>
-                </tr>
-                <tr>
-                    <td>__MSG_label_Language__</td>
-                    <td><input id="languageInput" type="text" name="languageInput" /></td>
-                </tr>
-                <tr>
-                    <td>__MSG_label_Filename__</td>
-                    <td><input id="fileNameInput" type="text" name="fileNameInput" /></td>
-                </tr>
-                <tr id="removeAuthorNotesRow" hidden="true">
-                    <td><input id="removeAuthorNotesCheckbox" type="checkbox" name="removeAuthorNotesCheckbox" value="false"></td>
-                    <td>__MSG_label_Remove_Author_Notes__</td>
-                </tr>
-                <tr id="removeChapterNumberRow" hidden="true">
-                    <td><input id="removeChapterNumberCheckbox" type="checkbox" name="removeChapterNumberCheckbox" value="false"></td>
-                    <td>__MSG_label_Remove_Chapter_Number__</td>
-                </tr>
-                <tr id="webnovelDownloadImagesRow" hidden="true">
-                    <td><input id="webnovelDownloadImagesCheckbox" type="checkbox" name="webnovelDownloadImagesCheckbox" value="true"></td>
-                    <td>__MSG_label_Webnovel_Download_Paragraph_Images__</td>
-                </tr>
-                <tr id="removeOriginalRow" hidden="true">
-                    <td><input id="removeOriginalCheckbox" type="checkbox" name="removeOriginalCheckbox" value="true"></td>
-                    <td>__MSG_label_Remove_Original__</td>
-                </tr>
-                <tr id="selectTranslationAiRow" hidden="true">
-                    <td><input id="selectTranslationAiCheckbox" type="checkbox" name="selectTranslationAiCheckbox" value="false"></td>
-                    <td>__MSG_label_Select_Translation_Google__</td>
-                </tr>
-                <tr id="selectRetryLongerRow" hidden="true">
-                    <td><input id="selectRetryLongerCheckbox" type="checkbox" name="selectRetryLongerCheckbox" value="false"></td>
-                    <td>__MSG_label_Select_Retry_Longer__</td>
-                </tr>
-                <tr id="removeTranslatedRow" hidden="true">
-                    <td><input id="removeTranslatedCheckbox" type="checkbox" name="removeTranslatedCheckbox" value="false"></td>
-                    <td>__MSG_label_Remove_Translated__</td>
-                </tr>
-                <tr  id="passwordRow" hidden="true">
-                    <td>__MSG_label_Password__</td>
-                    <td><input id="passwordInput" type="text" name="passwordInput" /></td>
-                </tr>
-                <tr id="coverUrlSection">
-                    <td>__MSG_label_Cover_Image_URL__</td>
-                    <td colspan="2">
-                        <input id="coverImageUrlInput" style="width: 68%;" type="text" name="coverImageUrlInput">
-                        <button id="clearCoverImageUrlButton">__MSG_button_Clear_Url__</button>
-                    </td>
-                    <td rowspan="2">   <img id="sampleCoverImg" /></td>
-                </tr>
-            </table>
+                        <button id="loadAndAnalyseButton" type="button">__MSG_button_load_and_analyse__</button>
+                    </div>
+                    <div class="inputRow">
+                        <label class="i18n" for="titleInput">__MSG_label_Title__</label>
+                        <input id="titleInput" type="text" name="titleInput" />
+                    </div>
+                    <div class="inputRow">
+                        <label class="i18n" for="authorInput">__MSG_label_Author__</label>
+                        <input id="authorInput" type="text" name="authorInput" />
+                    </div>
+                    <div class="inputRow">
+                        <label class="i18n" for="languageInput">__MSG_label_Language__</label>
+                        <input id="languageInput" type="text" name="languageInput" />
+                    </div>
+                    <div class="inputRow">
+                        <label class="i18n" for="fileNameInput">__MSG_label_Filename__</label>
+                        <input id="fileNameInput" type="text" name="fileNameInput" />
+                    </div>
+
+                    <div class="inputRow inputRowCover" id="coverUrlSection" hidden="true">
+                        <label class="i18n" for="coverImageUrlInput">__MSG_label_Cover_Image_URL__</label>
+                        <div class="coverUrlControls">
+                            <input id="coverImageUrlInput" type="text" name="coverImageUrlInput">
+                            <button id="clearCoverImageUrlButton" type="button">__MSG_button_Clear_Url__</button>
+                        </div>
+                        <img id="sampleCoverImg" alt="Cover preview" />
+                    </div>
+
+                    <div class="inputRow inputRowCheckbox" id="removeAuthorNotesRow" hidden="true">
+                        <input id="removeAuthorNotesCheckbox" type="checkbox" name="removeAuthorNotesCheckbox" value="false">
+                        <label class="i18n" for="removeAuthorNotesCheckbox">__MSG_label_Remove_Author_Notes__</label>
+                    </div>
+                    <div class="inputRow inputRowCheckbox" id="removeChapterNumberRow" hidden="true">
+                        <input id="removeChapterNumberCheckbox" type="checkbox" name="removeChapterNumberCheckbox" value="false">
+                        <label class="i18n" for="removeChapterNumberCheckbox">__MSG_label_Remove_Chapter_Number__</label>
+                    </div>
+                    <div class="inputRow inputRowCheckbox" id="webnovelDownloadImagesRow" hidden="true">
+                        <input id="webnovelDownloadImagesCheckbox" type="checkbox" name="webnovelDownloadImagesCheckbox" value="true">
+                        <label class="i18n" for="webnovelDownloadImagesCheckbox">__MSG_label_Webnovel_Download_Paragraph_Images__</label>
+                    </div>
+                    <div class="inputRow inputRowCheckbox" id="removeOriginalRow" hidden="true">
+                        <input id="removeOriginalCheckbox" type="checkbox" name="removeOriginalCheckbox" value="true">
+                        <label class="i18n" for="removeOriginalCheckbox">__MSG_label_Remove_Original__</label>
+                    </div>
+                    <div class="inputRow inputRowCheckbox" id="selectTranslationAiRow" hidden="true">
+                        <input id="selectTranslationAiCheckbox" type="checkbox" name="selectTranslationAiCheckbox" value="false">
+                        <label class="i18n" for="selectTranslationAiCheckbox">__MSG_label_Select_Translation_Google__</label>
+                    </div>
+                    <div class="inputRow inputRowCheckbox" id="selectRetryLongerRow" hidden="true">
+                        <input id="selectRetryLongerCheckbox" type="checkbox" name="selectRetryLongerCheckbox" value="false">
+                        <label class="i18n" for="selectRetryLongerCheckbox">__MSG_label_Select_Retry_Longer__</label>
+                    </div>
+                    <div class="inputRow inputRowCheckbox" id="removeTranslatedRow" hidden="true">
+                        <input id="removeTranslatedCheckbox" type="checkbox" name="removeTranslatedCheckbox" value="false">
+                        <label class="i18n" for="removeTranslatedCheckbox">__MSG_label_Remove_Translated__</label>
+                    </div>
+
+                    <div class="inputRow" id="passwordRow" hidden="true">
+                        <label class="i18n" for="passwordInput">__MSG_label_Password__</label>
+                        <input id="passwordInput" type="text" name="passwordInput" />
+                    </div>
+
+                </div>
+            </form>
 
             <div class="progressSection">
                 <button id="packEpubButton" class="expandedButton">__MSG_button_Pack_EPUB__</button>
-                <progress id="fetchProgress" value=" 0" max="1"></progress>
-                <span id="progressString"></span>
+                <div class="progressBarWrap">
+                    <progress id="fetchProgress" value=" 0" max="1"></progress>
+                    <span id="progressString"></span>
+                </div>
                 <button data-libclick="yes" id="LibAddToLibrary" class="expandedButton">__MSG_button_Add_to_Library__</button>
                 <button data-libclick="yes" id="LibPauseToLibrary" class="expandedButton" hidden="true">__MSG_button_Pause_to_Library__</button>
             </div>
@@ -270,41 +275,41 @@
             </section>
 
             <section id="advancedOptionsSection" hidden="true">
-                <table id="AdditionalMetadatatable">
-                    <tr>
-                        <td>__MSG_label_Metadata_URL__</td>
-                        <td><input id="metadataUrlInput" type="text" name="metadataUrlInput" />
-                        <button id="loadMetadataButton">__MSG_button_load_Metadata__</button></td>
-                    </tr>
-                    <tr>
-                        <td><input id="noAdditionalMetadataCheckbox" type="checkbox" name="noAdditionalMetadataCheckbox" checked="true"></td>
-                        <td>__MSG_label_no_additional_metadata__</td>
-                    </tr>
-                    <tr>
-                        <td><input id="autosearchmetadataCheckbox" type="checkbox" name="autosearchmetadataCheckbox" value="true"></td>
-                        <td>__MSG_label_auto_search_metadata__</td>
-                    </tr>
-                    <tr>
-                        <td><input id="lesstagsCheckbox" type="checkbox" name="lesstagsCheckbox" value="true"></td>
-                        <td>__MSG_label_less_tags__</td>
-                    </tr>
-                    <tr>
-                        <td>__MSG_label_Metadata_subject__</td>
-                        <td><textarea rows="2" cols="60" id="subjectInput" type="text" name="subjectInput"></textarea></td>
-                    </tr>
-                    <tr>
-                        <td>__MSG_label_Metadata_description__</td>
-                        <td><textarea rows="2" cols="60" id="descriptionInput" type="text" name="descriptionInput"></textarea></td>
-                    </tr>
-                    <tr id="seriesRow">
-                        <td>__MSG_label_Series__</td>
-                        <td><input id="seriesNameInput" type="text" name="titleInput" /></td>
-                    </tr>
-                    <tr id="volumeRow">
-                        <td>__MSG_label_Volume__</td>
-                        <td><input id="seriesIndexInput" type="text" name="titleInput" /></td>
-                    </tr>
-                </table>
+                <div id="AdditionalMetadatatable" class="settingsGrid">
+                    <div class="settingRow settingRowWide">
+                        <label class="i18n" for="metadataUrlInput">__MSG_label_Metadata_URL__</label>
+                        <input id="metadataUrlInput" type="text" name="metadataUrlInput" />
+                        <button id="loadMetadataButton" type="button">__MSG_button_load_Metadata__</button>
+                    </div>
+                    <div class="settingCheckboxRow">
+                        <input id="noAdditionalMetadataCheckbox" type="checkbox" name="noAdditionalMetadataCheckbox" checked="true">
+                        <label class="i18n" for="noAdditionalMetadataCheckbox">__MSG_label_no_additional_metadata__</label>
+                    </div>
+                    <div class="settingCheckboxRow">
+                        <input id="autosearchmetadataCheckbox" type="checkbox" name="autosearchmetadataCheckbox" value="true">
+                        <label class="i18n" for="autosearchmetadataCheckbox">__MSG_label_auto_search_metadata__</label>
+                    </div>
+                    <div class="settingCheckboxRow">
+                        <input id="lesstagsCheckbox" type="checkbox" name="lesstagsCheckbox" value="true">
+                        <label class="i18n" for="lesstagsCheckbox">__MSG_label_less_tags__</label>
+                    </div>
+                    <div class="settingRow">
+                        <label class="i18n" for="subjectInput">__MSG_label_Metadata_subject__</label>
+                        <textarea rows="2" cols="60" id="subjectInput" type="text" name="subjectInput"></textarea>
+                    </div>
+                    <div class="settingRow">
+                        <label class="i18n" for="descriptionInput">__MSG_label_Metadata_description__</label>
+                        <textarea rows="2" cols="60" id="descriptionInput" type="text" name="descriptionInput"></textarea>
+                    </div>
+                    <div class="settingRow" id="seriesRow">
+                        <label class="i18n" for="seriesNameInput">__MSG_label_Series__</label>
+                        <input id="seriesNameInput" type="text" name="titleInput" />
+                    </div>
+                    <div class="settingRow" id="volumeRow">
+                        <label class="i18n" for="seriesIndexInput">__MSG_label_Volume__</label>
+                        <input id="seriesIndexInput" type="text" name="titleInput" />
+                    </div>
+                </div>
                 <table id="advancedOptionsTable">
                     <tr>
                         <td><input id="ShowMoreMetadataOptionsCheckbox" type="checkbox" name="ShowMoreMetadataOptionsCheckbox" value="true"></td>
@@ -534,33 +539,33 @@
         </section>
         <section id="outputSection" class="minWidth">
             <div id="chapterSelectControlsDiv">
-                <table id="rangeSelectTable">
-                    <tr id="rangeStartChapterRow">
-                        <td>__MSG_label_Range_Start_Chapter__</td>
-                        <td><select id="selectRangeStartChapter" /></td>
-                        <td><input id="showChapterUrlsCheckbox" type="checkbox" name="showChapterUrlsCheckbox" value="false"></td>
-                        <td>__MSG_label_Show_Chapter_Urls__</td>
-                    </tr>
-                    <tr id="rangeEndChapterRow">
-                        <td>__MSG_label_Range_End_Chapter__</td>
-                        <td><select id="selectRangeEndChapter" /></td>
-                        <td colspan="2">&nbsp;
-                            <button id="viewFiltersButton">__MSG_button_View_Filters__</button>
-                        </td>
-                    </tr>
-                    <tr id="rangeChapterCountRow">
-                        <td>__MSG_label_Chapter_Count__</td>
-                        <td colspan="3">
-                            <table width="100%">
-                                <tr>
-                                    <td width="30%"><span id="spanChapterCount" />0</td>
-                                    <td width="50%"><span id="spanParserName" /></td>
-                                    <td width="20%"><span id="spanDelayMs" />0 ms</td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                </table>
+                <div id="rangeControlsRow">
+                    <div id="rangeSelectTable">
+                        <div class="rangeRow" id="rangeStartChapterRow">
+                            <label class="i18n" for="selectRangeStartChapter">__MSG_label_Range_Start_Chapter__</label>
+                            <select id="selectRangeStartChapter"></select>
+                        </div>
+                        <div class="rangeRow" id="rangeEndChapterRow">
+                            <label class="i18n" for="selectRangeEndChapter">__MSG_label_Range_End_Chapter__</label>
+                            <select id="selectRangeEndChapter"></select>
+                        </div>
+                        <div class="rangeRow" id="rangeChapterCountRow">
+                            <span class="i18n">__MSG_label_Chapter_Count__</span>
+                            <div id="chapterCountStats">
+                                <span id="spanChapterCount">0</span>
+                                <span id="spanParserName"></span>
+                                <span id="spanDelayMs">0 ms</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="chapterRangeOptions">
+                        <label id="showChapterUrlsLabel" for="showChapterUrlsCheckbox">
+                            <input id="showChapterUrlsCheckbox" type="checkbox" name="showChapterUrlsCheckbox" value="false">
+                            <span class="i18n">__MSG_label_Show_Chapter_Urls__</span>
+                        </label>
+                        <button id="viewFiltersButton" type="button">__MSG_button_View_Filters__</button>
+                    </div>
+                </div>
                 <div id="chapterSelection">
                     <button id="selectAllUrlsButton">__MSG_button_Select_All__</button>
                     <button id="unselectAllUrlsButton">__MSG_button_Unselect_All__</button>
@@ -572,13 +577,17 @@
             <button id="applyChangesButton" hidden="true">__MSG_button_Apply_Changes__</button>
             <p id="editURLsHint" class="i18n" hidden="true">__MSG_label_Edit_URLs_Hint__</p>
             <div id="findingChapterUrlsMessageRow" class="i18n warning">__MSG_Searching_For_URLs_Please_Wait__</div>
-            <table id="chapterUrlsTable" class="chapterlist">
-                <tr>
-                    <th align="left">__MSG_column_Include__</th>
-                    <th align="left">__MSG_column_Title__</th>
-                    <th align="left" hidden="true">__MSG_column_URL__</th>
-                </tr>
-            </table>
+            <div id="chapterTableWrap" class="scrollingtable" hidden>
+                <table id="chapterUrlsTable" class="chapterlist">
+                    <thead>
+                        <tr>
+                            <th align="left">__MSG_column_Include__</th>
+                            <th align="left">__MSG_column_Title__</th>
+                            <th align="left" hidden="true">__MSG_column_URL__</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
             <div>
                 <textarea id="editChaptersUrlsInput" class="allSpace" cols="200" rows="20" hidden="true"></textarea>
             </div>
