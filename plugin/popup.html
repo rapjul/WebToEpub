@@ -90,29 +90,40 @@
                     <td>__MSG_label_Starting_URL__</td>
                     <td>
                         <input id="startingUrlInput" type="url" name="startingUrlInput" />
-                    </td>
-                    <td>
                         <button id="loadAndAnalyseButton">__MSG_button_load_and_analyse__</button>
+                    </td>
+                    <td class="coverPreviewCell" rowspan="15">
+                        <img id="sampleCoverImg" class="coverPreviewImg" alt="" />
                     </td>
                 </tr>
                 <tr>
                     <td>__MSG_label_Title__</td>
-                    <td><input id="titleInput" type="text" name="titleInput" /></td>
+                    <td>
+                        <input id="titleInput" type="text" name="titleInput" />
+                    </td>
                 </tr>
                 <tr>
                     <td>__MSG_label_Author__</td>
-                    <td><input id="authorInput" type="text" name="authorInput" /></td>
+                    <td>
+                        <input id="authorInput" type="text" name="authorInput" />
+                    </td>
                 </tr>
                 <tr>
                     <td>__MSG_label_Language__</td>
-                    <td><input id="languageInput" type="text" name="languageInput" /></td>
+                    <td>
+                        <input id="languageInput" type="text" name="languageInput" />
+                    </td>
                 </tr>
                 <tr>
                     <td>__MSG_label_Filename__</td>
-                    <td><input id="fileNameInput" type="text" name="fileNameInput" /></td>
+                    <td>
+                        <input id="fileNameInput" type="text" name="fileNameInput" />
+                    </td>
                 </tr>
                 <tr id="fileNameSanitizedRow" hidden="true">
-                    <td colspan="2" style="text-align: center"><span id="fileNameSanitizedHint" class="sanitizationHint"></span></td>
+                    <td colspan="2" style="text-align: center">
+                        <span id="fileNameSanitizedHint" class="sanitizationHint"></span>
+                    </td>
                 </tr>
                 <tr id="removeAuthorNotesRow" hidden="true">
                     <td><input id="removeAuthorNotesCheckbox" type="checkbox" name="removeAuthorNotesCheckbox" value="false"></td>
@@ -168,11 +179,10 @@
                 </tr>
                 <tr id="coverUrlSection">
                     <td>__MSG_label_Cover_Image_URL__</td>
-                    <td colspan="2">
-                        <input id="coverImageUrlInput" style="width: 68%;" type="text" name="coverImageUrlInput">
+                    <td>
+                        <input id="coverImageUrlInput" style="width: 75%;" type="text" name="coverImageUrlInput" placeholder="Cover Image URL" />
                         <button id="clearCoverImageUrlButton">__MSG_button_Clear_Url__</button>
                     </td>
-                    <td rowspan="2">   <img id="sampleCoverImg" /></td>
                 </tr>
             </table>
 

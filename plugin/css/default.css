@@ -157,12 +157,24 @@ textarea.allSpace {
 }
 
 #inputSection input {
-    width: 69%;
+    /* width: 70%; */
+    min-width: 50%;
     max-width: 100%;
 }
 
 #inputSection table, #chapterUrlsTable {
     width: 100%;
+}
+
+#inputTable td:nth-child(3) {
+    width: clamp(120px, 24vw, 240px);
+    vertical-align: top;
+}
+
+#inputTable .coverPreviewCell {
+    width: clamp(120px, 24vw, 240px);
+    vertical-align: top;
+    text-align: center;
 }
 
     #chapterUrlsTable input[type=checkbox],
@@ -200,10 +212,10 @@ textarea.allSpace {
     }
 
     #chapterUrlsTable input[type=text] {
-        width: 101.5%;
-        position: relative;
-        left: -16px;
-        max-width: none;
+        /* position: relative; */
+        /* left: -16px; */
+        min-width: 80%;
+        max-width: 100%;
     }
 
     #chapterUrlsTable tbody > tr > th {
@@ -298,7 +310,7 @@ button {
     font-size: 12px;
     padding: 4px 8px;
     text-decoration: none;
-    max-height: 30px;
+    min-height: 30px;
 }
 
     button:hover {
@@ -326,17 +338,15 @@ button {
     align-items: center;
 }
 
-#coverUrlSection img {
-    max-height: 142px;
-    max-width: 106.5px;
-    position: absolute;
-    top: 14px;
-    right: 7%;
-}
-
-#coverUrlSection .coverPreviewImg {
-    float: right;
-    margin-left: 10px;
+#inputTable .coverPreviewImg,
+#sampleCoverImg {
+    width: min(100%, 220px);
+    height: auto;
+    max-width: 220px;
+    max-height: 350px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
 }
 
 .LibCover {
