@@ -101,7 +101,10 @@ class UserPreferences { // eslint-disable-line no-unused-vars
         this.autoSelectBTSeriesPage = this.addPreference("autoSelectBTSeriesPage", "autoParserSelectIncludesBTSeriesPageCheckbox", false);
         this.removeAuthorNotes = this.addPreference("removeAuthorNotes", "removeAuthorNotesCheckbox", false);
         this.removeChapterNumber = this.addPreference("removeChapterNumber", "removeChapterNumberCheckbox", false);
-        this.webnovelDownloadParagraphImages = this.addPreference("webnovelDownloadParagraphImages", "webnovelDownloadImagesCheckbox", true);
+        this.webnovelDownloadParagraphImages = this.addPreference("webnovelDownloadParagraphImages", "webnovelDownloadImagesCheckbox", false);
+        this.webnovelParagraphImagesMaxChapters = this.addPreference("webnovelParagraphImagesMaxChapters", "webnovelParagraphImagesMaxChaptersInput", "5");
+        this.webnovelParagraphImagesMaxMisses = this.addPreference("webnovelParagraphImagesMaxMisses", "webnovelParagraphImagesMaxMissesInput", "5");
+        this.webnovelParagraphImagesMaxPerChapter = this.addPreference("webnovelParagraphImagesMaxPerChapter", "webnovelParagraphImagesMaxPerChapterInput", "25");
         this.removeOriginal = this.addPreference("removeOriginal", "removeOriginalCheckbox", true);
         this.selectTranslationAi = this.addPreference("selectTranslationAi", "selectTranslationAiCheckbox", false);
         this.selectRetryLonger = this.addPreference("selectRetryLonger", "selectRetryLongerCheckbox", false);

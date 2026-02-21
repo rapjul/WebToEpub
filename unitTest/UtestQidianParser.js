@@ -68,6 +68,38 @@ QUnit.test("cleanRawDom_replacesAndNormalizesHeaderFromCache", function(assert) 
     checkbox.remove();
 });
 
+QUnit.test("onWebnovelDownloadImagesToggle_hidesWarningToastWhenUnchecked", function(assert) {
+    window.localStorage.removeItem("webnovelParagraphImagesRateLimitWarningDismissed");
+
+    let checkbox = document.createElement("input");
+    checkbox.id = "webnovelDownloadImagesCheckbox";
+    checkbox.type = "checkbox";
+    checkbox.checked = true;
+    document.body.appendChild(checkbox);
+
+    let optionsRow = document.createElement("div");
+    optionsRow.id = "webnovelParagraphImagesOptionsRow";
+    document.body.appendChild(optionsRow);
+
+    let parser = new QidianParser();
+    parser.maybeShowWebnovelWarning();
+
+    let toastContainer = document.getElementById("rateLimitToastContainer");
+    assert.ok(toastContainer !== null && toastContainer.childElementCount > 0, "warning toast is shown");
+
+    checkbox.checked = false;
+    parser.onWebnovelDownloadImagesToggle();
+
+    toastContainer = document.getElementById("rateLimitToastContainer");
+    let warningStillVisible = [...(toastContainer?.children ?? [])]
+        .some(toast => toast.textContent?.includes(UIText.Warning.warningWebnovelParagraphImagesRateLimit));
+    assert.equal(warningStillVisible, false, "warning toast is removed when option is unchecked");
+
+    optionsRow.remove();
+    checkbox.remove();
+    window.localStorage.removeItem("webnovelParagraphImagesRateLimitWarningDismissed");
+});
+
 let QidianChatperLinkSample =
 `<!DOCTYPE html>
 <html lang="en-US" class="dark-skin">

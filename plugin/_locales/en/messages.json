@@ -424,8 +424,40 @@
 		"description": "Label for checkbox to remove Chapter Numbers from chapter titles"
 	},
 	"__MSG_label_Webnovel_Download_Paragraph_Images__": {
-		"message": "Download Webnovel Paragraph Images",
+		"message": "Download Webnovel.com Paragraph Images",
 		"description": "Label for checkbox to download paragraph comment images from webnovel.com"
+	},
+	"__MSG_label_Webnovel_Options_Header__": {
+		"message": "Webnovel.com only settings",
+		"description": "Header for parser-specific Webnovel options"
+	},
+	"__MSG_label_Webnovel_Paragraph_Images_Options__": {
+		"message": "Webnovel.com only settings: Image scanning",
+		"description": "Header and label for Webnovel paragraph image scan options"
+	},
+	"__MSG_label_Webnovel_Option_Chapters__": {
+		"message": "Scan first N chapters (0 = all)",
+		"description": "Label for number of chapters to scan for Webnovel paragraph images"
+	},
+	"__MSG_label_Webnovel_Option_Misses__": {
+		"message": "Stop after N empty paragraphs (0 = never)",
+		"description": "Label for stopping after N empty paragraph-image checks"
+	},
+	"__MSG_label_Webnovel_Option_Per_Chapter__": {
+		"message": "Max paragraphs per chapter (0 = no limit)",
+		"description": "Label for maximum paragraph-image checks per chapter"
+	},
+	"__MSG_label_Webnovel_Paragraph_Images_Max_Chapters__": {
+		"message": "Webnovel.com images: scan first N chapters (0 = all)",
+		"description": "Label for input to limit paragraph image scan to first N chapters"
+	},
+	"__MSG_label_Webnovel_Paragraph_Images_Max_Misses__": {
+		"message": "Webnovel.com images: stop after N empty paragraphs (0 = no stop)",
+		"description": "Label for input to stop scanning after consecutive empty paragraphs"
+	},
+	"__MSG_label_Webnovel_Paragraph_Images_Max_Per_Chapter__": {
+		"message": "Webnovel.com images: max paragraphs per chapter (0 = no limit)",
+		"description": "Label for input to cap paragraph image scans per chapter"
 	},
 	"__MSG_label_Remove_Original__": {
 		"message": "Remove Original/Raw Text",
@@ -683,6 +715,14 @@
 				"content": "$1"
 			}
 		}
+	},
+	"warningWebnovelParagraphImagesHint": {
+		"message": "Webnovel chapters look like they include images or character lists. Enable 'Download Webnovel.com Paragraph Images' to include them.",
+		"description": "Hint to enable paragraph image downloads when chapter titles suggest image-only content"
+	},
+	"warningWebnovelParagraphImagesRateLimit": {
+		"message": "Downloading Webnovel.com paragraph images makes many extra API requests and may trigger rate limits.",
+		"description": "Warning shown when user enables paragraph image downloads"
 	},
 	"httpFetchCanRetry": {
 		"message": "This is an intermittent error. If you retry in a few minutes, it may succeed.",

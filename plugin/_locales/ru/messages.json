@@ -219,6 +219,42 @@
 		"message": "Загрузите изображения абзацев веб-новеллы",
 		"description": "Label for checkbox to download paragraph comment images from webnovel.com"
 	},
+	"__MSG_label_Webnovel_Options_Header__": {
+		"message": "Настройки только для Webnovel.com",
+		"description": "Header for parser-specific Webnovel options"
+	},
+	"__MSG_label_Webnovel_Paragraph_Images_Options__": {
+		"message": "Настройки только для Webnovel.com: сканирование изображений",
+		"description": "Header and label for Webnovel paragraph image scan options"
+	},
+	"__MSG_label_Webnovel_Option_Chapters__": {
+		"message": "Сканировать первые N глав (0 = все)",
+		"description": "Label for scan limit in chapters for Webnovel paragraph images"
+	},
+	"__MSG_label_Webnovel_Option_Misses__": {
+		"message": "Остановиться после N пустых абзацев (0 = никогда)",
+		"description": "Label for stopping after N empty paragraph-image checks"
+	},
+	"__MSG_label_Webnovel_Option_Per_Chapter__": {
+		"message": "Макс. абзацев на главу (0 = без лимита)",
+		"description": "Label for max paragraph-image checks per chapter"
+	},
+	"warningWebnovelParagraphImagesRateLimit": {
+		"message": "Загрузка изображений абзацев Webnovel.com делает много дополнительных запросов и может привести к ограничению скорости.",
+		"description": "Warning shown when user enables paragraph image downloads"
+	},
+	"__MSG_label_Webnovel_Paragraph_Images_Max_Chapters__": {
+		"message": "Webnovel.com: сканировать первые N глав (0 = все)",
+		"description": "Label for input to limit paragraph image scan to first N chapters"
+	},
+	"__MSG_label_Webnovel_Paragraph_Images_Max_Misses__": {
+		"message": "Webnovel.com: остановиться после N пустых абзацев (0 = без остановки)",
+		"description": "Label for input to stop scanning after consecutive empty paragraphs"
+	},
+	"__MSG_label_Webnovel_Paragraph_Images_Max_Per_Chapter__": {
+		"message": "Webnovel.com: макс. абзацев на главу (0 = без лимита)",
+		"description": "Label for input to cap paragraph image scans per chapter"
+	},
 	"__MSG_label_Remove_Original__": {
 		"message": "Удалить оригинальный (необработанный) текст",
 		"description": "Label for checkbox to remove Original text from chapters"
@@ -258,6 +294,10 @@
 	"__MSG_label_Use_SVG_for_Images__": {
 		"message": "Использовать <svg> для изображений",
 		"description": "Label in front of checkbox to choose between <img> and <svg> elements for images."
+	},
+	"warningWebnovelParagraphImagesHint": {
+		"message": "Похоже, в главах Webnovel есть изображения или списки персонажей. Включите 'Download Webnovel.com Paragraph Images', чтобы добавить их.",
+		"description": "Hint to enable paragraph image downloads when chapter titles suggest image-only content"
 	},
 	"__MSG_label_Using_Default_Parser__": {
 		"message": "Не удалось подобрать парсер. Используется парсер по-умолчанию. Пожалуйста, укажите, как именно получать содержимое страниц.",
@@ -320,13 +360,13 @@
 		"description": "Warning message when try to fetch an image and instead get HTML",
 		"placeholders": {
 			"chapter": {
-			    "content": "$1"
+				"content": "$1"
 			},
 			"url": {
-			    "content": "$2"
+				"content": "$2"
 			},
 			"error": {
-			    "content": "$3"
+				"content": "$3"
 			}
 		}
 	},
@@ -347,7 +387,7 @@
 		"description": "Warning message when can't find content element for a web page",
 		"placeholders": {
 			"url": {
-			    "content": "$1"
+				"content": "$1"
 			}
 		}
 	},
@@ -356,10 +396,10 @@
 		"description": "Warning message when filename isn't legal",
 		"placeholders": {
 			"filename": {
-			    "content": "$1"
+				"content": "$1"
 			},
 			"illegalCharacters": {
-			    "content": "$2"
+				"content": "$2"
 			}
 		}
 	},
@@ -368,7 +408,7 @@
 		"description": "Warning message when try to fetch an image and instead get HTML",
 		"placeholders": {
 			"url": {
-			    "content": "$1"
+				"content": "$1"
 			}
 		}
 	},
@@ -381,10 +421,10 @@
 		"description": "Error message when fetch of a web page fails.",
 		"placeholders": {
 			"url": {
-			    "content": "$1"
+				"content": "$1"
 			},
 			"err": {
-			    "content": "$2"
+				"content": "$2"
 			}
 		}
 	},
@@ -393,13 +433,13 @@
 		"description": "Error message when fetch of an image file fails.",
 		"placeholders": {
 			"imageUrl": {
-			    "content": "$1"
+				"content": "$1"
 			},
 			"pageUrl": {
-			    "content": "$2"
+				"content": "$2"
 			},
 			"err": {
-			    "content": "$3"
+				"content": "$3"
 			}
 		}
 	},
@@ -408,13 +448,13 @@
 		"description": "Error message when fetch of an image file fails.",
 		"placeholders": {
 			"imageUrl": {
-			    "content": "$1"
+				"content": "$1"
 			},
 			"pageUrl": {
-			    "content": "$2"
+				"content": "$2"
 			},
 			"err": {
-			    "content": "$3"
+				"content": "$3"
 			}
 		}
 	},
@@ -463,7 +503,7 @@
 		"description": "Warning message when content element for a page has nothing viewable",
 		"placeholders": {
 			"url": {
-			    "content": "$1"
+				"content": "$1"
 			}
 		}
 	},
@@ -472,7 +512,7 @@
 		"description": "Warning message when downloaded image is in webp format",
 		"placeholders": {
 			"filename": {
-			    "content": "$1"
+				"content": "$1"
 			}
 		}
 	}

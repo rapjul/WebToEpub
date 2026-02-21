@@ -11,7 +11,7 @@ class ErrorLog {
 
     static showErrorMessage(msg) {
         // if already showing an error message, queue the new one to display
-        // when currently showing is closed. 
+        // when currently showing is closed.
         if (this.SuppressErrorLog && msg.retryAction == null) {
             return;
         }
@@ -49,7 +49,16 @@ class ErrorLog {
     }
 
     static dumpHistory() {
-        let errors = ErrorLog.history.join("\r\n\r\n");
+        if (ErrorLog.history.length === 0) {
+            return "";
+        }
+        if (ErrorLog.history.length === 1) {
+            return ErrorLog.history[0];
+        }
+        // Format multiple errors with numbering for better readability
+        let errors = ErrorLog.history.map((error, index) =>
+            `${index + 1}. ${error}`
+        ).join("\r\n\r\n");
         return errors;
     }
 

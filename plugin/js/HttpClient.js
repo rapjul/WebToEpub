@@ -218,6 +218,117 @@ class FetchErrorHandler {
 
         closeButton.addEventListener("click", removeToast);
     }
+
+    static showTransientRateLimitWarningWithDismiss(message, timeoutMs, storageKey) {
+        if (!document?.body) {
+            console.warn("Unable to show rate limit warning: document not ready");
+            return;
+        }
+        let containerId = "rateLimitToastContainer";
+        let container = document.getElementById(containerId);
+        if (!container) {
+            container = document.createElement("div");
+            container.id = containerId;
+            container.style.position = "fixed";
+            container.style.bottom = "20px";
+            container.style.right = "20px";
+            container.style.zIndex = "9999";
+            container.style.display = "flex";
+            container.style.flexDirection = "column";
+            container.style.gap = "8px";
+            container.style.maxWidth = "400px";
+            container.style.pointerEvents = "none";
+            document.body.appendChild(container);
+        }
+
+        let toast = document.createElement("div");
+        toast.style.background = "rgba(30, 30, 30, 0.9)";
+        toast.style.color = "#ffffff";
+        toast.style.padding = "12px 16px";
+        toast.style.borderRadius = "6px";
+        toast.style.boxShadow = "0 2px 8px rgba(0,0,0,0.3)";
+        toast.style.fontSize = "14px";
+        toast.style.lineHeight = "1.4";
+        toast.style.pointerEvents = "auto";
+        toast.style.border = "1px solid rgba(255,255,255,0.2)";
+        toast.style.display = "flex";
+        toast.style.flexDirection = "column";
+        toast.style.gap = "8px";
+
+        let messageNode = document.createElement("span");
+        messageNode.textContent = message;
+
+        let buttonsContainer = document.createElement("div");
+        buttonsContainer.style.display = "flex";
+        buttonsContainer.style.gap = "8px";
+        buttonsContainer.style.justifyContent = "flex-end";
+
+        let dismissButton = document.createElement("button");
+        dismissButton.textContent = "Don't show again";
+        dismissButton.style.background = "rgba(255, 100, 100, 0.7)";
+        dismissButton.style.color = "#ffffff";
+        dismissButton.style.border = "none";
+        dismissButton.style.borderRadius = "3px";
+        dismissButton.style.padding = "6px 12px";
+        dismissButton.style.cursor = "pointer";
+        dismissButton.style.fontSize = "12px";
+        dismissButton.style.fontWeight = "bold";
+
+        let closeButton = document.createElement("button");
+        closeButton.textContent = "Close";
+        closeButton.style.background = "rgba(100, 100, 100, 0.7)";
+        closeButton.style.color = "#ffffff";
+        closeButton.style.border = "none";
+        closeButton.style.borderRadius = "3px";
+        closeButton.style.padding = "6px 12px";
+        closeButton.style.cursor = "pointer";
+        closeButton.style.fontSize = "12px";
+
+        toast.appendChild(messageNode);
+        buttonsContainer.appendChild(dismissButton);
+        buttonsContainer.appendChild(closeButton);
+        toast.appendChild(buttonsContainer);
+        container.appendChild(toast);
+
+        let timeoutId;
+        let removeToast = () => {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+            toast.remove();
+            if (container.childElementCount === 0) {
+                container.remove();
+            }
+            document.removeEventListener("visibilitychange", onVisibilityChange);
+        };
+
+        let startDismissTimer = () => {
+            if (timeoutId) {
+                return;
+            }
+            timeoutId = setTimeout(removeToast, timeoutMs ?? 5000);
+        };
+
+        let onVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                startDismissTimer();
+                document.removeEventListener("visibilitychange", onVisibilityChange);
+            }
+        };
+
+        if (document.visibilityState === "visible") {
+            startDismissTimer();
+        } else {
+            document.addEventListener("visibilitychange", onVisibilityChange);
+        }
+
+        dismissButton.addEventListener("click", () => {
+            window.localStorage.setItem(storageKey, "true");
+            removeToast();
+        });
+
+        closeButton.addEventListener("click", removeToast);
+    }
 }
 FetchErrorHandler.rateLimitedHosts = new Set();
 

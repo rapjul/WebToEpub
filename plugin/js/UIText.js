@@ -14,7 +14,7 @@ class UIText { // eslint-disable-line no-unused-vars
         maxChaptersSelected: (selectedCount, maxChapters) => chrome.i18n.getMessage("__MSG_More_than_max_chapters_selected__", [selectedCount, maxChapters]),
         shiftClickMessage: chrome.i18n.getMessage("__MSG_Shift_Click__")
     };
-    
+
     // Library-related text
     static Library = {
         deleteEpub: chrome.i18n.getMessage("__MSG_button_Lib_Template_Delete_EPUB__"),
@@ -35,7 +35,7 @@ class UIText { // eslint-disable-line no-unused-vars
         warningInProgress: chrome.i18n.getMessage("__MSG_label_Lib_Warning_In_Progress___"),
         confirmClearLibrary: chrome.i18n.getMessage("__MSG_confirm_Clear_Library__")
     };
-    
+
     // Metadata-related text
     static Metadata = {
         title: chrome.i18n.getMessage("__MSG_label_Title__"),
@@ -45,7 +45,7 @@ class UIText { // eslint-disable-line no-unused-vars
         description: chrome.i18n.getMessage("__MSG_label_Metadata_description__"),
         save: chrome.i18n.getMessage("__MSG_label_Metadata_Save__")
     };
-    
+
     // Common UI elements
     static Common = {
         ok: chrome.i18n.getMessage("__MSG_button_error_OK__"),
@@ -56,8 +56,8 @@ class UIText { // eslint-disable-line no-unused-vars
         skip: chrome.i18n.getMessage("__MSG_button_error_Skip__"),
         addToLibrary: chrome.i18n.getMessage("__MSG_button_Add_to_Library__")
     };
-    
-    
+
+
     // Error messages
     static Error = {
         noParserFound: chrome.i18n.getMessage("noParserFound"),
@@ -75,7 +75,7 @@ class UIText { // eslint-disable-line no-unused-vars
         gotHtmlExpectedImageWarning: (url) => chrome.i18n.getMessage("gotHtmlExpectedImageWarning", [url]),
         convertToXhtmlWarning: (filename, url, errorMessage) => chrome.i18n.getMessage("convertToXhtmlWarning", [filename, url, errorMessage])
     };
-    
+
     // Warning messages
     static Warning = {
         warningNoChapterUrl: chrome.i18n.getMessage("warningNoChapterUrl"),
@@ -85,7 +85,9 @@ class UIText { // eslint-disable-line no-unused-vars
         warningParserDisabledComradeMao: chrome.i18n.getMessage("warningParserDisabledComradeMao"),
         parserDisabledNotification: chrome.i18n.getMessage("parserDisabledNotification"),
         httpFetchCanRetry: chrome.i18n.getMessage("httpFetchCanRetry"),
-        warningWebpImage: (relativeHref) => chrome.i18n.getMessage("warningWebpImage", [relativeHref])
+        warningWebpImage: (relativeHref) => chrome.i18n.getMessage("warningWebpImage", [relativeHref]),
+        warningWebnovelParagraphImagesHint: chrome.i18n.getMessage("warningWebnovelParagraphImagesHint"),
+        warningWebnovelParagraphImagesRateLimit: chrome.i18n.getMessage("warningWebnovelParagraphImagesRateLimit")
     };
 
     // Default/Placeholder text

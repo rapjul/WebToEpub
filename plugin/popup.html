@@ -123,8 +123,28 @@
                     <td>__MSG_label_Remove_Chapter_Number__</td>
                 </tr>
                 <tr id="webnovelDownloadImagesRow" hidden="true">
-                    <td><input id="webnovelDownloadImagesCheckbox" type="checkbox" name="webnovelDownloadImagesCheckbox" value="true"></td>
+                    <td><input id="webnovelDownloadImagesCheckbox" type="checkbox" name="webnovelDownloadImagesCheckbox" value="false"></td>
                     <td>__MSG_label_Webnovel_Download_Paragraph_Images__</td>
+                </tr>
+                <tr id="webnovelParagraphImagesOptionsRow" hidden="true" class="webnovelOptionsRow">
+                    <td></td>
+                    <td>
+                        <div class="webnovelCompactOptions">
+                            <span class="i18n webnovelOptionsTitle">__MSG_label_Webnovel_Paragraph_Images_Options__</span>
+                            <label class="webnovelOptionItem" for="webnovelParagraphImagesMaxChaptersInput">
+                                <span class="i18n">__MSG_label_Webnovel_Option_Chapters__</span>
+                                <input id="webnovelParagraphImagesMaxChaptersInput" type="text" name="webnovelParagraphImagesMaxChaptersInput" />
+                            </label>
+                            <label class="webnovelOptionItem" for="webnovelParagraphImagesMaxMissesInput">
+                                <span class="i18n">__MSG_label_Webnovel_Option_Misses__</span>
+                                <input id="webnovelParagraphImagesMaxMissesInput" type="text" name="webnovelParagraphImagesMaxMissesInput" />
+                            </label>
+                            <label class="webnovelOptionItem" for="webnovelParagraphImagesMaxPerChapterInput">
+                                <span class="i18n">__MSG_label_Webnovel_Option_Per_Chapter__</span>
+                                <input id="webnovelParagraphImagesMaxPerChapterInput" type="text" name="webnovelParagraphImagesMaxPerChapterInput" />
+                            </label>
+                        </div>
+                    </td>
                 </tr>
                 <tr id="removeOriginalRow" hidden="true">
                     <td><input id="removeOriginalCheckbox" type="checkbox" name="removeOriginalCheckbox" value="true"></td>

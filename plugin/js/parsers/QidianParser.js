@@ -6,6 +6,33 @@
 
 parserFactory.register("webnovel.com", () => new QidianParser());
 
+class QidianParagraphImageErrorHandler extends FetchErrorHandler {
+    constructor(parser) {
+        super();
+        this.parser = parser;
+    }
+
+    onResponseError(url, wrapOptions, response, errorMessage) {
+        if (response?.status === 429 || response?.status === 509) {
+            this.parser?.noteParagraphImageRateLimit(response);
+            if (wrapOptions.retry === undefined) {
+                wrapOptions.retry = {
+                    retryDelay: QidianParser.PARAGRAPH_IMAGE_RETRY_DELAYS.slice(),
+                    promptUser: false,
+                    HTTP: response.status
+                };
+                return this.retryFetch(url, wrapOptions);
+            }
+
+            if (0 < wrapOptions.retry.retryDelay.length) {
+                return this.retryFetch(url, wrapOptions);
+            }
+            return Promise.reject(new Error(this.makeFailMessage(response.url, response.status)));
+        }
+        return super.onResponseError(url, wrapOptions, response, errorMessage);
+    }
+}
+
 class QidianParser extends Parser {
     /**
      * Constructs a new parser instance, initializing throttle limits, cache for chapter titles,
@@ -19,6 +46,14 @@ class QidianParser extends Parser {
         this._cookiesLogged = false;
         this._permissionsLogged = false;
         this._cookieApiLogged = false;
+
+        this.paragraphImageMinDelayMs = 1200;
+        this.paragraphImageJitterMs = 300;
+        this._nextParagraphImageAt = 0;
+        this._paragraphImageRateLimitBackoffMs = 0;
+        this._paragraphImageRateLimitResetAt = 0;
+        this._chapterIndexByUrl = null;
+        this._paragraphImageHintShown = false;
 
         this.downloadAndIncludeImages = document.getElementById("webnovelDownloadImagesCheckbox")?.checked ?? false;
     }
@@ -42,7 +77,9 @@ class QidianParser extends Parser {
         if (links.length === 0) {
             links = Array.from(dom.querySelectorAll("div.volume-item ol a"));
         }
-        return links.map(QidianParser.linkToChapter);
+        let chapters = links.map(QidianParser.linkToChapter);
+        this.maybeNotifyParagraphImageHint(chapters);
+        return chapters;
     }
 
     static isLinkLocked(link) {
@@ -513,7 +550,11 @@ class QidianParser extends Parser {
         }
         let url = this.buildParagraphReviewUrl(token, chapterId, paragraphId);
         try {
-            let response = await HttpClient.fetchJson(url, {credentials: "include"});
+            let response = await HttpClient.wrapFetchImpl(url, {
+                responseHandler: new FetchJsonResponseHandler(),
+                fetchOptions: {credentials: "include"},
+                errorHandler: new QidianParagraphImageErrorHandler(this)
+            });
             let items = response?.json?.data?.paragraphTopicItems ?? [];
             let images = [];
             for (let item of items) {
@@ -605,6 +646,18 @@ class QidianParser extends Parser {
         if (!this.userPreferences?.webnovelDownloadParagraphImages?.value) {
             return;
         }
+        this.ensureChapterIndexMap();
+        let chapterIndex = this.getChapterIndexForUrl(webPage?.baseURI ?? "");
+        let maxChapters = this.getNumericPreference("webnovelParagraphImagesMaxChapters", QidianParser.DEFAULT_MAX_CHAPTERS);
+        if (maxChapters > 0 && chapterIndex !== null && chapterIndex > maxChapters) {
+            return;
+        }
+        let maxPerChapter = this.getNumericPreference("webnovelParagraphImagesMaxPerChapter", QidianParser.DEFAULT_MAX_PER_CHAPTER);
+        if (maxPerChapter > 0 && paragraphs.length > maxPerChapter) {
+            paragraphs = paragraphs.slice(0, maxPerChapter);
+        }
+        let maxMisses = this.getNumericPreference("webnovelParagraphImagesMaxMisses", QidianParser.DEFAULT_MAX_MISSES);
+        let consecutiveMisses = 0;
         await this.logCookiePermissionStatus();
         let token = await this.getCsrfToken(webPage);
         this.logCsrfToken(token);
@@ -614,6 +667,7 @@ class QidianParser extends Parser {
             return;
         }
         for (let paragraph of paragraphs) {
+            await this.waitForParagraphImageSlot();
             let meta = this.parseParagraphMeta(paragraph.getAttribute("data-ejs"));
             if (!meta?.paragraphId || !meta?.chapterId) {
                 continue;
@@ -622,8 +676,13 @@ class QidianParser extends Parser {
             // Logging the number of images fetched for this paragraph.
             console.log("[WebToEpub][QidianParser] Fetched", images.length, "image(s) for paragraph ID", meta.paragraphId, "for chapter ID", meta.chapterId, "with text content:", paragraph.textContent);
             if (images.length === 0) {
+                consecutiveMisses += 1;
+                if (maxMisses > 0 && consecutiveMisses >= maxMisses) {
+                    break;
+                }
                 continue;
             }
+            consecutiveMisses = 0;
             this.appendParagraphImages(paragraph, images, webPage);
         }
         console.log("[WebToEpub][QidianParser] Attached images to paragraphs:", paragraphs.map(p => p.outerHTML).join("\n"));
@@ -661,6 +720,31 @@ class QidianParser extends Parser {
         return (text.length <= 100) && (pCount == 1);
     }
 
+    noteParagraphImageRateLimit(response) {
+        let now = Date.now();
+        this._paragraphImageRateLimitBackoffMs = Math.max(this._paragraphImageRateLimitBackoffMs, 5000);
+        this._paragraphImageRateLimitResetAt = Math.max(this._paragraphImageRateLimitResetAt, now + 5 * 60 * 1000);
+        console.log("[WebToEpub][QidianParser] Paragraph image rate limit detected (HTTP", response?.status, "). Increasing delay between image requests.");
+    }
+
+    async waitForParagraphImageSlot() {
+        let now = Date.now();
+        if (this._paragraphImageRateLimitResetAt && now >= this._paragraphImageRateLimitResetAt) {
+            this._paragraphImageRateLimitBackoffMs = 0;
+            this._paragraphImageRateLimitResetAt = 0;
+        }
+        let delayMs = this.paragraphImageMinDelayMs;
+        if (this._paragraphImageRateLimitBackoffMs) {
+            delayMs = Math.max(delayMs, this._paragraphImageRateLimitBackoffMs);
+        }
+        let jitter = Math.floor(Math.random() * this.paragraphImageJitterMs);
+        let waitMs = Math.max(0, this._nextParagraphImageAt - now);
+        if (waitMs > 0) {
+            await util.sleep(waitMs);
+        }
+        this._nextParagraphImageAt = Date.now() + delayMs + jitter;
+    }
+
     /**
      * Populates the parser-specific UI controls for Qidian downloads,
      * ensuring author notes removal, chapter number removal, and image
@@ -672,6 +756,13 @@ class QidianParser extends Parser {
         document.getElementById("removeAuthorNotesRow").hidden = false;
         document.getElementById("removeChapterNumberRow").hidden = false;
         document.getElementById("webnovelDownloadImagesRow").hidden = false;
+        document.getElementById("webnovelParagraphImagesOptionsRow").hidden = false;
+
+        this.syncWebnovelParagraphImageOptionState();
+        let toggle = document.getElementById("webnovelDownloadImagesCheckbox");
+        if (toggle) {
+            toggle.addEventListener("change", () => this.onWebnovelDownloadImagesToggle());
+        }
     }
 
     /**
@@ -748,4 +839,125 @@ class QidianParser extends Parser {
     extractDescription(dom) {
         return dom.querySelector("div.det-abt p.c_000").textContent.trim();
     }
+
+    maybeNotifyParagraphImageHint(chapters) {
+        if (this._paragraphImageHintShown) {
+            return;
+        }
+        if (this.userPreferences?.webnovelDownloadParagraphImages?.value) {
+            return;
+        }
+        let hasHint = chapters?.some(chapter => QidianParser.isParagraphImageHintTitle(chapter?.title)) ?? false;
+        if (!hasHint) {
+            return;
+        }
+        this._paragraphImageHintShown = true;
+        FetchErrorHandler.showTransientRateLimitWarning(UIText.Warning.warningWebnovelParagraphImagesHint, 8000);
+    }
+
+    static isParagraphImageHintTitle(title) {
+        if (util.isNullOrEmpty(title)) {
+            return false;
+        }
+        return QidianParser.PARAGRAPH_IMAGE_HINT_REGEX.test(title);
+    }
+
+    syncWebnovelParagraphImageOptionState() {
+        let enabled = document.getElementById("webnovelDownloadImagesCheckbox")?.checked ?? false;
+        let optionsRow = document.getElementById("webnovelParagraphImagesOptionsRow");
+        if (optionsRow) {
+            optionsRow.classList.toggle("webnovelOptionsDisabled", !enabled);
+        }
+        let controls = [
+            "webnovelParagraphImagesMaxChaptersInput",
+            "webnovelParagraphImagesMaxMissesInput",
+            "webnovelParagraphImagesMaxPerChapterInput"
+        ];
+        for (let id of controls) {
+            let input = document.getElementById(id);
+            if (input) {
+                input.disabled = !enabled;
+            }
+        }
+    }
+
+    onWebnovelDownloadImagesToggle() {
+        this.syncWebnovelParagraphImageOptionState();
+        let enabled = document.getElementById("webnovelDownloadImagesCheckbox")?.checked ?? false;
+        if (enabled) {
+            this.maybeShowWebnovelWarning();
+            return;
+        }
+        this.dismissWebnovelWarningToast();
+    }
+
+    dismissWebnovelWarningToast() {
+        let container = document.getElementById("rateLimitToastContainer");
+        if (!container) {
+            return;
+        }
+        let warningText = UIText.Warning.warningWebnovelParagraphImagesRateLimit;
+        for (let toast of [...container.children]) {
+            if (toast.textContent?.includes(warningText)) {
+                toast.remove();
+            }
+        }
+        if (container.childElementCount === 0) {
+            container.remove();
+        }
+    }
+
+    maybeShowWebnovelWarning() {
+        // Check if user has permanently dismissed this warning
+        const PREF_KEY = "webnovelParagraphImagesRateLimitWarningDismissed";
+        const isDismissed = window.localStorage.getItem(PREF_KEY) === "true";
+        if (isDismissed) {
+            return; // User has dismissed; don't show warning
+        }
+
+        // Show warning every time with option to dismiss
+        FetchErrorHandler.showTransientRateLimitWarningWithDismiss(
+            UIText.Warning.warningWebnovelParagraphImagesRateLimit,
+            8000,
+            PREF_KEY
+        );
+    }
+
+    ensureChapterIndexMap() {
+        if (this._chapterIndexByUrl) {
+            return;
+        }
+        this._chapterIndexByUrl = new Map();
+        let index = 1;
+        for (let page of this.state.webPages.values()) {
+            if (!page.isIncludeable) {
+                continue;
+            }
+            this._chapterIndexByUrl.set(util.normalizeUrlForCompare(page.sourceUrl), index);
+            index += 1;
+        }
+    }
+
+    getChapterIndexForUrl(url) {
+        if (util.isNullOrEmpty(url) || !this._chapterIndexByUrl) {
+            return null;
+        }
+        let normalized = util.normalizeUrlForCompare(url);
+        return this._chapterIndexByUrl.get(normalized) ?? null;
+    }
+
+    getNumericPreference(prefName, fallback) {
+        let prefValue = this.userPreferences?.[prefName]?.value ?? "";
+        let parsed = Number.parseInt(prefValue, 10);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+            return fallback;
+        }
+        return parsed;
+    }
 }
+
+QidianParser.PARAGRAPH_IMAGE_RETRY_DELAYS = [300, 240, 180, 120, 60];
+QidianParser.DEFAULT_MAX_CHAPTERS = 5;
+QidianParser.DEFAULT_MAX_MISSES = 5;
+QidianParser.DEFAULT_MAX_PER_CHAPTER = 25;
+QidianParser.PARAGRAPH_IMAGE_HINT_REGEX = /\b(images?|characters?|character\s*lists?)\b/i;

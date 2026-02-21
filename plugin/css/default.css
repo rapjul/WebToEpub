@@ -216,6 +216,71 @@ textarea.allSpace {
     width: 75px;
 }
 
+#inputSection tr.webnovelHeaderRow td {
+    padding-top: 6px;
+    padding-bottom: 2px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#inputSection tr.webnovelOptionsRow > td {
+    vertical-align: top;
+    padding-top: 4px;
+    padding-bottom: 8px;
+}
+
+#inputSection tr.webnovelOptionsRow .webnovelCompactOptions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    min-height: 54px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0;
+}
+
+#inputSection tr.webnovelOptionsRow .webnovelCompactOptions .webnovelOptionsTitle {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    flex-basis: 100%;
+    text-align: center;
+    font-size: 1em;
+    font-weight: 600;
+}
+
+#inputSection tr.webnovelOptionsRow .webnovelOptionItem {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+#inputSection tr.webnovelOptionsRow .webnovelOptionItem > span {
+    font-size: 1em;
+}
+
+#inputSection tr.webnovelOptionsRow .webnovelOptionItem > input {
+    width: 50px;
+    min-width: 50px;
+    margin-left: 6px;
+    text-align: center;
+}
+
+#inputSection tr.webnovelOptionsRow.webnovelOptionsDisabled .webnovelCompactOptions,
+#inputSection tr.webnovelOptionsRow.webnovelOptionsDisabled .webnovelOptionItem,
+#inputSection tr.webnovelOptionsRow.webnovelOptionsDisabled .webnovelOptionItem > span,
+#inputSection tr.webnovelOptionsRow.webnovelOptionsDisabled .webnovelOptionItem > input {
+    cursor: not-allowed;
+}
+
+#inputSection tr.webnovelOptionsRow.webnovelOptionsDisabled .webnovelOptionsTitle,
+#inputSection tr.webnovelOptionsRow.webnovelOptionsDisabled .webnovelOptionItem > span {
+    opacity: 0.7;
+}
+
 #chapterUrlsTable > tr > td:first-child, #chapterUrlsTable > tbody > tr > td:nth-child(2) {
     width: 3px;
 }
@@ -267,6 +332,11 @@ button {
     position: absolute;
     top: 14px;
     right: 7%;
+}
+
+#coverUrlSection .coverPreviewImg {
+    float: right;
+    margin-left: 10px;
 }
 
 .LibCover {
