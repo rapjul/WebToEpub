@@ -16,8 +16,8 @@
 		"description": "Label for checkbox to Show Advanced Library Options"
 	},
 	"__MSG_label_Lib_Download_Epub_After_Update__": {
-		"message": "Download Epubs after new Chapter got added automatically.",
-		"description": "Label for checkbox to Download Epubs after update"
+		"message": "Download EPUBs after new Chapter got added automatically.",
+		"description": "Label for checkbox to Download EPUBs after update"
 	},
 	"__MSG_label_Lib_Warning_In_Progress___": {
 		"message": "In Progress....",
@@ -36,8 +36,8 @@
 		"description": "Label on button to import Library in json format"
 	},
 	"__MSG_button_Lib_Template_Upload_Epub__": {
-		"message": "Upload Epub",
-		"description": "Label on button to Upload Epub in Library"
+		"message": "Upload EPUB",
+		"description": "Label on button to Upload EPUB in Library"
 	},
 	"__MSG_button_Lib_Template_Add_List_To_Library__": {
 		"message": "Add novels to Library",
@@ -45,7 +45,7 @@
 	},
 	"__MSG_button_Lib_Template_Update_All__": {
 		"message": "Update all",
-		"description": "Label on button to Update all Epubs"
+		"description": "Label on button to Update all EPUBs"
 	},
 	"__MSG_button_Lib_Template_Delete_EPUB__": {
 		"message": "Delete EPUB",
@@ -96,8 +96,8 @@
 		"description": "Label for Warning if user changes URL in Library"
 	},
 	"__MSG_label_Lib_Template_Upload_Epub_File_Label__": {
-		"message": "Upload an Epub File to the Library.",
-		"description": "Label for Upload Epub file in Library"
+		"message": "Upload an EPUB File to the Library.",
+		"description": "Label for Upload EPUB file in Library"
 	},
 	"__MSG_button_Lib_Template_": {
 		"message": "Invisible Button",
@@ -232,8 +232,8 @@
 		"description": "The 'URL to get chapter from' column in the table of chapters."
 	},
 	"__MSG_label_Add_Information_Page_To_Epub__": {
-		"message": "Add Information page to Epub",
-		"description": "Label for checkbox to add 'Information' page at beginning of Epub"
+		"message": "Add Information page to EPUB",
+		"description": "Label for checkbox to add 'Information' page at beginning of EPUB"
 	},
 	"__MSG_label_Advanced_Options_Visible_By_Default__": {
 		"message": "Advanced Options Visible by Default",
@@ -372,8 +372,8 @@
 		"description": "Label for drop down for maximum number of web pages to request at same time"
 	},
 	"__MSG_label_Metadata_description__": {
-		"message": "Epub Description",
-		"description": "Preview description from the epub in Calibre"
+		"message": "Story Description",
+		"description": "Preview description from the EPUB in Calibre"
 	},
 	"__MSG_label_Custom_Filename__": {
 		"message": "Custom Filename",
@@ -381,7 +381,7 @@
 	},
 	"__MSG_label_Metadata_subject__": {
 		"message": "Tags",
-		"description": "Tags for epub"
+		"description": "Tags for EPUB"
 	},
 	"__MSG_label_Metadata_Save__": {
 		"message": "Save Metadata",
@@ -397,7 +397,7 @@
 	},
 	"__MSG_label_Overwrite_Epub_When_Filename_Duplicte__": {
 		"message": "Overwrite existing EPUB file with same name",
-		"description": "Label for checkbox to toggle between 'overwrite existing Epub files' and 'make names unique'"
+		"description": "Label for checkbox to toggle between 'overwrite existing EPUB files' and 'make names unique'"
 	},
 	"__MSG_label_Password__": {
 		"message": "Password",
@@ -405,11 +405,11 @@
 	},
 	"__MSG_label_Range_End_Chapter__": {
 		"message": "Last Chapter",
-		"description": "Label in front of drop down for selecting last chapter to include in epub"
+		"description": "Label in front of drop down for selecting last chapter to include in EPUB"
 	},
 	"__MSG_label_Range_Start_Chapter__": {
 		"message": "First Chapter",
-		"description": "Label in front of drop down for selecting first chapter to include in epub"
+		"description": "Label in front of drop down for selecting first chapter to include in EPUB"
 	},
 	"__MSG_label_Read_Options_from_file__": {
 		"message": "Read Options from file:",
@@ -489,7 +489,7 @@
 	},
 	"__MSG_label_Use_Full_Title_As_File_Name__": {
 		"message": "Use full title as file name",
-		"description": "Label in front of checkbox to choose if Epub's filename will be truncated or not."
+		"description": "Label in front of checkbox to choose if EPUB's filename will be truncated or not."
 	},
 	"__MSG_label_Append_Latest_Chapter_Info__": {
 		"message": "Append latest chapter info to title",
@@ -516,21 +516,21 @@
 		"description": "Label in front of input for novel's position in series."
 	},
 	"__MSG_label_No_Download_Popup__": {
-		"message": "Don't popup 'SaveAs' dialog when save Epub",
-		"description": "Label for checkbox to download the final epub without a popup"
+		"message": "Don't popup 'Save As' dialog when saving EPUB",
+		"description": "Label for checkbox to download the final EPUB without a popup"
 	},
-    "__MSG_label_Disable_Shift_Click_Alert__": {
-      "message": "Disable Shift+Click Selection Alert",
-      "description": "Label for checkbox to disable the alert shown when user shift-clicks to select multiple chapters"
-    },
-    "__MSG_label_Disable_Image_Res_Error__": {
-      "message": "Disable High Resolution Image Fetch Failure Warning",
-      "description": "Label for checkbox to disable warnings when high resolution image fetch fails and lower resolution is used instead"
-    },
-    "__MSG_label_Disable_Webp_Image_Format_Error__": {
-      "message": "Disable WebP Image Format Compatibility Warning",
-      "description": "Label for checkbox to disable warnings that WebP format images may not render in epub viewers"
-    },
+	"__MSG_label_Disable_Shift_Click_Alert__": {
+		"message": "Disable Shift+Click Selection Alert",
+		"description": "Label for checkbox to disable the alert shown when user shift-clicks to select multiple chapters"
+	},
+	"__MSG_label_Disable_Image_Res_Error__": {
+		"message": "Disable High Resolution Image Fetch Failure Warning",
+		"description": "Label for checkbox to disable warnings when high resolution image fetch fails and lower resolution is used instead"
+	},
+	"__MSG_label_Disable_Webp_Image_Format_Error__": {
+		"message": "Disable WebP Image Format Compatibility Warning",
+		"description": "Label for checkbox to disable warnings that WebP format images may not render in EPUB viewers"
+	},
 	"__MSG_label_Write_Error_History_To_File__": {
 		"message": "Write error messages to file",
 		"description": "Label for checkbox to write recent error messages to file"
@@ -540,10 +540,10 @@
 		"description": "Error message when fetch of an image file fails.",
 		"placeholders": {
 			"selectedCount": {
-			    "content": "$1"
+				"content": "$1"
 			},
 			"maxChapters": {
-			    "content": "$2"
+				"content": "$2"
 			}
 		}
 	},
@@ -612,25 +612,25 @@
 		"description": "Warning message when try to fetch an image and instead get HTML",
 		"placeholders": {
 			"url": {
-			    "content": "$1"
+				"content": "$1"
 			},
 			"error": {
-			    "content": "$2"
+				"content": "$2"
 			}
 		}
 	},
 	"convertToXhtmlWarning": {
-		"message": "Warning, unable to convert chapter '$chapter$' from '$url$' to valid XHTML. Your epub viewer may fail when viewing that chapter. You may need to fix the chapter manually with Calibre. \r\nConversion error message was: ($error$)",
+		"message": "Warning, unable to convert chapter '$chapter$' from '$url$' to valid XHTML. Your EPUB viewer may fail when viewing that chapter. You may need to fix the chapter manually with Calibre. \r\nConversion error message was: ($error$)",
 		"description": "Warning message when try to fetch an image and instead get HTML",
 		"placeholders": {
 			"chapter": {
-			    "content": "$1"
+				"content": "$1"
 			},
 			"url": {
-			    "content": "$2"
+				"content": "$2"
 			},
 			"error": {
-			    "content": "$3"
+				"content": "$3"
 			}
 		}
 	},
@@ -659,7 +659,7 @@
 		"description": "Warning message when can't find content element for a web page",
 		"placeholders": {
 			"url": {
-			    "content": "$1"
+				"content": "$1"
 			}
 		}
 	},
@@ -668,10 +668,10 @@
 		"description": "Warning message when filename isn't legal",
 		"placeholders": {
 			"filename": {
-			    "content": "$1"
+				"content": "$1"
 			},
 			"illegalCharacters": {
-			    "content": "$2"
+				"content": "$2"
 			}
 		}
 	},
@@ -680,7 +680,7 @@
 		"description": "Warning message when try to fetch an image and instead get HTML",
 		"placeholders": {
 			"url": {
-			    "content": "$1"
+				"content": "$1"
 			}
 		}
 	},
@@ -693,10 +693,10 @@
 		"description": "Error message when fetch of a web page fails.",
 		"placeholders": {
 			"url": {
-			    "content": "$1"
+				"content": "$1"
 			},
 			"err": {
-			    "content": "$2"
+				"content": "$2"
 			}
 		}
 	},
@@ -705,13 +705,13 @@
 		"description": "Error message when fetch of an image file fails.",
 		"placeholders": {
 			"imageUrl": {
-			    "content": "$1"
+				"content": "$1"
 			},
 			"pageUrl": {
-			    "content": "$2"
+				"content": "$2"
 			},
 			"err": {
-			    "content": "$3"
+				"content": "$3"
 			}
 		}
 	},
@@ -720,13 +720,13 @@
 		"description": "Error message when fetch of an image file fails.",
 		"placeholders": {
 			"imageUrl": {
-			    "content": "$1"
+				"content": "$1"
 			},
 			"pageUrl": {
-			    "content": "$2"
+				"content": "$2"
 			},
 			"err": {
-			    "content": "$3"
+				"content": "$3"
 			}
 		}
 	},
@@ -736,7 +736,7 @@
 	},
 	"informationPageTitle": {
 		"message": "Information",
-		"description": "Title of page that gives information on epub."
+		"description": "Title of page that gives information on EPUB."
 	},
 	"noChaptersFoundAndFetchClicked": {
 		"message": "No chapters found.",
@@ -801,16 +801,16 @@
 		"description": "Warning message when content element for a page has nothing viewable",
 		"placeholders": {
 			"url": {
-			    "content": "$1"
+				"content": "$1"
 			}
 		}
 	},
 	"warningWebpImage": {
-		"message": "Warning: image file '$filename$' is in webp format.  Your epub viewer may not be able to render it.",
+		"message": "Warning: image file '$filename$' is in webp format.  Your EPUB viewer may not be able to render it.",
 		"description": "Warning message when downloaded image is in webp format",
 		"placeholders": {
 			"filename": {
-			    "content": "$1"
+				"content": "$1"
 			}
 		}
 	}
