@@ -515,15 +515,42 @@ var main = (function() {
 
     // this will be called when message listener fires
     function onMessageListener(message, sender, sendResponse) {  // eslint-disable-line no-unused-vars
-        if (message.messageType == "ParseResults") {
+        if (message.messageType === "ParseResults") {
             chrome.runtime.onMessage.removeListener(onMessageListener);
-            util.log("addListener");
-            util.log(message);
-            // convert the string returned from content script back into a DOM
-            let dom = new DOMParser().parseFromString(message.document, "text/html");
-            populateControlsWithDom(message.url, dom);
+            clearTimeout(messageListenerTimeout);
+            util.log("[WebToEpub] Received ParseResults message from content script");
+            util.log("[WebToEpub] Message document length: " + (message.document ? message.document.length : 0) + " bytes");
+            util.log("[WebToEpub] Message URL: " + message.url);
+            try {
+                if (!message.document) {
+                    throw new Error("Content script returned empty document");
+                }
+                // convert the string returned from content script back into a DOM
+                let dom = new DOMParser().parseFromString(message.document, "text/html");
+                if (dom && dom.body) {
+                    util.log("[WebToEpub] DOM parsed successfully from " + message.document.length + " bytes");
+                    util.log("[WebToEpub] Populating controls with URL: " + message.url);
+                    populateControlsWithDom(message.url, dom);
+                } else {
+                    throw new Error("Failed to parse DOM - result contains empty body");
+                }
+            } catch (err) {
+                let errMsg = "Error processing content script message: " + (err ? err.toString() : "Unknown error");
+                util.log("[WebToEpub] " + errMsg);
+                ErrorLog.showErrorMessage(errMsg);
+            }
+        } else if (message.messageType === "ParseError") {
+            chrome.runtime.onMessage.removeListener(onMessageListener);
+            clearTimeout(messageListenerTimeout);
+            util.log("[WebToEpub] Received ParseError message from content script");
+            util.log("[WebToEpub] Content script error: " + message.error);
+            let errMsg = "Content script error: " + (message.error ? message.error : "Unknown error from content script");
+            ErrorLog.showErrorMessage(errMsg);
         }
     }
+
+    let messageListenerTimeout = null;
+    const MESSAGE_TIMEOUT_MS = 10000; // 10 seconds timeout
 
     // details
     let initialWebPage = null;
@@ -546,6 +573,7 @@ var main = (function() {
     // extract urls from DOM and populate control
     async function processInitialHtml(url, dom) {
         if (setParser(url, dom)) {
+            let metaInfo = null;
             try {
                 userPreferences.addObserver(parser);
             } catch (error) {
@@ -554,7 +582,7 @@ var main = (function() {
             }
             try {
                 await parser.loadEpubMetaInfo(dom);
-                let metaInfo = parser.getEpubMetaInfo(dom, userPreferences.useFullTitle.value);
+                metaInfo = parser.getEpubMetaInfo(dom, userPreferences.useFullTitle.value);
                 populateMetaInfo(metaInfo);
                 setUiToDefaultState();
                 parser.populateUI(dom);
@@ -563,6 +591,16 @@ var main = (function() {
             }
             try {
                 await parser.onLoadFirstPage(url, dom);
+                // Step 5: Apply "web" fallback if title not found after chapter processing
+                if (metaInfo && (!metaInfo.fileName || metaInfo.fileName.trim() === "")) {
+                    metaInfo.fileName = parser.makeSaveAsFileNameWithoutExtension(
+                        metaInfo.title,
+                        userPreferences.useFullTitle.value,
+                        false  // skipWebDefault=false, apply "web" if title is null
+                    );
+                    setUiFieldToValue("fileNameInput", metaInfo.fileName);
+                    TitleSuffixController.setInitialFileName(metaInfo.fileName);
+                }
             } catch (error) {
                 ErrorLog.showErrorMessage(error);
             }
@@ -748,28 +786,79 @@ var main = (function() {
     }
 
     function getActiveTabDOM(tabId) {
+        if (!tabId) {
+            let errMsg = "Error: No tab ID provided. Cannot inject content script.";
+            util.log(errMsg);
+            ErrorLog.showErrorMessage(errMsg);
+            return;
+        }
         addMessageListener();
+
+        // Set timeout in case message never arrives
+        messageListenerTimeout = setTimeout(() => {
+            chrome.runtime.onMessage.removeListener(onMessageListener);
+            let errMsg = "Timeout waiting for page content (10 seconds). Possible causes:\n" +
+                         "1. Content script failed to inject or execute\n" +
+                         "2. Page is blocking or sandboxing extension scripts\n" +
+                         "3. Page uses frames/iframes that are isolated\n" +
+                         "4. Content script failed to capture DOM\n\n" +
+                         "Solutions: Refresh page, check it's not a protected page (Gmail, etc), or use 'Load and Analyse' button.";
+            util.log("[WebToEpub] Timeout occurred - content script did not respond within " + MESSAGE_TIMEOUT_MS + "ms");
+            util.log("[WebToEpub] Check browser console (F12) in original page tab for any errors from content script");
+            ErrorLog.showErrorMessage(errMsg);
+        }, MESSAGE_TIMEOUT_MS);
+
+        util.log("[WebToEpub] Injecting content script into tab " + tabId);
         injectContentScript(tabId);
     }
 
     function injectContentScript(tabId) {
-        if (util.isFirefox()) {
-            Firefox.injectContentScript(tabId);
-        } else {
-            chromeInjectContentScript(tabId);
+        try {
+            if (util.isFirefox()) {
+                util.log("Using Firefox content script injection");
+                Firefox.injectContentScript(tabId);
+            } else {
+                util.log("Using Chrome content script injection");
+                chromeInjectContentScript(tabId);
+            }
+        } catch (err) {
+            let errMsg = "Error injecting content script: " + (err ? err.toString() : "Unknown error");
+            util.log(errMsg);
+            clearTimeout(messageListenerTimeout);
+            ErrorLog.showErrorMessage(errMsg);
         }
     }
 
     function chromeInjectContentScript(tabId) {
         try {
-            chrome.scripting.executeScript({
-                target: {tabId: tabId},
-                files: ["js/ContentScript.js"]
-            });
-        } catch {
-            if (chrome.runtime.lastError) {
-                util.log(chrome.runtime.lastError.message);
+            util.log("Injecting ContentScript into tab " + tabId);
+            if ((chrome.scripting !== undefined)
+                && (chrome.scripting.executeScript !== undefined)) {
+                chrome.scripting.executeScript({
+                    target: {tabId: tabId},
+                    files: ["js/ContentScript.js"]
+                }).then(() => {
+                    util.log("ContentScript injected successfully, waiting for message...");
+                }).catch((err) => {
+                    let errMsg = "Failed to inject content script: " + (err ? err.message : "Unknown error");
+                    util.log(errMsg);
+                    ErrorLog.showErrorMessage(errMsg + ". Make sure the page is not a special chrome page (like chrome://settings) and try again.");
+                });
+            } else {
+                browser.tabs.executeScript(tabId, {
+                    file: "js/ContentScript.js"
+                }).then(() => {
+                    util.log("ContentScript injected successfully via tabs API, waiting for message...");
+                }).catch((err) => {
+                    let errMsg = "Failed to inject content script: " + (err ? err.message : "Unknown error");
+                    util.log(errMsg);
+                    ErrorLog.showErrorMessage(errMsg);
+                });
             }
+        } catch (err) {
+            let errMsg = "Error injecting content script: " + (err ? err.toString() : "Unknown error");
+            util.log(errMsg);
+            ErrorLog.showErrorMessage(errMsg);
         }
     }
 
@@ -863,28 +952,51 @@ var main = (function() {
 
     async function openTabWindow() {
         // open new tab window, passing ID of open tab with content to convert to epub as query parameter.
-        let tabId = await getActiveTab();
-        let url = chrome.runtime.getURL("popup.html") + "?id=";
-        url += tabId;
         try {
-            chrome.tabs.create({ url: url, openerTabId: tabId });
+            let tabId = await getActiveTab();
+            let url = chrome.runtime.getURL("popup.html") + "?id=";
+            url += tabId;
+            util.log("Opening new popup tab with tabId: " + tabId);
+            try {
+                chrome.tabs.create({ url: url, openerTabId: tabId });
+            }
+            catch (err) {
+                //firefox android catch
+                util.log("Note: failed to set openerTabId, retrying without it");
+                chrome.tabs.create({ url: url});
+            }
+            window.close();
+        } catch (err) {
+            let errMsg = "Error getting active tab: " + (err ? err.toString() : "Unknown error");
+            util.log(errMsg);
+            ErrorLog.showErrorMessage(errMsg);
         }
-        catch (err) {
-            //firefox android catch
-            chrome.tabs.create({ url: url});
-        }
-        window.close();
     }
 
     function getActiveTab() {
         return new Promise((resolve, reject) => {
-            chrome.tabs.query({ currentWindow: true, active: true }, (tabs) => {
-                if ((tabs != null) && (0 < tabs.length)) {
-                    resolve(tabs[0].id);
-                } else {
-                    reject();
-                }
-            });
+            try {
+                chrome.tabs.query({ currentWindow: true, active: true }, (tabs) => {
+                    if (chrome.runtime.lastError) {
+                        let errMsg = "chrome.tabs.query error: " + chrome.runtime.lastError.message;
+                        util.log(errMsg);
+                        reject(new Error(errMsg));
+                        return;
+                    }
+                    if ((tabs != null) && (0 < tabs.length)) {
+                        util.log("Found active tab with ID: " + tabs[0].id + " (" + tabs[0].title + ")");
+                        resolve(tabs[0].id);
+                    } else {
+                        let errMsg = "No active tab found. Make sure you have a webpage open and the extension icon visible.";
+                        util.log(errMsg);
+                        reject(new Error(errMsg));
+                    }
+                });
+            } catch (err) {
+                let errMsg = "Error querying active tab: " + (err ? err.toString() : "Unknown error");
+                util.log(errMsg);
+                reject(new Error(errMsg));
+            }
         });
     }
 
