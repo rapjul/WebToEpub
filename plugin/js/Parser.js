@@ -254,7 +254,6 @@ class Parser {
      * Sanitizes a content element by removing scriptable elements, comments, unwanted WordPress and Microsoft artifacts, share links, and leading whitespace.
      * @param {Element} element - The content element to clean.
      */
->>>>>>> ef834b9d (feat(QidianParser): Enhance QidianParser with image download options and improve title normalization)
     removeUnwantedElementsFromContentElement(element) {
         util.removeScriptableElements(element);
         util.removeComments(element);
@@ -547,7 +546,7 @@ class Parser {
             metaInfo.language = "";
         }
         try {
-            metaInfo.fileName = this.makeSaveAsFileNameWithoutExtension(metaInfo.title, useFullTitle);
+            metaInfo.fileName = this.makeSaveAsFileNameWithoutExtension(metaInfo.title, useFullTitle, true);
         }
         catch (err) {
             metaInfo.fileName = "web.epub";
@@ -584,16 +583,17 @@ class Parser {
      *
      * Truncates or leaves the title depending on `useFullTitle` (20 characters by default,
      * 512 when true), replacing unsafe characters with a filesystem-safe variant. If the
-     * title is null, defaults to "web". If the sanitized result is only whitespace,
-     * returns the original title (useful for non-English titles).
+     * title is null, defaults to "web" (unless skipWebDefault is true). If the sanitized
+     * result is only whitespace, returns the original title (useful for non-English titles).
      *
      * @param {string|null} title - The original title to base the filename on; may be null.
      * @param {boolean} useFullTitle - Whether to allow a longer filename (up to 512 chars).
+     * @param {boolean} [skipWebDefault=false] - When true, returns empty string instead of "web" when title is null.
      * @returns {string} The sanitized filename without an extension.
      */
-    makeSaveAsFileNameWithoutExtension(title, useFullTitle) {
+    makeSaveAsFileNameWithoutExtension(title, useFullTitle, skipWebDefault = false) {
         let maxFileNameLength = useFullTitle ? 512 : 20;
-        let fileName = (title == null)  ? "web" : util.safeForFileName(title, maxFileNameLength);
+        let fileName = (title == null)  ? (skipWebDefault ? "" : "web") : util.safeForFileName(title, maxFileNameLength);
         if (util.isStringWhiteSpace(fileName)) {
             // title is probably not English, so just use it as is
             fileName = title;
