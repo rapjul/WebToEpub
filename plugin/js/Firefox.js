@@ -27,10 +27,22 @@ class Firefox { // eslint-disable-line no-unused-vars
     }
 
     static injectContentScript(tabId) {
-        chrome.scripting.executeScript({
-            target: { tabId: tabId },
-            files: ["js/ContentScript.js"],
-        }).catch(err => util.log(err.message));
+        if ((browser.scripting !== undefined)
+            && (browser.scripting.executeScript !== undefined)) {
+            browser.scripting.executeScript({
+                target: { tabId: tabId },
+                files: ["js/ContentScript.js"],
+            }).then(() => {
+                util.log("ContentScript injected successfully into Firefox tab, waiting for message...");
+            }).catch(err => util.log("Firefox script injection error: " + err.message));
+            return;
+        }
+
+        browser.tabs.executeScript(tabId, {
+            file: "js/ContentScript.js",
+        }).then(() => {
+            util.log("ContentScript injected successfully into Firefox tab via tabs API, waiting for message...");
+        }).catch(err => util.log("Firefox script injection error: " + err.message));
     }
 }
 
