@@ -8,7 +8,7 @@ QUnit.test("charsetFromHeaders", function (assert) {
         let mockHeader = { get: () => val };
         return new FetchResponseHandler().charsetFromHeaders(mockHeader);
     };
- 
+
     assert.equal(evaluate(null), "utf-8");
     assert.equal(evaluate("text/html"), "utf-8");
     assert.equal(evaluate("text/html; charset=utf-16"), "utf-16");
@@ -35,7 +35,7 @@ function createDummyFetchErrorHandler(response) {
 }
 
 function testOnResponseError(assert, status, retries, prompted) {
-    let done = assert.async(); 
+    let done = assert.async();
     let response = {status: status}
     let wrapOptions = createDummyFetchErrorHandler(response);
     let handler = wrapOptions.errorHandler;
@@ -57,4 +57,41 @@ QUnit.test("onResponseError_500_error_retries_4_times", function (assert) {
 
 QUnit.test("onResponseError_504_error_retries_4_times", function (assert) {
     testOnResponseError(assert, 504, 4, true);
+});
+
+QUnit.test("onResponseError_403_error_auto_retries_when_enabled", function (assert) {
+    let done = assert.async();
+    window.userPreferences = {
+        autoRetryOn403: {value: true},
+        autoRetryOn403Delay: {value: "2"}
+    };
+    let response = {status: 403};
+    let wrapOptions = createDummyFetchErrorHandler(response);
+    let handler = wrapOptions.errorHandler;
+    handler.onResponseError(null, wrapOptions, response).catch(function() {
+        assert.equal(handler.count, 1);
+        assert.equal(handler.prompted, false);
+        done();
+    });
+});
+
+QUnit.test("onResponseError_403_keep_retrying_retries_without_prompting", function (assert) {
+    let done = assert.async();
+    let response = {status: 403};
+    let wrapOptions = createDummyFetchErrorHandler(response);
+    wrapOptions.retry = {
+        keepRetrying: true,
+        retryDelay: [0]
+    };
+    let handler = wrapOptions.errorHandler;
+    handler.retryFetch = function(url, retryWrapOptions) {
+        ++handler.count;
+        assert.equal(retryWrapOptions.retry.keepRetrying, true);
+        return Promise.reject(new Error("stop"));
+    };
+    handler.onResponseError(null, wrapOptions, response).catch(function() {
+        assert.equal(handler.count, 1);
+        assert.equal(handler.prompted, false);
+        done();
+    });
 });

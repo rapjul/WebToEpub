@@ -69,6 +69,7 @@ class Parser {
         this.state = new ParserState();
         this.imageCollector = imageCollector || new ImageCollector();
         this.userPreferences = null;
+        this.autoDelayAddedForCurrentStoryMs = 0;
     }
 
     copyState(otherParser) {
@@ -910,7 +911,7 @@ class Parser {
 
     // Hook if need to chase hyperlinks in page to get all chapter content
     async fetchChapter(url) {
-        return (await HttpClient.wrapFetch(url)).responseXML;
+        return (await HttpClient.wrapFetch(url, {storyUrl: this.state.chapterListUrl})).responseXML;
     }
 
     updateReadingList() {
@@ -1163,16 +1164,43 @@ class Parser {
     }
 
     getRateLimit() {
-        let manualDelayPerChapterValue = (!isNaN(parseInt(this.userPreferences.manualDelayPerChapter.value)))?parseInt(this.userPreferences.manualDelayPerChapter.value):this.minimumThrottle;
-        if (!this.userPreferences.overrideMinimumDelay.value) {
-            return Math.max(this.minimumThrottle, manualDelayPerChapterValue);
+        let manualDelayPerChapterValue = (!isNaN(parseInt(this.userPreferences.manualDelayPerChapter.value, 10)))
+            ? parseInt(this.userPreferences.manualDelayPerChapter.value, 10)
+            : this.minimumThrottle;
+
+        let configured = this.userPreferences.overrideMinimumDelay.value
+            ? manualDelayPerChapterValue
+            : Math.max(this.minimumThrottle, manualDelayPerChapterValue);
+
+        let storyDelay = 0;
+        if (this.state.chapterListUrl) {
+            storyDelay = Parser.additionalDelayByStory.get(this.state.chapterListUrl) || 0;
         }
-        return manualDelayPerChapterValue;
+
+        return configured + storyDelay;
     }
 
     async rateLimitDelay() {
-        let manualDelayPerChapterValue = this.getRateLimit();
-        await util.sleep(manualDelayPerChapterValue);
+        let delay = this.getRateLimit();
+        await util.sleep(delay);
+    }
+
+    increaseDelayForCurrentStoryOn403() {
+        if (!this.userPreferences || !this.state.chapterListUrl || !this.userPreferences.autoIncreaseDelayOn403.value) {
+            return;
+        }
+
+        let increment = parseInt(this.userPreferences.autoIncreaseDelayOn403Amount.value, 10);
+        if (isNaN(increment) || increment < 0) {
+            increment = 1000;
+        }
+
+        let storyKey = this.state.chapterListUrl;
+        let previous = Parser.additionalDelayByStory.get(storyKey) || 0;
+        let updated = previous + increment;
+        Parser.additionalDelayByStory.set(storyKey, updated);
+
+        util.log(`[WebToEpub] Increased per-story delay for ${storyKey} by ${increment} ms (total ${updated} ms).`);
     }
 
     async getChaptersFromAllTocPages(chapters, extractPartialChapterList, urlsOfTocPages, chapterUrlsUI, wrapOptions)  {
@@ -1247,3 +1275,4 @@ Parser.NAVIGATION_CONTAINER_SELECTOR = "p, div, span, strong, em, b, i, small, l
 Parser.NAVIGATION_DIVIDER_REGEX = /^[\s|\\/><«»‹›←→⇐⇒\-\u2013\u2014]+$/u;
 Parser.NAVIGATION_TEXT_REGEX = /(?:\b(?:next|previous|prev|first|last)\b(?:\s+(?:chapter|chap\.?|episode|part))?|(?:chapter|chap\.?|episode|part)\s+\b(?:next|previous|first|last)\b|[«»‹›←→⇐⇒]{1,3})/i;
 Parser.NAVIGATION_TEXT_MAX_LENGTH = 60;
+Parser.additionalDelayByStory = new Map();

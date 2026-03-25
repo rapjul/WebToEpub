@@ -22,6 +22,7 @@
                     <td>
                         <button class="expandedButton" id="errorButtonOk">__MSG_button_error_OK__</button>
                         <button class="expandedButton" id="errorButtonRetry">__MSG_button_error_Retry__</button>
+                        <button class="expandedButton" id="errorButtonKeepRetrying">__MSG_button_error_Keep_Retrying__</button>
                         <button class="expandedButton" id="errorButtonCancel">__MSG_button_error_Cancel__</button>
                         <button class="expandedButton" id="errorButtonOpenURL">__MSG_button_error_Open_URL__</button>
                         <button class="expandedButton" id="errorButtonBlockURL">__MSG_button_error_Block_URL__</button>
@@ -520,13 +521,37 @@
                     </tr>
                     <tr id="manualDelayPerChapter">
                         <td>
-                            <input id="manualDelayPerChapterTag" type="number" name="manualDelayPerChapterTag" style="width: 61px;">
+                            <input id="manualDelayPerChapterTag" type="number" name="manualDelayPerChapterTag" style="width: 70px;">
                         </td>
                         <td>__MSG_label_Manual_Delay_Per_Chapter__</td>
                     </tr>
                     <tr id="overrideParserDelayWithManualDelay">
                         <td><input id="overrideMinimumDelayCheckbox" type="checkbox" name="overrideMinimumDelayCheckbox" value="false"></td>
                         <td>__MSG_label_Override_Default_Minimum_Delay__</td>
+                    </tr>
+                    <tr id="autoRetryOn403Row">
+                        <td><input id="autoRetryOn403Checkbox" type="checkbox" name="autoRetryOn403Checkbox" value="false"></td>
+                        <td>__MSG_label_Auto_Retry_On_403__</td>
+                    </tr>
+                    <tr id="autoRetryOn403DelayRow">
+                        <td>
+                            <input id="autoRetryOn403DelayTag" type="number" name="autoRetryOn403DelayTag" style="width: 70px;">
+                        </td>
+                        <td>__MSG_label_Auto_Retry_On_403_Delay__</td>
+                    </tr>
+                    <tr id="autoIncreaseDelayOn403Row">
+                        <td><input id="autoIncreaseDelayOn403Checkbox" type="checkbox" name="autoIncreaseDelayOn403Checkbox" value="false"></td>
+                        <td>__MSG_label_Auto_Increase_Delay_On_403__</td>
+                    </tr>
+                    <tr id="autoIncreaseDelayOn403AmountRow">
+                        <td>
+                            <input id="autoIncreaseDelayOn403AmountTag" type="number" name="autoIncreaseDelayOn403AmountTag" style="width: 70px;">
+                        </td>
+                        <td>__MSG_label_Auto_Increase_Delay_On_403_Amount__</td>
+                    </tr>
+                    <tr id="toastMessagesRequireDismissRow">
+                        <td><input id="toastMessagesRequireDismissCheckbox" type="checkbox" name="toastMessagesRequireDismissCheckbox" value="false"></td>
+                        <td>__MSG_label_Toast_Messages_Require_Dismiss__</td>
                     </tr>
                     <tr id="IncludeInReadingListRow">
                         <td><input id="includeInReadingListCheckbox" type="checkbox" name="includeInReadingListCheckbox" value="false"></td>

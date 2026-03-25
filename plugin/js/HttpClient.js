@@ -35,13 +35,25 @@ class FetchErrorHandler {
         } else {
             failError = new Error(this.makeFailMessage(response.url, response.status));
         }
-        let retry = FetchErrorHandler.getAutomaticRetryBehaviourForStatus(response);
+        // keep HTTP status visible for caller logic (403, etc.)
+        failError.status = response.status;
+        failError.url = response.url;
+        let keepRetrying = wrapOptions.retry?.keepRetrying;
+        let retry = FetchErrorHandler.getAutomaticRetryBehaviourForStatus(response, wrapOptions);
         if (retry.retryDelay.length === 0) {
             return Promise.reject(failError);
         }
 
         if (wrapOptions.retry === undefined) {
             wrapOptions.retry = retry;
+            return this.retryFetch(url, wrapOptions);
+        }
+
+        if (keepRetrying) {
+            retry.keepRetrying = true;
+        }
+        wrapOptions.retry = retry;
+        if (keepRetrying && response.status === 403) {
             return this.retryFetch(url, wrapOptions);
         }
 
@@ -68,6 +80,10 @@ class FetchErrorHandler {
             if (wrapOptions.retry.HTTP === 403) {
                 msg.openurl = response.url;
                 msg.blockurl = url;
+                msg.keepRetryingAction = () => {
+                    wrapOptions.retry.keepRetrying = true;
+                    resolve(HttpClient.wrapFetchImpl(url, wrapOptions));
+                };
             }
             msg.retryAction = () => resolve(HttpClient.wrapFetchImpl(url, wrapOptions));
             msg.cancelAction = () => reject(failError);
@@ -77,17 +93,64 @@ class FetchErrorHandler {
     }
 
     async retryFetch(url, wrapOptions) {
-        let delayBeforeRetry = wrapOptions.retry.retryDelay.pop() * 1000;
+        let delaySeconds = wrapOptions.retry.retryDelay.pop();
+        if (wrapOptions.retry?.toastMessage) {
+            FetchErrorHandler.showTransientRateLimitWarning(wrapOptions.retry.toastMessage, 5000);
+        }
+        if (wrapOptions.retry?.HTTP === 403 && !util.isNullOrEmpty(wrapOptions.storyUrl)) {
+            FetchErrorHandler.scheduleStalled403Warning(
+                wrapOptions.storyUrl,
+                wrapOptions.retry.toastHost,
+                wrapOptions.retry.stallWarningMessage
+            );
+        }
+        let delayBeforeRetry = delaySeconds * 1000;
         await util.sleep(delayBeforeRetry);
         return HttpClient.wrapFetchImpl(url, wrapOptions);
     }
 
-    static getAutomaticRetryBehaviourForStatus(response) {
+    static getAutomaticRetryBehaviourForStatus(response, wrapOptions) {
         // seconds to wait before each retry (note: order is reversed)
         let retryDelay = [120, 60, 30, 15];
         switch (response.status) {
-            case 403:
-                return {retryDelay: [1], promptUser: true, HTTP: 403};
+            case 403: {
+                let autoRetry = (typeof userPreferences !== "undefined") && userPreferences?.autoRetryOn403?.value;
+                let delaySeconds = 5;
+                let storyUrl = wrapOptions?.storyUrl;
+                let host = new URL(response.url).hostname;
+                if ((typeof userPreferences !== "undefined") && userPreferences?.autoIncreaseDelayOn403?.value && !util.isNullOrEmpty(storyUrl) && (typeof Parser !== "undefined") && (Parser.additionalDelayByStory != null)) {
+                    let increment = parseInt(userPreferences.autoIncreaseDelayOn403Amount.value, 10);
+                    if (isNaN(increment) || increment < 0) {
+                        increment = 1000;
+                    }
+                    let previous = Parser.additionalDelayByStory.get(storyUrl) || 0;
+                    let updated = previous + increment;
+                    Parser.additionalDelayByStory.set(storyUrl, updated);
+                    delaySeconds = updated / 1000;
+                    return {
+                        retryDelay: [delaySeconds],
+                        promptUser: !autoRetry,
+                        HTTP: 403,
+                        toastHost: host,
+                        stallWarningMessage: UIText.Warning.warning403StalledRetry(host),
+                        toastMessage: UIText.Warning.warning403AutoIncreaseDelayToast(host, updated, delaySeconds)
+                    };
+                } else if (autoRetry) {
+                    let configured = parseInt(userPreferences.autoRetryOn403Delay.value, 10);
+                    if (!isNaN(configured) && configured >= 0) {
+                        delaySeconds = configured;
+                    }
+                    return {
+                        retryDelay: [delaySeconds],
+                        promptUser: false,
+                        HTTP: 403,
+                        toastHost: host,
+                        stallWarningMessage: UIText.Warning.warning403StalledRetry(host),
+                        toastMessage: UIText.Warning.warning403AutoRetryToast(host, delaySeconds)
+                    };
+                }
+                return {retryDelay: [delaySeconds], promptUser: !autoRetry, HTTP: 403};
+            }
             case 429:
                 FetchErrorHandler.show429Error(response);
                 return {retryDelay: retryDelay, promptUser: true};
@@ -197,6 +260,10 @@ class FetchErrorHandler {
         };
 
         let startDismissTimer = () => {
+            let stickyToasts = (typeof userPreferences !== "undefined") && userPreferences?.toastMessagesRequireDismiss?.value;
+            if (stickyToasts) {
+                return;
+            }
             if (timeoutId) {
                 return;
             }
@@ -217,6 +284,31 @@ class FetchErrorHandler {
         }
 
         closeButton.addEventListener("click", removeToast);
+    }
+
+    static scheduleStalled403Warning(storyUrl, host, message) {
+        if (util.isNullOrEmpty(storyUrl) || util.isNullOrEmpty(host) || util.isNullOrEmpty(message)) {
+            return;
+        }
+        if (FetchErrorHandler.stalledStoryWarnings.has(storyUrl)) {
+            return;
+        }
+        let timeoutId = setTimeout(() => {
+            FetchErrorHandler.stalledStoryWarnings.delete(storyUrl);
+            FetchErrorHandler.showTransientRateLimitWarning(message, 10000);
+        }, 60000);
+        FetchErrorHandler.stalledStoryWarnings.set(storyUrl, timeoutId);
+    }
+
+    static clearStalled403Warning(storyUrl) {
+        if (util.isNullOrEmpty(storyUrl)) {
+            return;
+        }
+        let timeoutId = FetchErrorHandler.stalledStoryWarnings.get(storyUrl);
+        if (timeoutId !== undefined) {
+            clearTimeout(timeoutId);
+            FetchErrorHandler.stalledStoryWarnings.delete(storyUrl);
+        }
     }
 
     static showTransientRateLimitWarningWithDismiss(message, timeoutMs, storageKey) {
@@ -303,6 +395,10 @@ class FetchErrorHandler {
         };
 
         let startDismissTimer = () => {
+            let stickyToasts = (typeof userPreferences !== "undefined") && userPreferences?.toastMessagesRequireDismiss?.value;
+            if (stickyToasts) {
+                return;
+            }
             if (timeoutId) {
                 return;
             }
@@ -331,6 +427,7 @@ class FetchErrorHandler {
     }
 }
 FetchErrorHandler.rateLimitedHosts = new Set();
+FetchErrorHandler.stalledStoryWarnings = new Map();
 
 class FetchImageErrorHandler extends FetchErrorHandler { // eslint-disable-line no-unused-vars
     constructor(parentPageUrl) {
@@ -411,6 +508,9 @@ class HttpClient {
         try
         {
             let response = await fetch(url, wrapOptions.fetchOptions);
+            if (!util.isNullOrEmpty(wrapOptions.storyUrl)) {
+                FetchErrorHandler.clearStalled403Warning(wrapOptions.storyUrl);
+            }
             let ret = await HttpClient.checkResponseAndGetData(url, wrapOptions, response);
             if (wrapOptions.parser?.isCustomError(ret)) {
                 let CustomErrorResponse = wrapOptions.parser.setCustomErrorResponse(url, wrapOptions, ret);

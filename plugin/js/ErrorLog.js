@@ -101,6 +101,7 @@ class ErrorLog {
         let close = () => ErrorLog.onCloseError(sections);
         let okButton = document.getElementById("errorButtonOk");
         let retryButton = document.getElementById("errorButtonRetry");
+        let keepRetryingButton = document.getElementById("errorButtonKeepRetrying");
         let cancelButton = document.getElementById("errorButtonCancel");
         let OpenURLButton = document.getElementById("errorButtonOpenURL");
         let BlockURLButton = document.getElementById("errorButtonBlockURL");
@@ -111,6 +112,16 @@ class ErrorLog {
                 close();
                 msg.retryAction();
             };
+            if (msg.keepRetryingAction !== undefined) {
+                keepRetryingButton.hidden = false;
+                keepRetryingButton.textContent = UIText.Common.keepRetrying;
+                keepRetryingButton.onclick = function() {
+                    close();
+                    msg.keepRetryingAction();
+                };
+            } else {
+                keepRetryingButton.hidden = true;
+            }
             cancelButton.hidden = false;
             cancelButton.onclick = function() {
                 close();
@@ -141,6 +152,7 @@ class ErrorLog {
             okButton.hidden = false;
             okButton.onclick = close;
             retryButton.hidden = true;
+            keepRetryingButton.hidden = true;
             cancelButton.hidden = true;
             OpenURLButton.hidden = true;
             BlockURLButton.hidden = true;

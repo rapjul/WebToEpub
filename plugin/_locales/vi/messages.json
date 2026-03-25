@@ -31,6 +31,10 @@
     "message": "Thử lại",
     "description": ""
   },
+  "__MSG_button_error_Keep_Retrying__": {
+    "message": "Tiếp tục thử lại",
+    "description": "Label on button to keep retrying a failed 403 request until it succeeds"
+  },
   "__MSG_button_Help__": {
     "message": "Trợ giúp...",
     "description": ""
@@ -138,6 +142,34 @@
   "__MSG_label_Language__": {
     "message": "Ngôn Ngữ",
     "description": ""
+  },
+  "__MSG_label_Manual_Delay_Per_Chapter__": {
+    "message": "Độ trễ cơ bản giữa các chương (ms)",
+    "description": "Delay per chapter in ms"
+  },
+  "__MSG_label_Auto_Retry_On_403__": {
+    "message": "Tự động thử lại khi 403 bị từ chối truy cập",
+    "description": "Enable automatic retry when a chapter fetch returns HTTP 403"
+  },
+  "__MSG_label_Auto_Retry_On_403_Delay__": {
+    "message": "Thử lại 403 sau (giây)",
+    "description": "Delay before auto retry on HTTP 403"
+  },
+  "__MSG_label_Auto_Increase_Delay_On_403__": {
+    "message": "Tăng độ trễ giữa các chương sau 403 cho truyện này",
+    "description": "When 403 is encountered, increase delay per chapter for the current story URL"
+  },
+  "__MSG_label_Auto_Increase_Delay_On_403_Amount__": {
+    "message": "Độ trễ cộng thêm (ms)",
+    "description": "Number of milliseconds to add to chapter delay after 403"
+  },
+  "__MSG_label_Toast_Messages_Require_Dismiss__": {
+    "message": "Giữ thông báo toast hiển thị cho đến khi tôi đóng chúng",
+    "description": "Label for checkbox to keep toast messages on screen until user closes them"
+  },
+  "__MSG_label_Override_Default_Minimum_Delay__": {
+    "message": "Cho phép độ trễ thấp hơn mức tối thiểu tích hợp",
+    "description": "Override Delay per chapter Value (where applicable)"
   },
   "__MSG_label_Manually_Select_Parser__": {
     "message": "Chọn Parser Bằng Tay",
@@ -355,6 +387,42 @@
   "httpFetchCanRetry": {
     "message": "Bị lỗi gián đoạn. Thử lại có thể thành công.",
     "description": ""
+  },
+  "warning403AutoRetryToast": {
+    "message": "Truy cập bị từ chối trên '$host$'. Tự động thử lại sau $seconds$ giây.",
+    "description": "Toast shown when automatic 403 retry is triggered.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "seconds": {
+        "content": "$2"
+      }
+    }
+  },
+  "warning403AutoIncreaseDelayToast": {
+    "message": "Truy cập bị từ chối trên '$host$'. Độ trễ cho truyện này đã tăng lên $delay$ ms. Thử lại sau $seconds$ giây.",
+    "description": "Toast shown when 403 auto delay increase is triggered.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      },
+      "delay": {
+        "content": "$2"
+      },
+      "seconds": {
+        "content": "$3"
+      }
+    }
+  },
+  "warning403StalledRetry": {
+    "message": "WebToEpub đã thử lại truy cập bị từ chối trên '$host$' hơn một phút rồi. Truyện có thể đang bị kẹt ở 403. Hãy đăng nhập hoặc tăng 'Delay per chapter in ms'.",
+    "description": "Toast shown when a 403 retry has been happening for too long.",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
   },
   "htmlFetchFailed": {
     "message": "Tải trang từ đường dẫn '$url$' bị lỗi do lỗi mạng $err$",

@@ -39,6 +39,10 @@
 		"message": "Повторить",
 		"description": "Label on 'Retry' button when show error"
 	},
+	"__MSG_button_error_Keep_Retrying__": {
+		"message": "Продолжать повторять",
+		"description": "Label on button to keep retrying a failed 403 request until it succeeds"
+	},
 	"__MSG_button_finished_default_parser__": {
 		"message": "Применить",
 		"description": "Label on button to finish configuring default parser"
@@ -190,6 +194,34 @@
 	"__MSG_label_Language__": {
 		"message": "Язык:",
 		"description": "Label in front input for language EPUB will be in"
+	},
+	"__MSG_label_Manual_Delay_Per_Chapter__": {
+		"message": "Базовая задержка между главами (мс)",
+		"description": "Delay per chapter in ms"
+	},
+	"__MSG_label_Auto_Retry_On_403__": {
+		"message": "Автоматически повторять при 403 «доступ запрещён»",
+		"description": "Enable automatic retry when a chapter fetch returns HTTP 403"
+	},
+	"__MSG_label_Auto_Retry_On_403_Delay__": {
+		"message": "Повторять 403 через (сек.)",
+		"description": "Delay before auto retry on HTTP 403"
+	},
+	"__MSG_label_Auto_Increase_Delay_On_403__": {
+		"message": "Увеличивать задержку между главами после 403 для этой истории",
+		"description": "When 403 is encountered, increase delay per chapter for the current story URL"
+	},
+	"__MSG_label_Auto_Increase_Delay_On_403_Amount__": {
+		"message": "Дополнительная задержка (мс)",
+		"description": "Number of milliseconds to add to chapter delay after 403"
+	},
+	"__MSG_label_Toast_Messages_Require_Dismiss__": {
+		"message": "Оставлять всплывающие сообщения на экране, пока я не закрою их",
+		"description": "Label for checkbox to keep toast messages on screen until user closes them"
+	},
+	"__MSG_label_Override_Default_Minimum_Delay__": {
+		"message": "Разрешить задержку ниже встроенного минимума",
+		"description": "Override Delay per chapter Value (where applicable)"
 	},
 	"__MSG_label_Manually_Select_Parser__": {
 		"message": "Выбрать парсер вручную:",
@@ -415,6 +447,30 @@
 	"httpFetchCanRetry": {
 		"message": "Внезапно возникла ошибка. Попробуйте ещё раз.",
 		"description": "Added message that retrying HTTP operation may succeed."
+	},
+	"warning403AutoRetryToast": {
+		"message": "Доступ запрещён на сайте '$host$'. Автоматический повтор через $seconds$ сек.",
+		"description": "Toast shown when automatic 403 retry is triggered.",
+		"placeholders": {
+			"host": {"content": "$1"},
+			"seconds": {"content": "$2"}
+		}
+	},
+	"warning403AutoIncreaseDelayToast": {
+		"message": "Доступ запрещён на сайте '$host$'. Задержка для этой истории увеличена до $delay$ мс. Повтор через $seconds$ сек.",
+		"description": "Toast shown when 403 auto delay increase is triggered.",
+		"placeholders": {
+			"host": {"content": "$1"},
+			"delay": {"content": "$2"},
+			"seconds": {"content": "$3"}
+		}
+	},
+	"warning403StalledRetry": {
+		"message": "WebToEpub уже больше минуты повторяет доступ к '$host$' после ошибки 403. Похоже, загрузка застряла на 403. Попробуйте войти в сайт или увеличить 'Delay per chapter in ms'.",
+		"description": "Toast shown when a 403 retry has been happening for too long.",
+		"placeholders": {
+			"host": {"content": "$1"}
+		}
 	},
 	"htmlFetchFailed": {
 		"message": "Попытка загрузки адреса '$url$' завершилась с ошибкой сети: $err$.",

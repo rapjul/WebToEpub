@@ -139,6 +139,10 @@
 		"message": "Retry",
 		"description": "Label on 'Retry' button when show error"
 	},
+	"__MSG_button_error_Keep_Retrying__": {
+		"message": "Keep Retrying",
+		"description": "Label on button to keep retrying a failed 403 request until it succeeds"
+	},
 	"__MSG_button_error_Open_URL__": {
 		"message": "Open URL for Captcha",
 		"description": "Label on 'Open URL for Captcha' button when show error HTTP 403"
@@ -356,8 +360,28 @@
 		"description": "Show more Metadata options to user"
 	},
 	"__MSG_label_Manual_Delay_Per_Chapter__": {
-		"message": "Delay per chapter in ms",
+		"message": "Base delay between chapters (ms)",
 		"description": "Delay per chapter in ms"
+	},
+	"__MSG_label_Auto_Retry_On_403__": {
+		"message": "Automatically retry 403 access denied",
+		"description": "Enable automatic retry when a chapter fetch returns HTTP 403"
+	},
+	"__MSG_label_Auto_Retry_On_403_Delay__": {
+		"message": "Retry 403 after (seconds)",
+		"description": "Delay before auto retry on HTTP 403"
+	},
+	"__MSG_label_Auto_Increase_Delay_On_403__": {
+		"message": "Increase chapter delay after 403 for this story",
+		"description": "When 403 is encountered, increase delay per chapter for the current story URL"
+	},
+	"__MSG_label_Auto_Increase_Delay_On_403_Amount__": {
+		"message": "Extra delay to add (ms)",
+		"description": "Number of milliseconds to add to chapter delay after 403"
+	},
+	"__MSG_label_Toast_Messages_Require_Dismiss__": {
+		"message": "Keep toast messages visible until I dismiss them",
+		"description": "Label for checkbox to keep toast messages on screen until user closes them"
 	},
 	"__MSG_label_Manually_Select_Parser__": {
 		"message": "Manually Select Parser:",
@@ -392,7 +416,7 @@
 		"description": "Additional Metadata URL"
 	},
 	"__MSG_label_Override_Default_Minimum_Delay__": {
-		"message": "Override Delay per chapter Value (where applicable)",
+		"message": "Allow delay below the built-in minimum",
 		"description": "Override Delay per chapter Value (where applicable)"
 	},
 	"__MSG_label_Overwrite_Epub_When_Filename_Duplicte__": {
@@ -817,6 +841,30 @@
 			"host": {
 				"content": "$1"
 			}
+		}
+	},
+	"warning403AutoRetryToast": {
+		"message": "Access denied on '$host$'. Retrying automatically in $seconds$ seconds.",
+		"description": "Toast shown when automatic 403 retry is triggered.",
+		"placeholders": {
+			"host": {"content": "$1"},
+			"seconds": {"content": "$2"}
+		}
+	},
+	"warning403AutoIncreaseDelayToast": {
+		"message": "Access denied on '$host$'. Increased delay for this story to $delay$ ms. Retrying in $seconds$ seconds.",
+		"description": "Toast shown when 403 auto delay increase is triggered.",
+		"placeholders": {
+			"host": {"content": "$1"},
+			"delay": {"content": "$2"},
+			"seconds": {"content": "$3"}
+		}
+	},
+	"warning403StalledRetry": {
+		"message": "WebToEpub has been retrying access denied on '$host$' for over a minute. The story may be stuck on 403. Try logging in or increasing 'Delay per chapter in ms'.",
+		"description": "Toast shown when a 403 retry has been happening for too long.",
+		"placeholders": {
+			"host": {"content": "$1"}
 		}
 	},
 	"wait403ErrorResponse": {
