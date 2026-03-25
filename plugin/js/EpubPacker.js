@@ -38,7 +38,7 @@ class EpubPacker {
 
     assemble(epubItemSupplier) {
         let zipFileWriter = new zip.BlobWriter("application/epub+zip");
-        let zipWriter = new zip.ZipWriter(zipFileWriter,{useWebWorkers: false,compressionMethod: 8, extendedTimestamp: false});
+        let zipWriter = new zip.ZipWriter(zipFileWriter,{useWebWorkers: false,compressionMethod: 8, extendedTimestamp: false, dataDescriptorSignature: true});
         this.addRequiredFiles(zipWriter);
         zipWriter.add("OEBPS/content.opf", new zip.TextReader(this.buildContentOpf(epubItemSupplier)));
         zipWriter.add("OEBPS/toc.ncx", new zip.TextReader(this.buildTableOfContents(epubItemSupplier)));
@@ -165,7 +165,7 @@ class EpubPacker {
         meta.setAttributeNS(null, "name", name);
         meta.setAttributeNS(null, "content", content);
     }
-    
+
     buildManifest(opf, ns, epubItemSupplier) {
         let manifest = this.createAndAppendChildNS(opf.documentElement, ns, "manifest");
         for (let i of epubItemSupplier.manifestItems()) {

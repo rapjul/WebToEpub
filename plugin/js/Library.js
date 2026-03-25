@@ -8,11 +8,11 @@ var LibFileReader = new FileReader();
 class Library { // eslint-disable-line no-unused-vars
     constructor() {
     }
-    
+
     onUserPreferencesUpdate(userPreferences) {
         Library.userPreferences = userPreferences;
     }
-    
+
     async LibAddToLibrary(AddEpub, fileName, startingUrlInput, overwriteExisting, backgroundDownload) {
         Library.LibShowLoadingText();
         Library.userPreferences.readingList.addEpub(document.getElementById("startingUrlInput").value);
@@ -67,7 +67,7 @@ class Library { // eslint-disable-line no-unused-vars
         AddEpubContent = AddEpubContent.filter(a => a.directory == false);
 
         let MergedEpubWriter = new zip.BlobWriter("application/epub+zip");
-        let MergedEpubZip = new zip.ZipWriter(MergedEpubWriter,{useWebWorkers: false,compressionMethod: 8, extendedTimestamp: false});
+        let MergedEpubZip = new zip.ZipWriter(MergedEpubWriter,{useWebWorkers: false,compressionMethod: 8, extendedTimestamp: false, dataDescriptorSignature: true});
         //Copy PreviousEpub in MergedEpub
         for (let element of PreviousEpubContent.filter(a => a.filename != "OEBPS/content.opf" && a.filename != "OEBPS/toc.ncx" && a.filename != "OEBPS/toc.xhtml")) {
             if (element.filename == "mimetype") {
@@ -363,7 +363,7 @@ class Library { // eslint-disable-line no-unused-vars
             LibRenderString += "<textarea id='LibAddListToLibraryInput' type='text'>Add one novel per line</textarea>";
             LibRenderString += "<br>";
             LibRenderString += "<button id='LibAddListToLibraryButton'>"+document.getElementById("LibTemplateAddListToLibrary").innerHTML+"</button>";
-            
+
         }
         LibRenderString += "<div style='display:flex; justify-content: center;'>";
         LibRenderString += "<button id='libupdateall'>"+document.getElementById("LibTemplateUpdateAll").innerHTML+"</button>";
@@ -492,7 +492,7 @@ class Library { // eslint-disable-line no-unused-vars
                 }
             }
             for (let i = 0; i < CurrentLibKeys.length; i++) {
-                document.getElementById("LibCover"+CurrentLibKeys[i]).src = await Library.LibGetFromStorage("LibCover" + CurrentLibKeys[i]);                
+                document.getElementById("LibCover"+CurrentLibKeys[i]).src = await Library.LibGetFromStorage("LibCover" + CurrentLibKeys[i]);
                 let newChapterHTML = (((await Library.LibGetFromStorage("LibNewChapterCount"+CurrentLibKeys[i]) || 0) == 0)? "" : await Library.LibGetFromStorage("LibNewChapterCount"+CurrentLibKeys[i]) + LibTemplateNewChapter);
                 newChapterHTML = "<span class=\"newChapterWraper\">"+newChapterHTML+"</span>";
                 Library.AppendHtmlInDiv(newChapterHTML, document.getElementById("LibNewChapterCount"+CurrentLibKeys[i]), "newChapterWraper");
@@ -513,7 +513,7 @@ class Library { // eslint-disable-line no-unused-vars
         let i,j, sel = /button:hover/, aProperties = [];
         for (i = 0; i < document.styleSheets.length; ++i) {
             if (document.styleSheets[i]. cssRules !== null) {
-                for (j = 0; j < document.styleSheets[i].cssRules.length; ++j) {    
+                for (j = 0; j < document.styleSheets[i].cssRules.length; ++j) {
                     if (sel.test(document.styleSheets[i].cssRules[j].selectorText)) {
                         aProperties.push(document.styleSheets[i].cssRules[j].style.cssText);
                     }
@@ -527,7 +527,7 @@ class Library { // eslint-disable-line no-unused-vars
     static LibMouseoutButtonUpload(objbtn) {
         document.getElementById(objbtn.dataset.libbuttonid+objbtn.dataset.libepubid).style.cssText ="pointer-events: none;";
     }
-    
+
     static async LibBytesInUse() {
         return new Promise((resolve) => {
             chrome.storage.local.getBytesInUse(null, function(BytesInUse) {
@@ -548,7 +548,7 @@ class Library { // eslint-disable-line no-unused-vars
     static LibMergeUploadButton(objbtn) {
         document.getElementById("LibMergeUpload"+objbtn.dataset.libepubid).click();
     }
-    
+
     static async LibMergeUpload(objbtn) {
         let PreviousEpubBase64 = await Library.LibGetFromStorage("LibEpub" + objbtn.dataset.libepubid);
         let AddEpubBlob = objbtn.files[0];
@@ -560,7 +560,7 @@ class Library { // eslint-disable-line no-unused-vars
         }
         Library.userPreferences.readingList.setEpub(LibStoryURL, SourceChapterList[SourceChapterList.length-1]);
     }
-    
+
     static async LibEditMetadata(objbtn) {
         let LibTemplateMetadataSave = document.getElementById("LibTemplateMetadataSave").innerHTML;
         let LibTemplateMetadataTitle = document.getElementById("LibTemplateMetadataTitle").innerHTML;
@@ -623,14 +623,14 @@ class Library { // eslint-disable-line no-unused-vars
             let EpubContent =  await EpubZipRead.getEntries();
             EpubContent = EpubContent.filter(a => a.directory == false);
             let opfFile = await EpubContent.filter(a => a.filename == "OEBPS/content.opf")[0].getData(new zip.TextWriter());
-            
+
             let EpubWriter = new zip.BlobWriter("application/epub+zip");
-            let EpubZipWrite = new zip.ZipWriter(EpubWriter,{useWebWorkers: false,compressionMethod: 8});
+            let EpubZipWrite = new zip.ZipWriter(EpubWriter,{useWebWorkers: false,compressionMethod: 8, dataDescriptorSignature: true});
             //Copy Epub in NewEpub
             for (let element of EpubContent.filter(a => a.filename != "OEBPS/content.opf")) {
                 EpubZipWrite.add(element.filename, new zip.BlobReader(await element.getData(new zip.BlobWriter())));
             }
-            
+
             let regex1 = opfFile.match(new RegExp("<dc:title>.+?</dc:creator>", "gs"));
             if ( regex1 == null) {
                 ErrorLog.showErrorMessage(UIText.Error.errorEditMetadata);
@@ -654,7 +654,7 @@ class Library { // eslint-disable-line no-unused-vars
             return;
         }
     }
-    
+
     static async LibGetMetadata(libepubid) {
         let LibMetadata = [];
         try {
@@ -662,7 +662,7 @@ class Library { // eslint-disable-line no-unused-vars
             let EpubZip = new zip.ZipReader(EpubReader, {useWebWorkers: false});
             let EpubContent =  await EpubZip.getEntries();
             let opfFile = await EpubContent.filter(a => a.filename == "OEBPS/content.opf")[0].getData(new zip.TextWriter());
-            
+
             let LibMetadataTags = ["dc:title", "dc:creator", "dc:language", "dc:subject", "dc:description"];
             let opfFileMatch;
             LibMetadataTags.forEach((element, index) => {
@@ -712,7 +712,7 @@ class Library { // eslint-disable-line no-unused-vars
             CurrentLibKeys.forEach(element => {
                 element = element.replace("LibEpub","");
                 if (parseInt(element)>=HighestLibEpub) {
-                    HighestLibEpub = parseInt(element)+1; 
+                    HighestLibEpub = parseInt(element)+1;
                 }
             });
             LibFileReader.LibStorageValueId = HighestLibEpub;
@@ -739,7 +739,7 @@ class Library { // eslint-disable-line no-unused-vars
             Library.LibRenderSavedEpubs();
         });
     }
-    
+
     static async LibGetSourceURL(EpubAsDataURL) {
         try {
             let EpubReader = await new zip.Data64URIReader(EpubAsDataURL);
@@ -766,12 +766,12 @@ class Library { // eslint-disable-line no-unused-vars
             //In case the Epub is too big atob() fails and this messy method works with bigger files.
             let Base64EpubReader = await new zip.Data64URIReader(DataUrl);
             let Base64EpubZip = new zip.ZipReader(Base64EpubReader, {useWebWorkers: false});
-            
+
             let Base64EpubContent = await Base64EpubZip.getEntries();
             Base64EpubContent = Base64EpubContent.filter(a => a.directory == false);
 
             let BlobEpubWriter = new zip.BlobWriter("application/epub+zip");
-            let BlobEpubZip = new zip.ZipWriter(BlobEpubWriter,{useWebWorkers: false,compressionMethod: 8});
+            let BlobEpubZip = new zip.ZipWriter(BlobEpubWriter,{useWebWorkers: false,compressionMethod: 8, dataDescriptorSignature: true});
             //Copy Base64Epub in BlobEpub
             for (let element of Base64EpubContent) {
                 if (element.filename == "mimetype") {
@@ -796,7 +796,7 @@ class Library { // eslint-disable-line no-unused-vars
 
     static LibFileReadererror(event) {ErrorLog.showErrorMessage(event);}
     static LibFileReaderabort(event) {ErrorLog.showErrorMessage(event);}
-    
+
     static async LibDeleteEpub(objbtn) {
         await Library.LibRemoveStorageIDs(objbtn.dataset.libepubid);
         let LibRemove = ["LibEpub" + objbtn.dataset.libepubid, "LibStoryURL" + objbtn.dataset.libepubid, "LibFilename" + objbtn.dataset.libepubid, "LibCover" + objbtn.dataset.libepubid, "LibNewChapterCount" + objbtn.dataset.libepubid];
@@ -852,7 +852,7 @@ class Library { // eslint-disable-line no-unused-vars
     static LibClearFields() {
         main.resetUI();
     }
-    
+
     static async Libupdateall() {
         if (document.getElementById("LibDownloadEpubAfterUpdateCheckbox").checked == true) {
             document.getElementById("LibDownloadEpubAfterUpdateCheckbox").click();
@@ -876,14 +876,14 @@ class Library { // eslint-disable-line no-unused-vars
         Library.LibClearFields();
         ErrorLog.SuppressErrorLog =  false;
     }
-    
+
     static getURLsFromList() {
         let inputvalue = document.getElementById("LibAddListToLibraryInput").value;
         let lines = inputvalue.split("\n");
         lines = lines.filter(a => a.trim() != "").map(a => a.trim()).filter(a => URL.canParse(a));
         return lines;
     }
-    
+
     static async LibAddListToLibrary() {
         if (document.getElementById("LibDownloadEpubAfterUpdateCheckbox").checked == true) {
             document.getElementById("LibDownloadEpubAfterUpdateCheckbox").click();
@@ -907,7 +907,7 @@ class Library { // eslint-disable-line no-unused-vars
         Library.LibClearFields();
         ErrorLog.SuppressErrorLog =  false;
     }
-    
+
     static Libexportall() {
         Library.LibShowLoadingText();
         chrome.storage.local.get(null, async function(items) {
@@ -918,11 +918,11 @@ class Library { // eslint-disable-line no-unused-vars
             }
             let readingList = new ReadingList();
             readingList.readFromLocalStorage();
-            
+
             let fileReadingList = {};
             fileReadingList.ReadingList = JSON.parse(readingList.toJson());
             fileReadingList.ReadingList.epubs = fileReadingList.ReadingList.epubs.filter(a => storyurls.includes(a.toc));
-            
+
             let zipFileWriter = new zip.BlobWriter("application/zip");
             let zipWriter = new zip.ZipWriter(zipFileWriter,{useWebWorkers: false,compressionMethod: 8});
             //in case for future changes to differntiate between different export versions
@@ -973,7 +973,7 @@ class Library { // eslint-disable-line no-unused-vars
             CurrentLibKeys.forEach(element => {
                 element = element.replace("LibEpub","");
                 if (parseInt(element)>=HighestLibEpub) {
-                    HighestLibEpub = parseInt(element)+1; 
+                    HighestLibEpub = parseInt(element)+1;
                 }
             });
             for (let i = 0; i < json.Library.length; i++) {
@@ -994,7 +994,7 @@ class Library { // eslint-disable-line no-unused-vars
             CurrentLibKeys.forEach(element => {
                 element = element.replace("LibEpub","");
                 if (parseInt(element)>=HighestLibEpub) {
-                    HighestLibEpub = parseInt(element)+1; 
+                    HighestLibEpub = parseInt(element)+1;
                 }
             });
             let blobfile = new Blob([LibFileReader.result]);
@@ -1003,7 +1003,7 @@ class Library { // eslint-disable-line no-unused-vars
             let entries = await zipReader.getEntries();
             //check export logic version
             let LibraryVersion = await (await entries.filter((a) => a.filename == "LibraryVersion.txt")[0]).getData(new zip.TextWriter());
-            
+
             if (LibraryVersion == null) {
                 ErrorLog.showErrorMessage("Wrong export version");
                 return;
@@ -1052,7 +1052,7 @@ class Library { // eslint-disable-line no-unused-vars
                     for (let i = 0, end = AllStorageKeys.length; i < end; i++) {
                         if (AllStorageKeys[i].includes(Substring)) {
                             AllLibStorageKeys.push(AllStorageKeys[i]);
-                        }   
+                        }
                     }
                     resolve(AllLibStorageKeys);
                 });
@@ -1061,7 +1061,7 @@ class Library { // eslint-disable-line no-unused-vars
                 for (let i = 0, end = AllStorageKeysList.length; i < end; i++) {
                     if (AllStorageKeysList[i].includes(Substring)) {
                         AllLibStorageKeys.push(AllStorageKeysList[i]);
-                    }   
+                    }
                 }
                 resolve(AllLibStorageKeys);
             }
@@ -1097,12 +1097,12 @@ class Library { // eslint-disable-line no-unused-vars
         let LibArray = await Library.LibGetStorageIDs();
         for (let i = 0; i < LibArray.length; i++) {
             LibArray[i] = [LibArray[i], await Library.LibGetFromStorage("LibStoryURL"+LibArray[i])];
-        }       
+        }
         LibArray = await LibArray.filter(a => a[1] == url);
         if (0 == LibArray.length) {
             return null;
         }
-        
+
         let EpubBase64 = await Library.LibGetFromStorage("LibEpub" + LibArray[0][0]);
         let EpubReader = await new zip.Data64URIReader(EpubBase64);
         let EpubZip = new zip.ZipReader(EpubReader, {useWebWorkers: false});
