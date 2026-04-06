@@ -24,3 +24,29 @@ QUnit.test("findCoverImageUrl_fallsBackToBodyImage", function(assert) {
     let actual = new SpacebattlesParser().findCoverImageUrl(dom);
     assert.equal(actual, "https://forums.spacebattles.com/fallback.jpg");
 });
+
+QUnit.test("findCoverImageUrl_skipsGifHeaderImage", function(assert) {
+    let dom = new DOMParser().parseFromString(
+        "<html><head><base href='https://forums.spacebattles.com/threads/story.123/'></head>" +
+        "<body>" +
+        "<div class='threadmarkListingHeader'><div class='threadmarkListingHeader-icon'><img src='/data/assets/reactions/plus.gif'></div></div>" +
+        "<article class='message-body'><img src='/fallback.jpg'></article>" +
+        "</body></html>",
+        "text/html"
+    );
+    let actual = new SpacebattlesParser().findCoverImageUrl(dom);
+    assert.equal(actual, "https://forums.spacebattles.com/fallback.jpg");
+});
+
+QUnit.test("findCoverImageUrl_returnsNullWhenOnlyGifImagesExist", function(assert) {
+    let dom = new DOMParser().parseFromString(
+        "<html><head><base href='https://forums.spacebattles.com/threads/story.123/'></head>" +
+        "<body>" +
+        "<div class='threadmarkListingHeader'><div class='threadmarkListingHeader-icon'><img src='/data/assets/reactions/applause.gif'></div></div>" +
+        "<article class='message-body'><img src='/data/assets/reactions/cliffhanger.gif'></article>" +
+        "</body></html>",
+        "text/html"
+    );
+    let actual = new SpacebattlesParser().findCoverImageUrl(dom);
+    assert.equal(actual, null);
+});

@@ -53,9 +53,9 @@ class SpacebattlesParser extends Parser {
         if (header) {
             util.resolveLazyLoadedImages(header, "img");
             let headerImg = header.querySelector(".threadmarkListingHeader-icon img, img");
-            let src = headerImg?.currentSrc || headerImg?.src || headerImg?.getAttribute("data-src");
-            if (!util.isNullOrEmpty(src)) {
-                return util.resolveRelativeUrl(dom.baseURI, src);
+            let coverImageUrl = this.getCoverImageUrl(dom, headerImg);
+            if (coverImageUrl !== null) {
+                return coverImageUrl;
             }
         }
 
@@ -64,12 +64,26 @@ class SpacebattlesParser extends Parser {
         if (body) {
             util.resolveLazyLoadedImages(body, "img.lazyload");
             let firstImg = body.querySelector("img");
-            let src = firstImg?.currentSrc || firstImg?.src || firstImg?.getAttribute("data-src");
-            if (!util.isNullOrEmpty(src)) {
-                return util.resolveRelativeUrl(dom.baseURI, src);
+            let coverImageUrl = this.getCoverImageUrl(dom, firstImg);
+            if (coverImageUrl !== null) {
+                return coverImageUrl;
             }
         }
         return null;
+    }
+
+    getCoverImageUrl(dom, imageElement) {
+        let src = imageElement?.currentSrc || imageElement?.src || imageElement?.getAttribute("data-src");
+        if (util.isNullOrEmpty(src)) {
+            return null;
+        }
+        let coverImageUrl = util.resolveRelativeUrl(dom.baseURI, src);
+        return SpacebattlesParser.isValidCoverImageUrl(coverImageUrl) ? coverImageUrl : null;
+    }
+
+    static isValidCoverImageUrl(url) {
+        let extension = util.extractFilenameFromUrl(url).split(".").pop().toLowerCase();
+        return (extension !== "gif");
     }
 
     async fetchChapter(url) {
