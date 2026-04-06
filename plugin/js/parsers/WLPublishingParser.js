@@ -41,9 +41,19 @@ class WLPublishingParser extends Parser {
     }
 
     extractAuthor(dom) {
-        let title = dom.querySelector("title").textContent;
+        let byline = [...dom.querySelectorAll("article h2, article h3")]
+            .map(element => Parser.normalizeWhitespace(element.textContent))
+            .find(text => /^by\s+/i.test(text));
+        if (byline != null) {
+            return byline.replace(/^by\s+/i, "").trim();
+        }
+
+        let title = dom.querySelector("title")?.textContent;
         if (title != null) {
-            return title.substring(0, title.indexOf(":"));
+            let authorSeparator = title.indexOf(":");
+            if (0 <= authorSeparator) {
+                return title.substring(0, authorSeparator).trim();
+            }
         }
         return super.extractAuthor(dom);
     }
