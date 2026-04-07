@@ -23,7 +23,11 @@ class SpacebattlesParser extends Parser {
     async getChapterUrls(dom) {
         let chapters = [...dom.querySelectorAll("div.structItem--threadmark a")]
             .filter(this.isLinkToChapter);
-        return chapters.map(a => util.hyperLinkToChapter(a));
+        return chapters.map(a => {
+            let chapter = util.hyperLinkToChapter(a);
+            chapter.title = SpacebattlesParser.normalizeChapterTitle(chapter.title);
+            return chapter;
+        });
     }
 
     isLinkToChapter(link) {
@@ -82,8 +86,53 @@ class SpacebattlesParser extends Parser {
     }
 
     static isValidCoverImageUrl(url) {
-        let extension = util.extractFilenameFromUrl(url).split(".").pop().toLowerCase();
-        return (extension !== "gif");
+        let filename = util.extractFilenameFromUrl(url).toLowerCase();
+        let extension = filename.split(".").pop();
+        return (extension !== "gif") && (filename !== "blue-ribbon.png");
+    }
+
+    static normalizeChapterTitle(title) {
+        let normalized = Parser.normalizeWhitespace(title);
+        let match = normalized.match(/^(\b(?:chapter|chap|ch|episode|ep|part)\b[\s:\-–—]{0,32})([ivxlcdm]+)\b(.*)$/i);
+        if (match === null) {
+            return normalized;
+        }
+        let numericChapter = SpacebattlesParser.parseRomanNumeral(match[2]);
+        if (numericChapter === null) {
+            return normalized;
+        }
+        return `${match[1]}${numericChapter}${match[3]}`.trim();
+    }
+
+    static parseRomanNumeral(value) {
+        let roman = (value ?? "").toUpperCase();
+        if (roman === "") {
+            return null;
+        }
+        const numerals = {
+            "I": 1,
+            "V": 5,
+            "X": 10,
+            "L": 50,
+            "C": 100,
+            "D": 500,
+            "M": 1000
+        };
+        let total = 0;
+        let previous = 0;
+        for (let i = roman.length - 1; i >= 0; i--) {
+            let currentValue = numerals[roman[i]];
+            if (!currentValue) {
+                return null;
+            }
+            if (currentValue < previous) {
+                total -= currentValue;
+            } else {
+                total += currentValue;
+                previous = currentValue;
+            }
+        }
+        return (total > 0) ? total : null;
     }
 
     async fetchChapter(url) {
