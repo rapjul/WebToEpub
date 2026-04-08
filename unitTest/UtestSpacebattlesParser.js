@@ -77,7 +77,7 @@ QUnit.test("findCoverImageUrl_returnsNullWhenOnlyBlueRibbonImageExists", functio
     assert.equal(actual, null);
 });
 
-QUnit.test("getChapterUrls_normalizesRomanNumeralChapterTitles", function(assert) {
+QUnit.test("getChapterUrls_keepsRomanNumeralChapterTitlesUnchanged", function(assert) {
     let dom = new DOMParser().parseFromString(
         "<html><head><base href='https://forums.spacebattles.com/threads/story.123/'></head>" +
         "<body>" +
@@ -88,7 +88,7 @@ QUnit.test("getChapterUrls_normalizesRomanNumeralChapterTitles", function(assert
 
     return new SpacebattlesParser().getChapterUrls(dom).then(function(actual) {
         assert.equal(actual.length, 1);
-        assert.equal(actual[0].title, "Chapter 7 - Nightmare Fuel");
+        assert.equal(actual[0].title, "Chapter VII - Nightmare Fuel");
         assert.equal(actual[0].sourceUrl, "https://forums.spacebattles.com/threads/story.123/page-7");
     });
 });

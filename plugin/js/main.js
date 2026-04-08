@@ -11,11 +11,6 @@ function normalizeApostrophes(value) {
 
 const TitleSuffixController = (function() {
     const TITLE_SUFFIX_PATTERN = /\s*\{To [^}]*\}\s*$/i;
-    const CHAPTER_KEYWORD_PATTERN = /\b(?:chapter|chap|ch|episode|ep|part)\b[^\d]{0,32}(\d+(?:\.\d+)?)/i;
-    const LEADING_NUMBER_PATTERN = /^[-\u2013\u2014\s]*(\d+(?:\.\d+)?)/;
-    const GENERIC_NUMBER_PATTERN = /\d+(?:\.\d+)?/;
-    const MAX_KEYWORD_OFFSET = 64;
-    const MAX_GENERIC_NUMBER_OFFSET = 24;
     const COLLECTION_KEYWORD_PATTERN = /\b(book|volume|vol|arc|bk)\b[^0-9ivxlcdm]{0,24}(\d+(?:\.\d+)?|[ivxlcdm]+)/i;
     const ROMAN_NUMERAL_PATTERN = /^[ivxlcdm]+$/i;
     const MAX_COLLECTION_KEYWORD_OFFSET = 96;
@@ -63,57 +58,6 @@ const TitleSuffixController = (function() {
 
     function handleTitleInput(reapplySuffix) {
         let titleInput = getTitleInput();
-        if (!titleInput) {
-            return;
-        }
-        let value = normalizeApostrophes(titleInput.value ?? "");
-        if (titleInput.value !== value) {
-            titleInput.value = value;
-        }
-        if (updateBaseTitleFromRenderedValue(value)) {
-            updateFileName();
-        }
-        if (reapplySuffix) {
-            updateTitleField();
-        }
-    }
-
-    function updateBaseTitleFromRenderedValue(value) {
-        let extractedBase = extractBaseFromRenderedValue(value);
-        if (extractedBase !== baseTitle) {
-            baseTitle = extractedBase;
-            return true;
-        }
-        return false;
-    }
-
-    function extractBaseFromRenderedValue(value) {
-        return stripManagedSuffix(normalizeApostrophes(value ?? ""));
-    }
-
-    function stripManagedSuffix(value) {
-        let trimmed = value.toString().trimEnd();
-        let firstMatchedSuffix = null;
-        while (TITLE_SUFFIX_PATTERN.test(trimmed)) {
-            let match = trimmed.match(TITLE_SUFFIX_PATTERN);
-            if (!match) {
-                break;
-            }
-            if (!firstMatchedSuffix) {
-                firstMatchedSuffix = match[0];
-            }
-            let matchStart = (typeof match.index === "number") ? match.index : (trimmed.length - match[0].length);
-            trimmed = trimmed.slice(0, matchStart).trimEnd();
-        }
-        if (firstMatchedSuffix) {
-            evaluateSuffixOwnership(firstMatchedSuffix);
-        } else {
-            isSuffixAutoManaged = true;
-        }
-        return trimmed;
-    }
-
-    function evaluateSuffixOwnership(rawSuffix) {
         let normalizedMatch = normalizeSuffixText(rawSuffix);
         if (normalizedMatch === "") {
             isSuffixAutoManaged = true;
@@ -181,57 +125,6 @@ const TitleSuffixController = (function() {
      */
     function updateTitleField() {
         let titleInput = getTitleInput();
-        if (!titleInput) {
-            return;
-        }
-        if (!isSuffixAutoManaged) {
-            return;
-        }
-        let suffix = buildSuffix();
-        let titleValue = baseTitle ?? "";
-        if (!util.isNullOrEmpty(titleValue) && suffix !== "") {
-            titleValue = `${titleValue} ${suffix}`;
-            lastAppliedSuffix = suffix;
-        } else if (util.isNullOrEmpty(titleValue) && suffix !== "") {
-            titleValue = suffix;
-            lastAppliedSuffix = suffix;
-        } else {
-            lastAppliedSuffix = "";
-        }
-        if (titleInput.value !== titleValue) {
-            titleInput.value = titleValue;
-        }
-        if (suffix === "") {
-            isSuffixAutoManaged = true;
-        }
-    }
-
-    /**
-     * Updates the filename input with a sanitized title, unless the user has overridden it.
-     *
-     * It derives a safe filename from the base title (defaulting to "web") with a maximum length,
-     * falls back to "web" when empty, and tracks whether the filename was auto-set or user overridden.
-     *
-     * @param {boolean} [force=false] - When true, updates the filename even if a user override is detected.
-     */
-    function updateFileName(force = false) {
-        let fileNameInput = getFileNameInput();
-        if (!fileNameInput) {
-            return;
-        }
-        let rawTitle = baseTitle || "web";
-        // applyPlatformLookalikes handles the per-platform character set internally:
-        // Windows→all 8 chars, macOS→colon only, Linux→nothing.
-        let effectiveLookalikes = useLookalikes;
-        let processedTitle = effectiveLookalikes ? util.applyPlatformLookalikes(rawTitle) : rawTitle;
-        let sanitized = util.safeForFileName(processedTitle, fileNameMaxLength);
-        if (util.isNullOrEmpty(sanitized)) {
-            sanitized = "web";
-        }
-        if (fileNameOverride && !force && fileNameInput.value !== sanitized) {
-            return;
-        }
-        fileNameInput.value = sanitized;
         fileNameInput.dataset.userOverride = "false";
         lastAutoFileName = sanitized;
         fileNameOverride = false;
@@ -264,57 +157,6 @@ const TitleSuffixController = (function() {
                 }
             }
         }
-    }
-
-    /**
-     * Derives a chapter label from a title string by normalizing whitespace,
-     * validating against known "chapter" keywords and number patterns, and
-     * returning the matched label or number when appropriate.
-     *
-     * Rules:
-     * - Null, empty, or whitespace-only titles return `null`.
-     * - Titles ending with a number but lacking a preceding chapter keyword
-     *   return `null`.
-     * - Prefers explicit chapter keywords near the start; otherwise tries
-     *   leading numbers, then generic numbers within allowed offsets.
-     *
-     * @param {string} title - The raw title text to inspect.
-     * @returns {string|null} The extracted chapter label/number, or `null` if none is found.
-     */
-    function extractChapterLabel(title) {
-        if (util.isNullOrEmpty(title)) {
-            return null;
-        }
-        let normalized = title.replace(/\s+/g, " ").trim();
-        if (normalized === "") {
-            return null;
-        }
-
-        // If the title ends with a number but the preceding words are not a Chapter variant, fall back to total count.
-        let trailingNumberMatch = normalized.match(/^(.*?)(\d+(?:\.\d+)?)\s*$/);
-        if (trailingNumberMatch) {
-            let beforeNumber = trailingNumberMatch[1].replace(/[:\-\u2013\u2014]+\s*$/, "").trim();
-            if (beforeNumber !== "") {
-                let chapterVariantAtEnd = /(\b(?:ch\.?,?|chap(?:ter)?|chapter)\b)$/i;
-                if (!chapterVariantAtEnd.test(beforeNumber)) {
-                    return null;
-                }
-            }
-        }
-
-        let keywordMatch = normalized.match(CHAPTER_KEYWORD_PATTERN);
-        if (keywordMatch && keywordMatch.index <= MAX_KEYWORD_OFFSET) {
-            return keywordMatch[1];
-        }
-        let leadingMatch = normalized.match(LEADING_NUMBER_PATTERN);
-        if (leadingMatch) {
-            return leadingMatch[1];
-        }
-        let genericMatch = normalized.match(GENERIC_NUMBER_PATTERN);
-        if (genericMatch && genericMatch.index <= MAX_GENERIC_NUMBER_OFFSET) {
-            return genericMatch[0];
-        }
-        return null;
     }
 
     /**
@@ -500,7 +342,7 @@ const TitleSuffixController = (function() {
                 normalizedCount = 0;
             }
             selectedChapterCount = Math.max(0, Math.floor(normalizedCount));
-            latestChapterLabel = extractChapterLabel(lastChapterTitle);
+            latestChapterLabel = TitleSuffixHelpers.extractChapterLabel(lastChapterTitle);
             latestCollectionInfo = extractCollectionInfo(lastChapterTitle);
 
             updateTitleField();
