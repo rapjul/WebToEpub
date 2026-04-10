@@ -58,6 +58,54 @@ const TitleSuffixController = (function() {
 
     function handleTitleInput(reapplySuffix) {
         let titleInput = getTitleInput();
+        if (!titleInput) {
+            return;
+        }
+        let value = titleInput.value ?? "";
+        if (updateBaseTitleFromRenderedValue(value)) {
+            updateFileName();
+        }
+        if (reapplySuffix) {
+            updateTitleField();
+        }
+    }
+
+    function updateBaseTitleFromRenderedValue(value) {
+        let extractedBase = extractBaseFromRenderedValue(value);
+        if (extractedBase !== baseTitle) {
+            baseTitle = extractedBase;
+            return true;
+        }
+        return false;
+    }
+
+    function extractBaseFromRenderedValue(value) {
+        return stripManagedSuffix(value ?? "");
+    }
+
+    function stripManagedSuffix(value) {
+        let trimmed = value.toString().trimEnd();
+        let firstMatchedSuffix = null;
+        while (TITLE_SUFFIX_PATTERN.test(trimmed)) {
+            let match = trimmed.match(TITLE_SUFFIX_PATTERN);
+            if (!match) {
+                break;
+            }
+            if (!firstMatchedSuffix) {
+                firstMatchedSuffix = match[0];
+            }
+            let matchStart = (typeof match.index === "number") ? match.index : (trimmed.length - match[0].length);
+            trimmed = trimmed.slice(0, matchStart).trimEnd();
+        }
+        if (firstMatchedSuffix) {
+            evaluateSuffixOwnership(firstMatchedSuffix);
+        } else {
+            isSuffixAutoManaged = true;
+        }
+        return trimmed;
+    }
+
+    function evaluateSuffixOwnership(rawSuffix) {
         let normalizedMatch = normalizeSuffixText(rawSuffix);
         if (normalizedMatch === "") {
             isSuffixAutoManaged = true;
