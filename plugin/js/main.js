@@ -125,6 +125,57 @@ const TitleSuffixController = (function() {
      */
     function updateTitleField() {
         let titleInput = getTitleInput();
+        if (!titleInput) {
+            return;
+        }
+        if (!isSuffixAutoManaged) {
+            return;
+        }
+        let suffix = buildSuffix();
+        let titleValue = baseTitle ?? "";
+        if (!util.isNullOrEmpty(titleValue) && suffix !== "") {
+            titleValue = `${titleValue} ${suffix}`;
+            lastAppliedSuffix = suffix;
+        } else if (util.isNullOrEmpty(titleValue) && suffix !== "") {
+            titleValue = suffix;
+            lastAppliedSuffix = suffix;
+        } else {
+            lastAppliedSuffix = "";
+        }
+        if (titleInput.value !== titleValue) {
+            titleInput.value = titleValue;
+        }
+        if (suffix === "") {
+            isSuffixAutoManaged = true;
+        }
+    }
+
+    /**
+     * Updates the filename input with a sanitized title, unless the user has overridden it.
+     *
+     * It derives a safe filename from the base title (defaulting to "web") with a maximum length,
+     * falls back to "web" when empty, and tracks whether the filename was auto-set or user overridden.
+     *
+     * @param {boolean} [force=false] - When true, updates the filename even if a user override is detected.
+     */
+    function updateFileName(force = false) {
+        let fileNameInput = getFileNameInput();
+        if (!fileNameInput) {
+            return;
+        }
+        let rawTitle = baseTitle || "web";
+        // applyPlatformLookalikes handles the per-platform character set internally:
+        // Windows→all 8 chars, macOS→colon only, Linux→nothing.
+        let effectiveLookalikes = useLookalikes;
+        let processedTitle = effectiveLookalikes ? util.applyPlatformLookalikes(rawTitle) : rawTitle;
+        let sanitized = util.safeForFileName(processedTitle, fileNameMaxLength);
+        if (util.isNullOrEmpty(sanitized)) {
+            sanitized = "web";
+        }
+        if (fileNameOverride && !force && fileNameInput.value !== sanitized) {
+            return;
+        }
+        fileNameInput.value = sanitized;
         fileNameInput.dataset.userOverride = "false";
         lastAutoFileName = sanitized;
         fileNameOverride = false;
@@ -460,7 +511,6 @@ var main = (function() {
     }
 
     function populateMetaInfo(metaInfo) {
-        setUiFieldToValue("startingUrlInput", metaInfo.uuid);
         const normalizedTitle = normalizeApostrophes(metaInfo.title);
         setUiFieldToValue("titleInput", normalizedTitle);
         TitleSuffixController.setBaseTitle(normalizedTitle);
@@ -881,6 +931,7 @@ var main = (function() {
         let metaInfo = new EpubMetaInfo();
         metaInfo.uuid = "";
         populateMetaInfo(metaInfo);
+        setUiFieldToValue("startingUrlInput", "");
         getLoadAndAnalyseButton().hidden = false;
         main.getPackEpubButton().disabled = false;
         document.getElementById("LibAddToLibrary").disabled = false;
