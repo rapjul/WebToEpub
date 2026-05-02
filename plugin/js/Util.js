@@ -1315,6 +1315,7 @@ const util = (function() {
      */
     function safeForFileName(title, maxLength = 20) {
         if (title) {
+            title = title.replace(/\u2019/g, "'");
             // // Allow only a-z regardless of case and numbers as well as hyphens and underscores; replace spaces and no-break spaces with underscores
             // title = title.replace(/[ \u00a0]/gi, "_").replace(/([^a-z0-9_-]+)/gi, "");
 

@@ -130,6 +130,18 @@ QUnit.test("extractTitle", function (assert) {
     assert.equal(actual, "Title 1");
 });
 
+QUnit.test("getEpubMetaInfo-normalizesCurlyApostropheInFileName", function (assert) {
+    let doc = new DOMParser().parseFromString(
+        "<html><head><title>O\u2019Brien</title></head><body></body></html>",
+        "text/html"
+    );
+    let parser = new Parser();
+    let metaInfo = parser.getEpubMetaInfo(doc, false);
+
+    assert.equal(metaInfo.title, "O\u2019Brien");
+    assert.equal(metaInfo.fileName, "O'Brien");
+});
+
 QUnit.test("addTitleToContent-h1Element", function (assert) {
     let doc = document.implementation.createHTMLDocument("");
     let webPage = { rawDom: doc };

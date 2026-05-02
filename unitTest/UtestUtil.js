@@ -502,6 +502,7 @@ test("isUrl", function (assert) {
 
 test("safeForFileName", function (assert) {
     assert.equal(util.safeForFileName("aAzZ 0-9\\_"), "aAzZ_0-9_");
+    assert.equal(util.safeForFileName("O\u2019Brien"), "O'Brien", "curly apostrophe is normalized");
 
     // ? is illegal on Windows and must be stripped
     assert.equal(util.safeForFileName("title?"), "title", "trailing ? is stripped");
