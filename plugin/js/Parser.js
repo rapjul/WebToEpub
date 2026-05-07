@@ -191,7 +191,8 @@ class Parser {
 
     normalizeChapterTitle(title) {
         let normalized = Parser.normalizeWhitespace(title);
-        return Parser.stripLeadingAggregateChapterCount(normalized);
+        let stripped = Parser.stripLeadingAggregateChapterCount(normalized);
+        return Parser.standardizeChapterTitleSeparator(stripped);
     }
 
     static normalizeWhitespace(text) {
@@ -205,6 +206,24 @@ class Parser {
             if (Parser.containsChapterNumber(rest) || Parser.isCommonChapterName(rest)) {
                 return rest;
             }
+        }
+        return title;
+    }
+
+    /**
+     * Standardizes the separator after a leading chapter number.
+     * Ensures "1: Title" or "1 - Title" format.
+     * @param {string} title 
+     * @returns {string}
+     */
+    static standardizeChapterTitleSeparator(title) {
+        let match = /^(\s*(?:chapter|chap(?:ter)?|ch|episode|ep|part)?\s*(?:[ivxlcdm]+|\d+(?:\.\d+)?))\s*(:)\s*(.+)$/i.exec(title);
+        if (match) {
+            return `${match[1]}: ${match[3].trim()}`;
+        }
+        match = /^(\s*(?:chapter|chap(?:ter)?|ch|episode|ep|part)?\s*(?:[ivxlcdm]+|\d+(?:\.\d+)?))\s*([-–—])\s*(.+)$/i.exec(title);
+        if (match) {
+            return `${match[1]} ${match[2]} ${match[3].trim()}`;
         }
         return title;
     }
@@ -1267,7 +1286,7 @@ class Parser {
 
 Parser.WEB_TO_EPUB_CLASS_NAME = "webToEpubContent";
 Parser.LEADING_AGGREGATE_CHAPTER_REGEX = /^\s*(?<prefix>\d+)\s*[:;.-]?\s*(?<rest>.+)$/;
-Parser.CHAPTER_NUMBER_REGEX = /\b(?:chapter|chap(?:ter)?|ch|episode|ep|part)\s*(?:[:.#-]?\s*)?(?:[ivxlcdm]+|\d+(?:\.\d+)?)/i;
+Parser.CHAPTER_NUMBER_REGEX = /\b(?:chapter|chap(?:ter)?|ch|episode|ep|part)\s*(?:[:.#-]?\s*)?(?:[ivxlcdm]+|\d+(?:\.\d+)?)|^\s*\d+\s*[:.#-]?\s*(?=\S)/i;
 Parser.CHAPTER_NUMBER_MAX_OFFSET = 64;
 Parser.COMMON_CHAPTER_NAME_REGEX = /^(prologue|epilogue|intro(?:duction)?|foreword|afterword|interlude|intermission|prelude|art\s*work|artwork|illustrations?|extras?|special|sidestory|side\s*story|omake|bonus)(\b|[^a-z])/i;
 Parser.NAVIGATION_KEYWORDS = ["next", "previous", "prev", "first", "last"];
