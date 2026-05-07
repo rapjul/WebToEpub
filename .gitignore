@@ -253,3 +253,6 @@ eslint/index.csv
 /plugin/@zip.js/
 
 /tmp
+
+# Ignore specstory files
+.specstory/
