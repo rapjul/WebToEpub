@@ -4,7 +4,7 @@
 "use strict";
 
 parserFactory.registerManualSelect(
-    "Default", 
+    "Default",
     () => new DefaultParser()
 );
 
@@ -22,7 +22,7 @@ class DefaultParser extends Parser {
     findContent(dom) {
         let hostName = util.extractHostName(dom.baseURI);
         this.logic = this.siteConfigs.constructFindContentLogicForSite(hostName);
-        return this.logic.findContent(dom); 
+        return this.logic.findContent(dom);
     }
 
     populateUI(dom) {
