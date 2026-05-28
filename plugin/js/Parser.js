@@ -7,22 +7,39 @@
  * For sites that have multiple chapters per web page, this can minimize HTTP calls
  */
 class FetchCache { // eslint-disable-line no-unused-vars
+    /**
+     * Creates an empty fetch cache.
+     *
+     * @returns {void}
+     */
     constructor() {
         this.path = null;
         this.dom = null;
     }
 
+    /**
+     * Fetches a document and caches it by pathname so repeated calls reuse the same DOM.
+     *
+     * @param {string} url - The URL to fetch.
+     * @returns {Promise<Document>} A cloned response XML document.
+     */
     async fetch(url) {
-        if  (!this.inCache(url)) {
+        if (!this.inCache(url)) {
             this.dom = (await HttpClient.wrapFetch(url)).responseXML;
             this.path = new URL(url).pathname;
         }
         return this.dom.cloneNode(true);
     }
 
+    /**
+     * Checks whether the given URL matches the cached pathname.
+     *
+     * @param {string} url - The URL to test.
+     * @returns {boolean} True when the cache can satisfy the request.
+     */
     inCache(url) {
         return (((new URL(url).pathname) === this.path)
-        && (this.dom !== null));
+            && (this.dom !== null));
     }
 }
 
@@ -30,11 +47,22 @@ class FetchCache { // eslint-disable-line no-unused-vars
  * A Parser's state variables
 */
 class ParserState {
+    /**
+     * Creates a fresh parser state container.
+     *
+     * @returns {void}
+     */
     constructor() {
         this.webPages = new Map();
         this.chapterListUrl = null;
     }
 
+    /**
+     * Stores the chapter list in fetch order and links adjacent chapters together.
+     *
+     * @param {Array<Object>} urls - Chapter page metadata in order.
+     * @returns {void}
+     */
     setPagesToFetch(urls) {
         let nextPrevChapters = new Set();
         this.webPages = new Map();
@@ -63,34 +91,73 @@ class ParserState {
  * @param {ImageCollector} [imageCollector] - Optional image collector; a new instance is created if omitted.
  */
 class Parser {
+    /**
+     * Creates a parser with default throttling and state containers.
+     *
+     * @param {ImageCollector} [imageCollector] - Optional image collector override.
+     * @returns {void}
+     */
     constructor(imageCollector) {
         this.minimumThrottle = 500;
-        this.maxSimultanousFetchSize = 1;
+        this.maxSimultaneousFetchSize = 1;
         this.state = new ParserState();
         this.imageCollector = imageCollector || new ImageCollector();
         this.userPreferences = null;
         this.autoDelayAddedForCurrentStoryMs = 0;
     }
 
+    /**
+     * Copies parser state and user preferences from another parser instance.
+     *
+     * @param {Parser} otherParser - The parser to copy state from.
+     * @returns {void}
+     */
     copyState(otherParser) {
         this.state = otherParser.state;
         this.imageCollector.copyState(otherParser.imageCollector);
         this.userPreferences = otherParser.userPreferences;
     }
 
+    /**
+     * Replaces the current chapter list with a new ordered set of pages to fetch.
+     *
+     * @param {Array<Object>} urls - Chapter page metadata in fetch order.
+     * @returns {void}
+     */
     setPagesToFetch(urls) {
         this.state.setPagesToFetch(urls);
     }
 
+    /**
+     * Returns the current map of web pages scheduled for processing.
+     *
+     * @returns {Map<string, Object>} The pages queued for fetch and packaging.
+     */
     getPagesToFetch() {
         return this.state.webPages;
     }
 
-    //Use this option if the parser isn't sending the correct HTTP header
+    /**
+     * Allows a parser to treat a response as a custom error condition.
+     *
+     * Override in subclasses when the site signals errors through content instead of
+     * HTTP status alone.
+     *
+     * @param {Response} response - The fetched response to inspect.
+     * @returns {boolean} True when the response should be handled as a custom error.
+     */
     isCustomError(response) {  // eslint-disable-line no-unused-vars
         return false;
     }
 
+    /**
+     * Builds a retryable custom error payload for sites that need special handling.
+     *
+     * @param {string} url - The target URL.
+     * @param {Object} wrapOptions - Fetch wrapper options used for the request.
+     * @param {Object} checkedresponse - The checked fetch response object.
+     * @returns {Object} A custom error descriptor, or an empty object to fail fast.
+     */
     setCustomErrorResponse(url, wrapOptions, checkedresponse) {
         //example
         let ret = {};
@@ -101,7 +168,7 @@ class Parser {
         ret.response.url = checkedresponse.response.url;
         ret.response.status = 403;
         //How often should it be retried and with how much delay in between
-        ret.response.retryDelay = [80,40,20,10,5];
+        ret.response.retryDelay = [80, 40, 20, 10, 5];
         ret.errorMessage = "This is a custom error message that will be displayed should all retries fail";
         //return empty to throw error
         return {};
@@ -112,11 +179,25 @@ class Parser {
         this.imageCollector.onUserPreferencesUpdate(userPreferences);
     }
 
+    /**
+     * Determines whether a web page has enough data to be converted into EPUB content.
+     *
+     * @param {Object} webPage - The page metadata and fetch result state.
+     * @returns {boolean} True when the page should be packaged.
+     */
     isWebPagePackable(webPage) {
         return ((webPage.isIncludeable)
-         && ((webPage.rawDom != null) || (webPage.error != null)));
+            && ((webPage.rawDom != null) || (webPage.error != null)));
     }
 
+    /**
+     * Converts a fetched raw DOM into cleaned EPUB-ready chapter content.
+     *
+     * This is the main content normalization pipeline for chapter pages.
+     *
+     * @param {Object} webPage - The page metadata and raw DOM source.
+     * @returns {HTMLElement|null} The sanitized chapter content element, or null.
+     */
     convertRawDomToContent(webPage) {
         let content = this.findContent(webPage.rawDom);
         this.customRawDomToContentStep(webPage, content);
@@ -146,6 +227,13 @@ class Parser {
         return content;
     }
 
+    /**
+     * Inserts a normalized chapter title into the content when the page does not already expose one.
+     *
+     * @param {Object} webPage - The chapter metadata being converted.
+     * @param {HTMLElement} content - The chapter content element.
+     * @returns {void}
+     */
     addTitleToContent(webPage, content) {
         let title = this.findChapterTitle(webPage.rawDom, webPage);
         if (title != null) {
@@ -169,6 +257,13 @@ class Parser {
         }
     }
 
+    /**
+     * Checks whether the chapter title is already present as a leading heading.
+     *
+     * @param {string} title - The normalized chapter title.
+     * @param {HTMLElement} content - The chapter content element.
+     * @returns {boolean} True when a matching heading already exists.
+     */
     titleAlreadyPresent(title, content) {
         let existingTitle = content.querySelector("h1, h2, h3, h4, h5, h6");
         return (existingTitle != null)
@@ -176,29 +271,55 @@ class Parser {
     }
 
     /**
-     * Element with title of an individual chapter
-     * Override when chapter title not in content element
-    */
+     * Hook for subclasses to locate the chapter title element or text.
+     *
+     * @param {Document|Element} dom - The DOM to inspect.
+     * @returns {string|HTMLElement|null} The chapter title, if found.
+     */
     findChapterTitle(dom) {   // eslint-disable-line no-unused-vars
         return null;
     }
 
+    /**
+     * Replaces WordPress spacer blocks with semantic horizontal rules.
+     *
+     * @param {HTMLElement} content - The chapter content element.
+     * @returns {void}
+     */
     replaceWpBlockSpacersWithHR(content) {
         [...content.querySelectorAll("div.wp-block-spacer")].forEach(
             e => e.replaceWith(content.ownerDocument.createElement("hr"))
         );
     }
 
+    /**
+     * Normalizes a chapter title by collapsing whitespace and standardizing numbering prefixes.
+     *
+     * @param {string} title - The raw chapter title.
+     * @returns {string} The normalized title.
+     */
     normalizeChapterTitle(title) {
         let normalized = Parser.normalizeWhitespace(title);
         let stripped = Parser.stripLeadingAggregateChapterCount(normalized);
         return Parser.standardizeChapterTitleSeparator(stripped);
     }
 
+    /**
+     * Collapses repeated whitespace into single spaces and trims the result.
+     *
+     * @param {string|null|undefined} text - The text to normalize.
+     * @returns {string} The whitespace-normalized text.
+     */
     static normalizeWhitespace(text) {
         return (text ?? "").replace(/\s+/g, " ").trim();
     }
 
+    /**
+     * Removes a leading aggregate chapter count when the remaining text still looks like a chapter title.
+     *
+     * @param {string} title - The title to inspect.
+     * @returns {string} The title without a leading aggregate count when appropriate.
+     */
     static stripLeadingAggregateChapterCount(title) {
         let match = Parser.LEADING_AGGREGATE_CHAPTER_REGEX.exec(title);
         if (match && match.groups?.rest) {
@@ -213,7 +334,7 @@ class Parser {
     /**
      * Standardizes the separator after a leading chapter number.
      * Ensures "1: Title" or "1 - Title" format.
-     * @param {string} title 
+     * @param {string} title
      * @returns {string}
      */
     static standardizeChapterTitleSeparator(title) {
@@ -228,6 +349,12 @@ class Parser {
         return title;
     }
 
+    /**
+     * Detects whether a title begins with a chapter number or chapter-like prefix.
+     *
+     * @param {string} title - The title to inspect.
+     * @returns {boolean} True when the title appears to include a chapter number.
+     */
     static containsChapterNumber(title) {
         let normalized = Parser.normalizeWhitespace(title);
         let match = Parser.CHAPTER_NUMBER_REGEX.exec(normalized);
@@ -237,11 +364,24 @@ class Parser {
         return match.index <= Parser.CHAPTER_NUMBER_MAX_OFFSET;
     }
 
+    /**
+     * Detects common non-numeric chapter names such as prologue or epilogue.
+     *
+     * @param {string} title - The title to inspect.
+     * @returns {boolean} True when the title matches a common chapter label.
+     */
     static isCommonChapterName(title) {
         let normalized = Parser.normalizeWhitespace(title).toLowerCase();
         return Parser.COMMON_CHAPTER_NAME_REGEX.test(normalized);
     }
 
+    /**
+     * Removes duplicate leading chapter titles when the same title is repeated in the content body.
+     *
+     * @param {HTMLElement} content - The chapter content element.
+     * @param {string} title - The chapter title to deduplicate.
+     * @returns {void}
+     */
     removeDuplicateLeadingChapterTitles(content, title) {
         if (!content || util.isNullOrEmpty(title)) {
             return;
@@ -272,7 +412,9 @@ class Parser {
 
     /**
      * Sanitizes a content element by removing scriptable elements, comments, unwanted WordPress and Microsoft artifacts, share links, and leading whitespace.
+     *
      * @param {Element} element - The content element to clean.
+     * @returns {void}
      */
     removeUnwantedElementsFromContentElement(element) {
         util.removeScriptableElements(element);
@@ -297,7 +439,9 @@ class Parser {
 
     /**
      * Updates the parser UI with cover image options and any implementation-specific fields.
+     *
      * @param {Document|HTMLElement} dom - The parsed document or DOM root used to locate cover images and populate the UI.
+     * @returns {void}
      */
     populateUI(dom) {
         CoverImageUI.showCoverImageUrlInput(true);
@@ -311,14 +455,13 @@ class Parser {
      *
      * Default implementation performs no actions.
      * Override in subclasses to add custom UI components or logic.
+     *
+     * @returns {void}
      */
     populateUIImpl() {
         // default implementation is do nothing more
     }
 
-    /**
-     *
-    */
     /**
      * Default implementation is to take the first image in content section.
      *
@@ -394,8 +537,12 @@ class Parser {
     }
 
     /**
-    * default implementation turns each webPage into single epub item
-    */
+     * Default implementation turns each web page into a single EPUB item.
+     *
+     * @param {Object} webPage - The web page metadata being converted.
+     * @param {number} epubItemIndex - The target index for the generated EPUB item.
+     * @returns {ChapterEpubItem[]} A single-item array containing the converted chapter.
+     */
     webPageToEpubItems(webPage, epubItemIndex) {
         let content = this.convertRawDomToContent(webPage);
         let items = [];
@@ -512,15 +659,26 @@ class Parser {
         return "";
     }
 
+    /**
+     * Extracts descriptive text from the DOM, using the info-page nodes when available.
+     *
+     * @param {Document|Element} dom - The DOM to inspect for description content.
+     * @returns {string} The extracted description text.
+     */
     extractDescription(dom) {
         let infoDiv = document.createElement("div");
-        if (this.getInformationEpubItemChildNodes !== undefined)
-        {
+        if (this.getInformationEpubItemChildNodes !== undefined) {
             this.populateInfoDiv(infoDiv, dom);
         }
         return infoDiv.textContent;
     }
 
+    /**
+     * Normalizes description text from a string or DOM node into a compact single-line string.
+     *
+     * @param {string|Node|null|undefined} description - The raw description value.
+     * @returns {string} The normalized description text.
+     */
     normalizeDescriptionText(description) {
         if (description == null) {
             return "";
@@ -535,15 +693,36 @@ class Parser {
     }
 
     /**
-    * default implementation, Derived classes will override
-    */
+     * Populates series-related metadata fields.
+     *
+     * Default implementation does nothing. Override in subclasses that expose series data.
+     *
+     * @param {Document|Element} dom - The DOM containing series metadata.
+     * @param {EpubMetaInfo} metaInfo - The metadata object to update.
+     * @returns {void}
+     */
     extractSeriesInfo(dom, metaInfo) {  // eslint-disable-line no-unused-vars
     }
 
+    /**
+     * Loads EPUB metadata asynchronously when a parser needs a separate metadata pass.
+     *
+     * Default implementation performs no work.
+     *
+     * @param {Document|Element} dom - The DOM document or element to inspect.
+     * @returns {Promise<void>}
+     */
     async loadEpubMetaInfo(dom) {  // eslint-disable-line no-unused-vars
         return;
     }
 
+    /**
+     * Builds a fully populated metadata object for EPUB generation.
+     *
+     * @param {Document} dom - The DOM document to inspect.
+     * @param {boolean} useFullTitle - Whether to preserve a longer file name.
+     * @returns {EpubMetaInfo} The populated metadata container.
+     */
     getEpubMetaInfo(dom, useFullTitle) {
         let metaInfo = new EpubMetaInfo();
         metaInfo.uuid = dom.baseURI;
@@ -587,6 +766,13 @@ class Parser {
         return metaInfo;
     }
 
+    /**
+     * Creates a single-chapter story definition from the given base URL and DOM.
+     *
+     * @param {string} baseUrl - The source URL for the chapter.
+     * @param {Document} dom - The DOM used to extract the title.
+     * @returns {Array<{sourceUrl: string, title: string}>} A one-item chapter list.
+     */
     singleChapterStory(baseUrl, dom) {
         return [{
             sourceUrl: baseUrl,
@@ -594,6 +780,12 @@ class Parser {
         }];
     }
 
+    /**
+     * Reads the first `<base>` element in the DOM and returns its resolved href.
+     *
+     * @param {Document} dom - The DOM document containing the base tag.
+     * @returns {string} The base URL used to resolve relative links.
+     */
     getBaseUrl(dom) {
         return Array.from(dom.getElementsByTagName("base"))[0].href;
     }
@@ -613,7 +805,7 @@ class Parser {
      */
     makeSaveAsFileNameWithoutExtension(title, useFullTitle, skipWebDefault = false) {
         let maxFileNameLength = useFullTitle ? 512 : 20;
-        let fileName = (title == null)  ? (skipWebDefault ? "" : "web") : util.safeForFileName(title, maxFileNameLength);
+        let fileName = (title == null) ? (skipWebDefault ? "" : "web") : util.safeForFileName(title, maxFileNameLength);
         if (util.isStringWhiteSpace(fileName)) {
             // title is probably not English, so just use it as is
             fileName = title;
@@ -660,7 +852,7 @@ class Parser {
                 : this.makePlaceholderEpubItem(webPage, index);
             epubItems = epubItems.concat(newItems);
             index += newItems.length;
-            delete(webPage.rawDom);
+            delete (webPage.rawDom);
         }
         return epubItems;
     }
@@ -691,9 +883,16 @@ class Parser {
             title: titleText,
             newArch: null
         };
-        return new ChapterEpubItem(chapter, {childNodes: childNodes}, 0);
+        return new ChapterEpubItem(chapter, { childNodes: childNodes }, 0);
     }
 
+    /**
+     * Populates the information page container with sanitized custom nodes.
+     *
+     * @param {HTMLElement} infoDiv - The information container to populate.
+     * @param {Document|HTMLElement} dom - The DOM used to supply information nodes.
+     * @returns {void}
+     */
     populateInfoDiv(infoDiv, dom) {
         for (let n of this.getInformationEpubItemChildNodes(dom).filter(n => n != null)) {
             let clone = util.sanitizeNode(n);
@@ -722,7 +921,13 @@ class Parser {
         // do nothing, derived class overrides as required
     }
 
-    // called when plugin has obtained the first web page
+    /**
+     * Handles the first loaded page by building the chapter list and wiring the UI.
+     *
+     * @param {string} url - The first page URL.
+     * @param {Document} firstPageDom - The DOM for the first page.
+     * @returns {Promise<void>} Resolves once the chapter list has been prepared.
+     */
     async onLoadFirstPage(url, firstPageDom) {
         this.state.firstPageDom = firstPageDom;
         this.state.chapterListUrl = url;
@@ -788,19 +993,31 @@ class Parser {
         return webPage;
     }
 
+    /**
+     * Ensures the first page URL is present in the chapter list when it is not already included.
+     *
+     * @param {string} url - The first-page URL.
+     * @param {Document} firstPageDom - The DOM for the first page.
+     * @param {Array<Object>} webPages - The existing chapter list.
+     * @returns {Array<Object>} The chapter list with the first page prepended when needed.
+     */
     addFirstPageUrlToWebPages(url, firstPageDom, webPages) {
         let present = webPages.find(e => e.sourceUrl === url);
-        if (present)
-        {
+        if (present) {
             return webPages;
         } else {
             return [{
-                sourceUrl:  url,
+                sourceUrl: url,
                 title: this.extractTitle(firstPageDom)
             }].concat(webPages);
         }
     }
 
+    /**
+     * Handles the fetch-chapters button by either surfacing an error or starting fetch work.
+     *
+     * @returns {void}
+     */
     onFetchChaptersClicked() {
         if (0 == this.state.webPages.size) {
             ErrorLog.showErrorMessage(UIText.Error.noChaptersFoundAndFetchClicked);
@@ -809,10 +1026,21 @@ class Parser {
         }
     }
 
+    /**
+     * Alias used by callers that expect a content-fetching entry point.
+     *
+     * @returns {Promise<void>} The underlying fetch operation.
+     */
     fetchContent() {
         return this.fetchWebPages();
     }
 
+    /**
+     * Updates the UI to reflect that chapter loading has started.
+     *
+     * @param {number} length - The number of pages queued for loading.
+     * @returns {void}
+     */
     setUiToShowLoadingProgress(length) {
         main.getPackEpubButton().disabled = true;
         ProgressBar.setMax(length + 1);
@@ -855,14 +1083,33 @@ class Parser {
         }
     }
 
+    /**
+     * Assigns parser instances to the chapter list before fetch starts.
+     *
+     * @param {Array<Object>} pagesToFetch - Chapter metadata awaiting parser assignment.
+     * @returns {Promise<void>}
+     */
     async addParsersToPages(pagesToFetch) {
         parserFactory.addParsersToPages(this, pagesToFetch);
     }
 
+    /**
+     * Returns the current batch of pages that should be fetched together.
+     *
+     * @param {Array<Object>} webPages - The full page list.
+     * @param {number} index - The starting index for this batch.
+     * @returns {Array<Object>} The next fetch batch.
+     */
     groupPagesToFetch(webPages, index) {
         return webPages.slice(index, index + this.maxSimultanousFetchSize);
     }
 
+    /**
+     * Fetches, preprocesses, and image-scans a single web page.
+     *
+     * @param {Object} webPage - The web page metadata to fetch.
+     * @returns {Promise<void>} Resolves when the page has been processed.
+     */
     async fetchWebPageContent(webPage) {
         ChapterUrlsUI.showDownloadState(webPage.row, ChapterUrlsUI.DOWNLOAD_STATE_SLEEPING);
         await this.rateLimitDelay();
@@ -916,23 +1163,37 @@ class Parser {
      *
      * @override
      * @param {Document|Element} webPageDom - The DOM document or root element to preprocess.
+     * @returns {void}
      */
-    preprocessRawDom(webPageDom) {} // eslint-disable-line no-unused-vars
+    preprocessRawDom(webPageDom) { } // eslint-disable-line no-unused-vars
 
     /**
      * Removes unused `<select>` and `<iframe>` elements from the provided DOM to reduce memory consumption.
      *
      * @param {Document|Element} webPageDom - The DOM document or root element to clean up.
+     * @returns {void}
      */
     removeUnusedElementsToReduceMemoryConsumption(webPageDom) {
         util.removeElements(webPageDom.querySelectorAll("select, iframe"));
     }
 
-    // Hook if need to chase hyperlinks in page to get all chapter content
+    /**
+     * Fetches a chapter page and returns the XML/DOM response.
+     *
+     * Override when a site requires special request handling.
+     *
+     * @param {string} url - The chapter URL to fetch.
+     * @returns {Promise<Document>} The fetched response XML.
+     */
     async fetchChapter(url) {
-        return (await HttpClient.wrapFetch(url, {storyUrl: this.state.chapterListUrl})).responseXML;
+        return (await HttpClient.wrapFetch(url, { storyUrl: this.state.chapterListUrl })).responseXML;
     }
 
+    /**
+     * Writes the current chapter list back to the reading list UI/state.
+     *
+     * @returns {void}
+     */
     updateReadingList() {
         this.userPreferences.readingList.update(
             this.state.chapterListUrl,
@@ -940,14 +1201,32 @@ class Parser {
         );
     }
 
+    /**
+     * Marks the current page row as fully loaded in the chapter list UI.
+     *
+     * @param {Object} webPage - The page metadata whose row should be updated.
+     * @returns {void}
+     */
     updateLoadState(webPage) {
         ChapterUrlsUI.showDownloadState(webPage.row, ChapterUrlsUI.DOWNLOAD_STATE_LOADED);
         ProgressBar.updateValue(1);
     }
 
-    // Hook point, when need to do something when "Pack EPUB" pressed
-    onStartCollecting() {}
+    /**
+     * Hook point invoked when the user presses "Pack EPUB".
+     *
+     * Override in subclasses that need to prepare state before packaging begins.
+     *
+     * @returns {void}
+     */
+    onStartCollecting() { }
 
+    /**
+     * Rewrites unresolved EPUB hyperlinks so they point at EPUB-local targets or absolute URLs.
+     *
+     * @param {Array<ChapterEpubItem>} epubItems - The EPUB items to scan and update.
+     * @returns {void}
+     */
     fixupHyperlinksInEpubItems(epubItems) {
         let targets = this.sourceUrlToEpubItemUrl(epubItems);
         for (let item of epubItems) {
@@ -959,6 +1238,12 @@ class Parser {
         }
     }
 
+    /**
+     * Builds a lookup from source URLs to EPUB-relative item URLs.
+     *
+     * @param {Array<ChapterEpubItem>} epubItems - The EPUB items to index.
+     * @returns {Map<string, string>} A normalized source URL to EPUB href map.
+     */
     sourceUrlToEpubItemUrl(epubItems) {
         let targets = new Map();
         for (let item of epubItems) {
@@ -973,6 +1258,12 @@ class Parser {
         return targets;
     }
 
+    /**
+     * Checks whether a hyperlink still needs EPUB URL resolution.
+     *
+     * @param {HTMLAnchorElement} link - The hyperlink to inspect.
+     * @returns {boolean} True when the link is unresolved and should be rewritten.
+     */
     isUnresolvedHyperlink(link) {
         let href = link.getAttribute("href");
         if (href == null) {
@@ -982,6 +1273,13 @@ class Parser {
             !href.startsWith("../Text/");
     }
 
+    /**
+     * Rewrites a hyperlink to point at the matching EPUB item when available.
+     *
+     * @param {HTMLAnchorElement} link - The hyperlink to rewrite.
+     * @param {Map<string, string>} targets - Normalized source URL to EPUB href mapping.
+     * @returns {boolean} True when the link mapped to an EPUB item.
+     */
     hyperlinkToEpubItemUrl(link, targets) {
         let key = util.normalizeUrlForCompare(link.href);
         let targetInEpub = targets.has(key);
@@ -991,16 +1289,33 @@ class Parser {
         return targetInEpub;
     }
 
+    /**
+     * Converts a hyperlink to an absolute URL when it is still relative.
+     *
+     * @param {HTMLAnchorElement} link - The hyperlink to update.
+     * @returns {void}
+     */
     makeHyperlinkAbsolute(link) {
         if (link.href !== link.getAttribute("href")) {
             link.href = link.href;       // eslint-disable-line no-self-assign
         }
     }
 
+    /**
+     * Returns a parser-disabled placeholder for sites that are not implemented.
+     *
+     * @returns {null}
+     */
     disabled() {
         return null;
     }
 
+    /**
+     * Produces the best available navigation label from link text and ARIA attributes.
+     *
+     * @param {HTMLAnchorElement|null} link - The link to inspect.
+     * @returns {string} The combined navigation label.
+     */
     static getNavigationLabel(link) {
         if (!link) {
             return "";
@@ -1020,6 +1335,12 @@ class Parser {
         return labels.join(" ").trim();
     }
 
+    /**
+     * Removes navigation-related sibling nodes around a chapter navigation link.
+     *
+     * @param {HTMLAnchorElement|null} link - The navigation link anchor.
+     * @returns {void}
+     */
     static removeNavigationCueSiblings(link) {
         if (!link || !link.parentNode) {
             return;
@@ -1028,6 +1349,13 @@ class Parser {
         Parser.removeNavigationNodesInDirection(link.nextSibling, 1);
     }
 
+    /**
+     * Removes navigation cue nodes while traversing in one direction from a link.
+     *
+     * @param {Node|null} node - The starting sibling node.
+     * @param {number} direction - Negative for backward, positive for forward traversal.
+     * @returns {void}
+     */
     static removeNavigationNodesInDirection(node, direction) {
         while (node != null) {
             if (Parser.shouldRemoveNavigationSibling(node)) {
@@ -1046,6 +1374,12 @@ class Parser {
         }
     }
 
+    /**
+     * Determines whether a sibling node is a removable navigation cue.
+     *
+     * @param {Node|null} node - The node to inspect.
+     * @returns {boolean} True when the node should be removed.
+     */
     static shouldRemoveNavigationSibling(node) {
         if (node == null) {
             return false;
@@ -1068,6 +1402,12 @@ class Parser {
         return false;
     }
 
+    /**
+     * Checks whether a node is a divider-only text block.
+     *
+     * @param {Node|null} node - The node to inspect.
+     * @returns {boolean} True when the node only contains divider characters.
+     */
     static isDividerNode(node) {
         if (!node) {
             return false;
@@ -1079,10 +1419,22 @@ class Parser {
         return Parser.NAVIGATION_DIVIDER_REGEX.test(text);
     }
 
+    /**
+     * Checks whether a node is a whitespace-only text node.
+     *
+     * @param {Node|null} node - The node to inspect.
+     * @returns {boolean} True when the node is a whitespace text node.
+     */
     static isWhitespaceNode(node) {
         return (node?.nodeType === Node.TEXT_NODE) && util.isStringWhiteSpace(node.textContent || "");
     }
 
+    /**
+     * Removes empty navigation containers that only hold cues or blank text.
+     *
+     * @param {Element|null} root - The root element to scan.
+     * @returns {void}
+     */
     static removeEmptyNavigationContainers(root) {
         if (!root) {
             return;
@@ -1104,6 +1456,12 @@ class Parser {
         util.removeElements(nodesToRemove);
     }
 
+    /**
+     * Detects text that looks like a navigation cue such as next, previous, or chapter arrows.
+     *
+     * @param {string|null|undefined} text - The text to inspect.
+     * @returns {boolean} True when the text is likely navigation-only content.
+     */
     static isNavigationCueText(text) {
         if (util.isNullOrEmpty(text)) {
             return false;
@@ -1130,12 +1488,25 @@ class Parser {
         return tokens.every(token => Parser.NAVIGATION_KEYWORDS.includes(token));
     }
 
+    /**
+     * Tags the provided nodes as author notes so they can be styled or filtered later.
+     *
+     * @param {Array<Element>} elements - The elements to tag.
+     * @returns {void}
+     */
     tagAuthorNotes(elements) {
         for (let e of elements) {
             e.classList.add("webToEpub-author-note");
         }
     }
 
+    /**
+     * Tags or removes author notes selected by a CSS selector based on user preferences.
+     *
+     * @param {Element} element - The root element containing note candidates.
+     * @param {string} selector - The CSS selector used to locate notes.
+     * @returns {void}
+     */
     tagAuthorNotesBySelector(element, selector) {
         let notes = element.querySelectorAll(selector);
         if (this.userPreferences.removeAuthorNotes.value) {
@@ -1145,6 +1516,12 @@ class Parser {
         }
     }
 
+    /**
+     * Creates an empty HTML document seeded with the WebToEpub content container.
+     *
+     * @param {string|null} baseUrl - Optional base URL to apply to the document.
+     * @returns {{ dom: Document, content: HTMLElement }} The empty document and its content node.
+     */
     static makeEmptyDocForContent(baseUrl) {
         let dom = document.implementation.createHTMLDocument("");
         if (baseUrl != null) {
@@ -1159,10 +1536,23 @@ class Parser {
         };
     }
 
+    /**
+     * Locates the constructed content container within a generated document.
+     *
+     * @param {Document|Element} dom - The DOM to search.
+     * @returns {HTMLElement|null} The content container, if present.
+     */
     static findConstrutedContent(dom) {
         return dom.querySelector("div." + Parser.WEB_TO_EPUB_CLASS_NAME);
     }
 
+    /**
+     * Appends plain text as paragraph nodes into the chapter content.
+     *
+     * @param {{ dom: Document, content: HTMLElement }} newDoc - The generated document wrapper.
+     * @param {string} contentText - The raw text to split into paragraphs.
+     * @returns {void}
+     */
     static addTextToChapterContent(newDoc, contentText) {
         let lines = contentText
             .replace(/\r/g, "\n")
@@ -1176,12 +1566,26 @@ class Parser {
         }
     }
 
-    async getChapterUrlsFromMultipleTocPages(dom, extractPartialChapterList, getUrlsOfTocPages, chapterUrlsUI)  {
+    /**
+     * Loads chapter URLs from multiple TOC pages and combines the results.
+     *
+     * @param {Document} dom - The first TOC page DOM.
+     * @param {Function} extractPartialChapterList - Extracts chapters from a TOC DOM.
+     * @param {Function} getUrlsOfTocPages - Returns the additional TOC URLs.
+     * @param {Object} chapterUrlsUI - The chapter URL UI helper.
+     * @returns {Promise<Array<Object>>} The combined chapter list.
+     */
+    async getChapterUrlsFromMultipleTocPages(dom, extractPartialChapterList, getUrlsOfTocPages, chapterUrlsUI) {
         let chapters = extractPartialChapterList(dom);
         let urlsOfTocPages = getUrlsOfTocPages(dom);
         return await this.getChaptersFromAllTocPages(chapters, extractPartialChapterList, urlsOfTocPages, chapterUrlsUI);
     }
 
+    /**
+     * Returns the current per-chapter delay including any story-specific override.
+     *
+     * @returns {number} The delay in milliseconds.
+     */
     getRateLimit() {
         let manualDelayPerChapterValue = (!isNaN(parseInt(this.userPreferences.manualDelayPerChapter.value, 10)))
             ? parseInt(this.userPreferences.manualDelayPerChapter.value, 10)
@@ -1199,11 +1603,21 @@ class Parser {
         return configured + storyDelay;
     }
 
+    /**
+     * Waits for the configured rate-limit delay before the next network request.
+     *
+     * @returns {Promise<void>} Resolves after the delay completes.
+     */
     async rateLimitDelay() {
         let delay = this.getRateLimit();
         await util.sleep(delay);
     }
 
+    /**
+     * Increases the current story's delay after a 403 response when auto-tuning is enabled.
+     *
+     * @returns {void}
+     */
     increaseDelayForCurrentStoryOn403() {
         if (!this.userPreferences || !this.state.chapterListUrl || !this.userPreferences.autoIncreaseDelayOn403.value) {
             return;
@@ -1222,7 +1636,17 @@ class Parser {
         util.log(`[WebToEpub] Increased per-story delay for ${storyKey} by ${increment} ms (total ${updated} ms).`);
     }
 
-    async getChaptersFromAllTocPages(chapters, extractPartialChapterList, urlsOfTocPages, chapterUrlsUI, wrapOptions)  {
+    /**
+     * Walks all TOC pages, fetching and concatenating chapter lists from each page.
+     *
+     * @param {Array<Object>} chapters - The current chapter list.
+     * @param {Function} extractPartialChapterList - Extracts chapters from a TOC DOM.
+     * @param {Array<string>} urlsOfTocPages - Additional TOC page URLs to fetch.
+     * @param {Object} chapterUrlsUI - The chapter URL UI helper.
+     * @param {Object} [wrapOptions] - Optional fetch wrapper options.
+     * @returns {Promise<Array<Object>>} The combined chapter list.
+     */
+    async getChaptersFromAllTocPages(chapters, extractPartialChapterList, urlsOfTocPages, chapterUrlsUI, wrapOptions) {
         if (0 < chapters.length) {
             chapterUrlsUI.showTocProgress(chapters);
         }
@@ -1236,6 +1660,15 @@ class Parser {
         return chapters;
     }
 
+    /**
+     * Walks linked TOC pages until no further page is available.
+     *
+     * @param {Document} dom - The initial TOC page DOM.
+     * @param {Function} chaptersFromDom - Extracts chapters from a TOC DOM.
+     * @param {Function} nextTocPageUrl - Returns the next TOC page URL.
+     * @param {Object} chapterUrlsUI - The chapter URL UI helper.
+     * @returns {Promise<Array<Object>>} The combined chapter list.
+     */
     async walkTocPages(dom, chaptersFromDom, nextTocPageUrl, chapterUrlsUI) {
         let chapters = chaptersFromDom(dom);
         chapterUrlsUI.showTocProgress(chapters);
@@ -1251,6 +1684,14 @@ class Parser {
         return chapters;
     }
 
+    /**
+     * Moves collected footnotes into a dedicated section at the end of the chapter.
+     *
+     * @param {Document} dom - The chapter document.
+     * @param {HTMLElement} content - The chapter content element.
+     * @param {Array<HTMLElement>} footnotes - Footnote elements to move.
+     * @returns {void}
+     */
     moveFootnotes(dom, content, footnotes) {
         if (0 < footnotes.length) {
             let list = dom.createElement("ol");
@@ -1267,6 +1708,13 @@ class Parser {
         }
     }
 
+    /**
+     * Follows paginated chapter content until no additional page is available.
+     *
+     * @param {string} url - The first chapter URL.
+     * @param {Function} moreChapterTextUrl - Resolves the next page URL from the DOM.
+     * @returns {Promise<Document>} The DOM containing the merged chapter content.
+     */
     async walkPagesOfChapter(url, moreChapterTextUrl) {
         let dom = (await HttpClient.wrapFetch(url)).responseXML;
         let count = 2;
