@@ -246,7 +246,7 @@ const TitleSuffixController = (function() {
                 // Non-ASCII Unicode (≥ U+0080) is also preserved now, matching the updated regex
                 let stripped = [...new Set([...rawTitle].filter(c =>
                     c !== " " && c !== "\u00a0" && c !== "/" &&
-                    !/[a-z0-9_'"\-\+\&\(\)\[\]\{\}!\u0080-\uffff]/i.test(c)
+                    !/[a-z0-9_'"\-+&()[\]{}!\u0080-\uffff]/i.test(c)
                 ))];
                 if (stripped.length > 0) {
                     hintSpan.textContent = `Removed from filename: ${stripped.join(" ")}`;

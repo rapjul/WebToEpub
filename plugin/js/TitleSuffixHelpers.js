@@ -20,7 +20,7 @@ const TitleSuffixHelpers = (function() {
         if (trailingNumberMatch) {
             let beforeNumber = trailingNumberMatch[1].replace(/[:\-\u2013\u2014]+\s*$/, "").trim();
             if (beforeNumber !== "") {
-                let chapterVariantAtEnd = /(\b(?:ch\.?\,?|chap(?:ter)?|chapter)\b)$/i;
+                let chapterVariantAtEnd = /(\b(?:ch\.?,?|chap(?:ter)?|chapter)\b)$/i;
                 if (!chapterVariantAtEnd.test(beforeNumber)) {
                     return null;
                 }

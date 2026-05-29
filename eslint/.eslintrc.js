@@ -86,6 +86,7 @@ module.exports = {
         "RoyalRoadParser": "readonly",
         "UIText": "readonly",
         "UserPreferences": "readonly",
+        "userPreferences": "readonly",
         "util": "readonly",
         "VariableSizeImageCollector": "readonly",
         "WordpressBaseParser": "readonly"
