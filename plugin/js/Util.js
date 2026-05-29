@@ -1233,7 +1233,7 @@ const util = (function() {
         ["<", "＜"],  // U+FF1C FULLWIDTH LESS-THAN SIGN    — illegal on Windows only
         [">", "＞"],  // U+FF1E FULLWIDTH GREATER-THAN SIGN — illegal on Windows only
         ["|", "｜"],  // U+FF5C FULLWIDTH VERTICAL LINE     — illegal on Windows only
-        ["\\","＼"],  // U+FF3C FULLWIDTH REVERSE SOLIDUS   — illegal on Windows only
+        ["\\", "＼"],  // U+FF3C FULLWIDTH REVERSE SOLIDUS  — illegal on Windows only
         ["~", "～"],  // U+FF5E FULLWIDTH TILDE             — illegal on Windows only
     ]);
 
