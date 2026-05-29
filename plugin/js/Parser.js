@@ -1101,7 +1101,7 @@ class Parser {
      * @returns {Array<Object>} The next fetch batch.
      */
     groupPagesToFetch(webPages, index) {
-        return webPages.slice(index, index + this.maxSimultanousFetchSize);
+        return webPages.slice(index, index + this.maxSimultaneousFetchSize);
     }
 
     /**
