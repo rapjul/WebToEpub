@@ -18,7 +18,31 @@ class SpacebattlesParser extends Parser {
         this.expectedChapterUrl = null;
     }
 
+    /**
+     * Retrieves the list of chapter objects from the index page DOM,
+     * and sets declarativeNetRequest rules to remove the 'Origin' header
+     * and set the 'Referer' header to bypass potential Cloudflare blocks.
+     * @param {Document} dom - The DOM of the index page.
+     * @returns {Promise<Array<{sourceUrl: string, title: string, newArc: null}>>}
+     */
     async getChapterUrls(dom) {
+        let hostname = new URL(dom.baseURI).hostname;
+        let rule = [
+            {
+                "id": 1,
+                "priority": 1,
+                "action": {
+                    "type": "modifyHeaders",
+                    "requestHeaders": [
+                        { "header": "origin", "operation": "remove" },
+                        { "header": "referer", "operation": "set", "value": "https://" + hostname + "/" }
+                    ]
+                },
+                "condition": { "urlFilter": hostname }
+            }
+        ];
+        await HttpClient.setDeclarativeNetRequestRules(rule);
+
         let chapters = [...dom.querySelectorAll("div.structItem--threadmark a")]
             .filter(this.isLinkToChapter);
         return chapters.map(a => util.hyperLinkToChapter(a));

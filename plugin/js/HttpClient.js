@@ -38,6 +38,13 @@ class FetchErrorHandler {
         // keep HTTP status visible for caller logic (403, etc.)
         failError.status = response.status;
         failError.url = response.url;
+
+        // Track and enforce a hard limit of 5 retries
+        wrapOptions.retryCount = (wrapOptions.retryCount || 0) + 1;
+        if (wrapOptions.retryCount > 5) {
+            return Promise.reject(failError);
+        }
+
         let keepRetrying = wrapOptions.retry?.keepRetrying;
         let retry = FetchErrorHandler.getAutomaticRetryBehaviourForStatus(response, wrapOptions);
         if (retry.retryDelay.length === 0) {
@@ -149,7 +156,15 @@ class FetchErrorHandler {
                         toastMessage: UIText.Warning.warning403AutoRetryToast(host, delaySeconds)
                     };
                 }
-                return {retryDelay: [delaySeconds], promptUser: !autoRetry, HTTP: 403};
+                const toastMsg = UIText.Warning.warning403ErrorResponse(host);
+                return {
+                    retryDelay: [delaySeconds],
+                    promptUser: !autoRetry,
+                    HTTP: 403,
+                    toastHost: host,
+                    stallWarningMessage: UIText.Warning.warning403StalledRetry(host),
+                    toastMessage: toastMsg
+                };
             }
             case 429:
                 FetchErrorHandler.show429Error(response);
@@ -553,6 +568,12 @@ class HttpClient {
         });
     }
 
+    /**
+     * Copies partitioned cookies to the unpartitioned cookie store so that extension-initiated
+     * fetch requests (which run in an unpartitioned context) can send them.
+     * @param {string} url - The URL of the request to copy cookies for.
+     * @returns {Promise<void>} Resolves when all partitioned cookies have been copied.
+     */
     static async setPartitionCookies(url) {
         // get partitionKey in the form of https://<site name>.<tld>
         let parsedUrl = new URL(url);
@@ -572,17 +593,28 @@ class HttpClient {
             let unpartitionedCookies = await cookieApi.getAll({domain: domain});
             HttpClient.logCookiesForDomain(domain, partitionedCookies, unpartitionedCookies);
             let cookies = partitionedCookies.filter(item => item.partitionKey != undefined);
-            // create new cookies for the site without the partitionKey
-            // cookies without the partitionKey get sent with fetch
-            cookies.forEach(element => cookieApi.set({
-                domain: element.domain,
-                url: "https://" + element.domain.substring(1),
-                name: element.name,
-                value: element.value
-            }));
-        } catch {
+            for (const element of cookies) {
+                const cleanDomain = element.domain.startsWith(".") ? element.domain.substring(1) : element.domain;
+                try {
+                    await cookieApi.set({
+                        url: `https://${cleanDomain}${element.path}`,
+                        domain: element.domain,
+                        name: element.name,
+                        value: element.value,
+                        path: element.path,
+                        secure: element.secure,
+                        httpOnly: element.httpOnly,
+                        sameSite: element.sameSite,
+                        expirationDate: element.expirationDate,
+                        storeId: element.storeId
+                    });
+                } catch (cookieError) {
+                    console.error(`[WebToEpub] Failed to set cookie ${element.name}:`, cookieError);
+                }
+            }
+        } catch (err) {
             // Probably running browser that doesn't support partitionKey, e.g. Kiwi
-            console.log("failed to set cookie");
+            console.log("failed to set cookie", err);
         }
     }
 
