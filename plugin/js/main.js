@@ -456,6 +456,9 @@ var main = (function() {
 
     // this will be called when message listener fires
     function onMessageListener(message, sender, sendResponse) {  // eslint-disable-line no-unused-vars
+        if (sendResponse) {
+            sendResponse({ received: true });
+        }
         if (message.messageType === "ParseResults") {
             chrome.runtime.onMessage.removeListener(onMessageListener);
             clearTimeout(messageListenerTimeout);
