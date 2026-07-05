@@ -693,6 +693,18 @@ class Parser {
     }
 
     /**
+     * Extracts the publisher metadata from the document.
+     *
+     * @param {Document|Element} dom - The DOM containing publisher metadata.
+     * @returns {string} The publisher name, or empty string if not found.
+     */
+    extractPublisher(dom) {
+        // try metadata extraction
+        let publisher = dom.querySelector("meta[property='og:site_name']");
+        return publisher?.content ?? "";
+    }
+
+    /**
      * Populates series-related metadata fields.
      *
      * Default implementation does nothing. Override in subclasses that expose series data.
@@ -701,18 +713,6 @@ class Parser {
      * @param {EpubMetaInfo} metaInfo - The metadata object to update.
      * @returns {void}
      */
-    * default implementation, 
-    * if not available, return ''
-    */
-    extractPublisher(dom) {
-        // try metadata extraction
-        let publisher = dom.querySelector("meta[property='og:site_name']");
-        return publisher?.content ?? "";
-    }
-
-    /**
-    * default implementation, Derived classes will override
-    */
     extractSeriesInfo(dom, metaInfo) {  // eslint-disable-line no-unused-vars
     }
 
@@ -986,7 +986,7 @@ class Parser {
      */
     cleanWebPageUrls(webPages) {
         let foundUrls = new Set();
-        let isUnique = function(webPage) {
+        let isUnique = function (webPage) {
             let unique = !foundUrls.has(webPage.sourceUrl);
             if (unique) {
                 foundUrls.add(webPage.sourceUrl);
