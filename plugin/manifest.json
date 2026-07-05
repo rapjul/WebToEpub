@@ -10,6 +10,7 @@
     "cookies",
     "downloads",
     "webRequest",
+    "webRequestBlocking",
     "declarativeNetRequest",
     "scripting",
     "storage",
