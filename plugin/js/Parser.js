@@ -643,7 +643,7 @@ class Parser {
         // try jetpack tag
         let locale = dom.querySelector("meta[property='og:locale']");
         if (locale !== null) {
-            return locale.getAttribute("content");
+            return locale.getAttribute("content").substring(0, 2);
         }
 
         // try <html>'s lang attribute
@@ -701,6 +701,18 @@ class Parser {
      * @param {EpubMetaInfo} metaInfo - The metadata object to update.
      * @returns {void}
      */
+    * default implementation, 
+    * if not available, return ''
+    */
+    extractPublisher(dom) {
+        // try metadata extraction
+        let publisher = dom.querySelector("meta[property='og:site_name']");
+        return publisher?.content ?? "";
+    }
+
+    /**
+    * default implementation, Derived classes will override
+    */
     extractSeriesInfo(dom, metaInfo) {  // eslint-disable-line no-unused-vars
     }
 
@@ -761,6 +773,12 @@ class Parser {
         }
         catch (err) {
             metaInfo.description = "";
+        }
+        try {
+            metaInfo.publisher = this.extractPublisher(dom);
+        }
+        catch (err) {
+            metaInfo.publisher = "";
         }
         this.extractSeriesInfo(dom, metaInfo);
         return metaInfo;
