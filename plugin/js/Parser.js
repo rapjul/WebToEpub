@@ -1562,8 +1562,15 @@ class Parser {
      * @param {Document|Element} dom - The DOM to search.
      * @returns {HTMLElement|null} The content container, if present.
      */
-    static findConstrutedContent(dom) {
+    static findConstructedContent(dom) {
         return dom.querySelector("div." + Parser.WEB_TO_EPUB_CLASS_NAME);
+    }
+
+    /**
+     * @deprecated Use findConstructedContent instead.
+     */
+    static findConstrutedContent(dom) {
+        return Parser.findConstructedContent(dom);
     }
 
     /**

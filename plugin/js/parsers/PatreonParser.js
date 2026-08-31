@@ -104,7 +104,7 @@ class PatreonParser extends Parser {
      * @returns {HTMLElement|null} The content element.
      */
     findContent(dom) {
-        return Parser.findConstrutedContent(dom);
+        return Parser.findConstructedContent(dom);
     }
 
     /**
