@@ -353,15 +353,11 @@ class Parser {
      * Detects whether a title begins with a chapter number or chapter-like prefix.
      *
      * @param {string} title - The title to inspect.
-     * @returns {boolean} True when the title appears to include a chapter number.
+     * @returns {boolean} True when the title appears to begin with a chapter number.
      */
     static containsChapterNumber(title) {
         const normalized = Parser.normalizeWhitespace(title);
-        const match = Parser.CHAPTER_NUMBER_REGEX.exec(normalized);
-        if (!match) {
-            return false;
-        }
-        return match.index <= Parser.CHAPTER_NUMBER_MAX_OFFSET;
+        return Parser.CHAPTER_NUMBER_REGEX.test(normalized);
     }
 
     /**
@@ -1761,9 +1757,8 @@ class Parser {
 
 Parser.WEB_TO_EPUB_CLASS_NAME = "webToEpubContent";
 Parser.LEADING_AGGREGATE_CHAPTER_REGEX = /^\s*(?<prefix>\d+)\s*[:;.-]?\s*(?<rest>.+)$/;
-Parser.CHAPTER_NUMBER_REGEX = /\b(?:chapter|chap(?:ter)?|ch|episode|ep|part)\s*(?:[:.#-]?\s*)?(?:[ivxlcdm]+|\d+(?:\.\d+)?)|^\s*\d+\s*[:.#-]?\s*(?=\S)/i;
-Parser.CHAPTER_NUMBER_MAX_OFFSET = 64;
-Parser.COMMON_CHAPTER_NAME_REGEX = /^(prologue|epilogue|intro(?:duction)?|foreword|afterword|interlude|intermission|prelude|art\s*work|artwork|illustrations?|extras?|special|sidestory|side\s*story|omake|bonus)(\b|[^a-z])/i;
+Parser.CHAPTER_NUMBER_REGEX = /^[\s([【]*(?:(?:chapter|chap(?:ter)?|ch|episode|ep|part|volume|vol|act|book)\s*(?:[:.#-]?\s*)?(?:[ivxlcdm]+|\d+(?:\.\d+)?\b)|\d+\s*[:.#-]?\s*(?=\S))/i;
+Parser.COMMON_CHAPTER_NAME_REGEX = /^[\s([【]*(?:prologue|epilogue|intro(?:duction)?|foreword|afterword|interlude|intermission|prelude|art\s*work|artwork|illustrations?|extras?|special|sidestory|side\s*story|omake|bonus)(?:(?:\s*(?:[ivxlcdm]+|\d+(?:\.\d+)?))?\s*[)\]】]*$|(?:\s*(?:[ivxlcdm]+|\d+(?:\.\d+)?))?\s*[:–—.-]\s*\S+|(?:\s+(?:[ivxlcdm]+|\d+(?:\.\d+)?)\s+\S+))/i;
 Parser.NAVIGATION_KEYWORDS = ["next", "previous", "prev", "first", "last"];
 Parser.NAVIGATION_CONTAINER_SELECTOR = "p, div, span, strong, em, b, i, small, li, nav, header, footer";
 Parser.NAVIGATION_DIVIDER_REGEX = /^[\s|\\/><«»‹›←→⇐⇒\-\u2013\u2014]+$/u;
