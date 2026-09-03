@@ -103,7 +103,9 @@ QUnit.test("onWebnovelDownloadImagesToggle_hidesWarningToastWhenUnchecked", func
 QUnit.test("cleanVolumeTitle_cleansWhitespaceAndSeparators", function(assert) {
     assert.equal(QidianParser.cleanVolumeTitle(" Volume 1 :  Introduction "), "Volume 1: Introduction");
     assert.equal(QidianParser.cleanVolumeTitle("Volume 2 : Academy"), "Volume 2: Academy");
+    assert.equal(QidianParser.cleanVolumeTitle("Volume 3 :  Genin Days"), "Volume 3: Genin Days");
     assert.equal(QidianParser.cleanVolumeTitle("  Volume 3:Genin Days  "), "Volume 3: Genin Days");
+    assert.equal(QidianParser.cleanVolumeTitle("Volume   6 :  3rd   Shinobi   World   War"), "Volume 6: 3rd Shinobi World War");
     assert.equal(QidianParser.cleanVolumeTitle(null), null);
     assert.equal(QidianParser.cleanVolumeTitle("   "), null);
 });

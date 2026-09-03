@@ -110,6 +110,7 @@ class QidianParser extends Parser {
         }
         let cleaned = Parser.normalizeWhitespace(title);
         cleaned = cleaned.replace(/\s*:\s*/g, ": ");
+        cleaned = cleaned.replace(/\s+/g, " ").trim();
         return (cleaned.length > 0) ? cleaned : null;
     }
 
