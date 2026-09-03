@@ -254,5 +254,6 @@ eslint/index.csv
 
 /tmp
 
-# Ignore specstory files
-.specstory/
+# AI planning conversations and artifacts
+_artifacts/
+.specstory
