@@ -24,8 +24,7 @@ class PatreonParser extends Parser {
                 .join(" ");
         };
 
-        if (this.isCondensedView(dom))
-        {
+        if (this.isCondensedView(dom)) {
             let getLink = (e) => {
                 return e.querySelector("a");
             };
@@ -38,7 +37,7 @@ class PatreonParser extends Parser {
                 };
             });
         }
-        
+
         // The SVG check skips all locked chapters.
         let links = [...dom.querySelectorAll("a.CollectionPostList-module__IhO0fW__gridCard:not(:has(svg[data-tag='IconLock']))")];
         return links.map(link => ({
@@ -52,7 +51,7 @@ class PatreonParser extends Parser {
         let link = this.getUrlOfContent(card);
         return ({
             title: title.trim(),
-            sourceUrl:  link.href
+            sourceUrl: link.href
         });
     }
 
@@ -60,7 +59,7 @@ class PatreonParser extends Parser {
         let link = this.getUrlOfContent(card);
         return !util.isNullOrEmpty(link?.getAttribute("href"));
     }
- 
+
     getUrlOfContent(card) {
         return card.querySelector("a[data-tag='post-published-at']");
     }
@@ -78,18 +77,18 @@ class PatreonParser extends Parser {
      * @returns {Promise<{ dom: Document, content: HTMLElement }>} The constructed chapter document.
      */
     async fetchChapter(url) {
-        let xhr = await HttpClient.wrapFetch(url);
-        let postContent = xhr.responseXML.querySelector("div.patreon-post-content");
+        const xhr = await HttpClient.wrapFetch(url);
+        const postContent = xhr.responseXML.querySelector("div.patreon-post-content");
         if (postContent !== null) {
             return this.jsonToHtml({
                 title: xhr.responseXML.querySelector("h1[data-tag='post-title']").textContent,
                 content: postContent.innerHTML
             }, url);
         }
-        let script = xhr.responseXML.querySelector("script#__NEXT_DATA__").textContent;
-        let json = JSON.parse(script);
-        let envelope = json.props.pageProps.bootstrapEnvelope;
-        let bootstrap = envelope.bootstrap || envelope.pageBootstrap;
+        const script = xhr.responseXML.querySelector("script#__NEXT_DATA__").textContent;
+        const json = JSON.parse(script);
+        const envelope = json.props.pageProps.bootstrapEnvelope;
+        const bootstrap = envelope.bootstrap || envelope.pageBootstrap;
         return this.jsonToHtml(bootstrap.post.data.attributes, url);
     }
 
@@ -104,12 +103,10 @@ class PatreonParser extends Parser {
             newDoc.content.append(img);
         }
         let content;
-        if (json.content)
-        {
-            content =  "<div>" + json.content + "</div>";
+        if (json.content) {
+            content = "<div>" + json.content + "</div>";
         }
-        else if (json.content_json_string)
-        {
+        else if (json.content_json_string) {
             const tiptapToHtml = (node) => {
                 if (!node) return null;
 
@@ -167,14 +164,14 @@ class PatreonParser extends Parser {
                         }
                         break;
 
-                    case "heading": 
+                    case "heading":
                         element = document.createElement(`h${node.attrs.level || 3}`);
                         break;
 
                     case "bulletList":
                         element = document.createElement("ul");
                         break;
-                    
+
                     case "orderedList":
                         element = document.createElement("ol");
                         break;
@@ -183,7 +180,7 @@ class PatreonParser extends Parser {
                         element = document.createElement("li");
                         break;
 
-                    case "image": 
+                    case "image":
                         element = document.createElement("img");
                         element.src = node.attrs.src;
                         element.alt = node.attrs.alt || "";
@@ -192,7 +189,7 @@ class PatreonParser extends Parser {
                     case "blockquote":
                         element = document.createElement("blockquote");
                         break;
-                    
+
                     case "codeBlock": {
                         let pre = document.createElement("pre");
                         element = document.createElement("code");
@@ -237,10 +234,22 @@ class PatreonParser extends Parser {
         return newDoc.dom;
     }
 
+    /**
+     * Extracts the story title implementation for Patreon pages.
+     *
+     * @param {Document} dom - The parsed page DOM.
+     * @returns {string} The formatted story title.
+     */
     extractTitleImpl(dom) {
-        return dom.querySelector("h1").textContent + " Patreon"  ;
+        return dom.querySelector("h1").textContent + " Patreon";
     }
 
+    /**
+     * Extracts the author name from Patreon pages.
+     *
+     * @param {Document} dom - The parsed page DOM.
+     * @returns {string} The author name.
+     */
     extractAuthor(dom) {
         if (this.isCollectionList(dom)) {
             return this.extractCollectionAuthor(dom);
@@ -249,15 +258,27 @@ class PatreonParser extends Parser {
         return (authorLabel === null) ? super.extractAuthor(dom) : authorLabel.textContent;
     }
 
+    /**
+     * Extracts the author name from Patreon collection pages.
+     *
+     * @param {Document} dom - The collection page DOM.
+     * @returns {string} The extracted author name.
+     */
     extractCollectionAuthor(dom) {
         let title = dom.querySelector("h1");
         let parent = title.parentNode;
-        while (parent.querySelector("a") == null) {
+        while (parent.querySelector("a") === null) {
             parent = parent.parentNode;
         }
         return parent.querySelector("a")?.textContent ?? "Not Found";
     }
 
+    /**
+     * Finds the cover image URL for Patreon pages and collections.
+     *
+     * @param {Document} dom - The page DOM.
+     * @returns {string|null} The cover image URL if found.
+     */
     findCoverImageUrl(dom) {
         if (this.isCollectionList(dom)) {
             return this.extractCollectionCover(dom);
@@ -265,19 +286,36 @@ class PatreonParser extends Parser {
         return util.getFirstImgSrc(dom, "picture");
     }
 
-
+    /**
+     * Extracts the collection cover image URL.
+     *
+     * @param {Document} dom - The collection page DOM.
+     * @returns {string|null} The cover image URL if found.
+     */
     extractCollectionCover(dom) {
         let divsWithPicutres = dom.querySelectorAll("div[src]");
-        if (divsWithPicutres.length == 0) {
+        if (divsWithPicutres.length === 0) {
             return null;
         }
         return divsWithPicutres[divsWithPicutres.length - 1].getAttribute("src");
     }
 
+    /**
+     * Checks if the given DOM represents a Patreon collection list.
+     *
+     * @param {Document} dom - The page DOM.
+     * @returns {boolean} True if the page is a collection list.
+     */
     isCollectionList(dom) {
         return new URL(dom.baseURI).pathname.startsWith("/collection/");
     }
 
+    /**
+     * Checks if the collection page is using the condensed list view.
+     *
+     * @param {Document} dom - The collection page DOM.
+     * @returns {boolean} True if in condensed view mode.
+     */
     isCondensedView(dom) {
         let url = new URL(dom.baseURI);
         return url.searchParams.get("view") === "condensed";
