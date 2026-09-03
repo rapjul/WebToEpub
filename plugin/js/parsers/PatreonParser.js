@@ -69,8 +69,23 @@ class PatreonParser extends Parser {
         return Parser.findConstrutedContent(dom);
     }
 
+    /**
+     * Fetches a chapter's document structure and converts it to HTML.
+     * Checks for server-rendered post content first before falling back
+     * to Next.js bootstrap payload.
+     *
+     * @param {string} url - Target chapter URL to fetch.
+     * @returns {Promise<{ dom: Document, content: HTMLElement }>} The constructed chapter document.
+     */
     async fetchChapter(url) {
         let xhr = await HttpClient.wrapFetch(url);
+        let postContent = xhr.responseXML.querySelector("div.patreon-post-content");
+        if (postContent !== null) {
+            return this.jsonToHtml({
+                title: xhr.responseXML.querySelector("h1[data-tag='post-title']").textContent,
+                content: postContent.innerHTML
+            }, url);
+        }
         let script = xhr.responseXML.querySelector("script#__NEXT_DATA__").textContent;
         let json = JSON.parse(script);
         let envelope = json.props.pageProps.bootstrapEnvelope;
