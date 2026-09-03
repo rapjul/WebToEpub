@@ -60,9 +60,10 @@ class QidianParser extends Parser {
 
     /**
      * Retrieves the list of chapter links from a Qidian book or comic page, loading the catalog view if necessary.
+     * Preserves volume/section groupings by marking the initial chapter of each volume with `newArc`.
      *
      * @param {Document} dom - The DOM of the current page; if not already on the catalog, it will fetch and parse the catalog page.
-     * @returns {Promise<Array>} A promise that resolves to an array of chapter descriptors derived from the catalog links.
+     * @returns {Promise<Array<{ sourceUrl: string, title: string, newArc: string|null, isIncludeable: boolean }>>} A promise that resolves to an array of chapter descriptors derived from the catalog links.
      */
     async getChapterUrls(dom) {
         if (!dom.baseURI.match(new RegExp("/catalog$"))) {
@@ -73,15 +74,35 @@ class QidianParser extends Parser {
             newURL = newURL.replace(regex, "$1/catalog");
             dom = (await HttpClient.wrapFetch(newURL)).responseXML;
         }
-        let links = Array.from(dom.querySelectorAll("ul.content-list a"));
-        if (links.length === 0) {
-            links = Array.from(dom.querySelectorAll("div.volume-item ol a"));
+        let volumeItems = Array.from(dom.querySelectorAll("div.volume-item"));
+        let chapters = [];
+        if (0 < volumeItems.length) {
+            for (let volumeItem of volumeItems) {
+                let volumeTitle = volumeItem.querySelector("h4, h3, .volume-title, .sub-tit")?.textContent?.trim() || null;
+                let links = Array.from(volumeItem.querySelectorAll("ol a, ul a, li a, a"));
+                let isFirstInVolume = true;
+                for (let link of links) {
+                    let newArc = (isFirstInVolume && volumeTitle) ? volumeTitle : null;
+                    let chapter = QidianParser.linkToChapter(link, newArc);
+                    chapters.push(chapter);
+                    isFirstInVolume = false;
+                }
+            }
         }
-        let chapters = links.map(QidianParser.linkToChapter);
+        if (chapters.length === 0) {
+            let links = Array.from(dom.querySelectorAll("ul.content-list a, ol.content-list a, ol a, ul a"));
+            chapters = links.map(link => QidianParser.linkToChapter(link, null));
+        }
         this.maybeNotifyParagraphImageHint(chapters);
         return chapters;
     }
 
+    /**
+     * Checks if a chapter link represents a locked or premium chapter.
+     *
+     * @param {HTMLAnchorElement} link - The chapter anchor element to inspect.
+     * @returns {boolean} True if the link contains a locked icon, false otherwise.
+     */
     static isLinkLocked(link) {
         let img = link.querySelector("svg > use");
         return (img != null)
@@ -92,21 +113,25 @@ class QidianParser extends Parser {
      * Extracts chapter metadata from a chapter link element.
      *
      * @param {HTMLAnchorElement} link - Anchor element representing the chapter link.
-     * @returns {{ sourceUrl: string, title: string, isIncludeable: boolean }} An object containing the chapter URL, title, and a flag indicating if the chapter is accessible.
+     * @param {string|null} [newArc=null] - Optional volume or section title to mark the start of an arc.
+     * @returns {{ sourceUrl: string, title: string, newArc: string|null, isIncludeable: boolean }} An object containing the chapter URL, title, arc metadata, and a flag indicating if the chapter is accessible.
      */
-    static linkToChapter(link) {
+    static linkToChapter(link, newArc = null) {
         let title = link.textContent;
         let element = link.querySelector("strong");
         if (element !== null) {
             title = element.textContent.trim();
-            if (!document.getElementById("removeChapterNumberCheckbox").checked) {
+            if (!document.getElementById("removeChapterNumberCheckbox")?.checked) {
                 element = link.querySelector("i");
                 if (element !== null) {
                     title = element.textContent + ": " + title;
                 }
             }
         }
-        return {sourceUrl: link.href, title: title,
+        return {
+            sourceUrl: link.href,
+            title: title,
+            newArc: newArc ?? null,
             isIncludeable: !QidianParser.isLinkLocked(link)
         };
     }
