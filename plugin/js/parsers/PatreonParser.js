@@ -30,35 +30,56 @@ class PatreonParser extends Parser {
      * Extracts post links and titles from a Patreon collection page.
      *
      * @param {Document} dom - The collection page DOM.
-     * @returns {Array<{ title: string, sourceUrl: string }>} List of collection chapter metadata.
+     * @returns {Array<{ title: string, sourceUrl: string }>} List of collection chapter metadata in chronological order.
      */
     getCollectionLinks(dom) {
+        /**
+         * Extracts the title text from a collection post card element.
+         *
+         * @param {Element} e - The container element.
+         * @returns {string} The trimmed title text.
+         */
         const getTitle = (e) => {
-            return [...e.querySelectorAll("span.LineClamp-module__N_eOMG__lineClamp1")]
-                .map(s => s.textContent.trim())
-                .join(" ");
+            const heading = e.querySelector("h3, h2, h4, [class*='HeadingText'], [class*='heading']");
+            if (heading?.textContent.trim()) {
+                return heading.textContent.trim();
+            }
+            const lineClamps = [...e.querySelectorAll("span[class*='LineClamp'], span[class*='lineClamp']")];
+            if (lineClamps.length > 0) {
+                const text = lineClamps.map(s => s.textContent.trim()).filter(Boolean).join(" ");
+                if (text) {
+                    return text;
+                }
+            }
+            return "";
         };
 
         if (this.isCondensedView(dom)) {
+            /**
+             * Extracts the primary anchor element from a list container.
+             *
+             * @param {Element} e - The list post element.
+             * @returns {HTMLAnchorElement|null} The anchor link.
+             */
             const getLink = (e) => {
                 return e.querySelector("a");
             };
             // The SVG check skips all locked chapters.
-            const linksContainer = [...dom.querySelectorAll("div.ListPost-module__d2AM5a__listPost:not(:has(svg[data-tag='IconLock']))")];
+            const linksContainer = [...dom.querySelectorAll("div.ListPost-module__d2AM5a__listPost:not(:has(svg[data-tag='IconLock'])), div[class*='ListPost']:not(:has(svg[data-tag='IconLock']))")];
             return linksContainer.map(linkContainer => {
                 return {
                     sourceUrl: getLink(linkContainer).href,
                     title: getTitle(linkContainer),
                 };
-            });
+            }).reverse();
         }
 
         // The SVG check skips all locked chapters.
-        const links = [...dom.querySelectorAll("a.CollectionPostList-module__IhO0fW__gridCard:not(:has(svg[data-tag='IconLock']))")];
+        const links = [...dom.querySelectorAll("a.CollectionPostList-module__IhO0fW__gridCard:not(:has(svg[data-tag='IconLock'])), a[class*='gridCard']:not(:has(svg[data-tag='IconLock']))")];
         return links.map(link => ({
             sourceUrl: link.href,
             title: getTitle(link),
-        }));
+        })).reverse();
     }
 
     /**
