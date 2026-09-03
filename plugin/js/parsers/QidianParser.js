@@ -78,7 +78,8 @@ class QidianParser extends Parser {
         let chapters = [];
         if (0 < volumeItems.length) {
             for (let volumeItem of volumeItems) {
-                let volumeTitle = volumeItem.querySelector("h4, h3, .volume-title, .sub-tit")?.textContent?.trim() || null;
+                let rawVolumeTitle = volumeItem.querySelector("h4, h3, .volume-title, .sub-tit")?.textContent || null;
+                let volumeTitle = QidianParser.cleanVolumeTitle(rawVolumeTitle);
                 let links = Array.from(volumeItem.querySelectorAll("ol a, ul a, li a, a"));
                 let isFirstInVolume = true;
                 for (let link of links) {
@@ -95,6 +96,21 @@ class QidianParser extends Parser {
         }
         this.maybeNotifyParagraphImageHint(chapters);
         return chapters;
+    }
+
+    /**
+     * Cleans and normalizes a volume or section title by collapsing redundant whitespace and standardizing separator spacing.
+     *
+     * @param {string|null|undefined} title - The raw volume title string.
+     * @returns {string|null} The cleaned volume title, or null if empty.
+     */
+    static cleanVolumeTitle(title) {
+        if (!title) {
+            return null;
+        }
+        let cleaned = Parser.normalizeWhitespace(title);
+        cleaned = cleaned.replace(/\s*:\s*/g, ": ");
+        return (cleaned.length > 0) ? cleaned : null;
     }
 
     /**

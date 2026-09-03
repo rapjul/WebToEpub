@@ -100,6 +100,14 @@ QUnit.test("onWebnovelDownloadImagesToggle_hidesWarningToastWhenUnchecked", func
     window.localStorage.removeItem("webnovelParagraphImagesRateLimitWarningDismissed");
 });
 
+QUnit.test("cleanVolumeTitle_cleansWhitespaceAndSeparators", function(assert) {
+    assert.equal(QidianParser.cleanVolumeTitle(" Volume 1 :  Introduction "), "Volume 1: Introduction");
+    assert.equal(QidianParser.cleanVolumeTitle("Volume 2 : Academy"), "Volume 2: Academy");
+    assert.equal(QidianParser.cleanVolumeTitle("  Volume 3:Genin Days  "), "Volume 3: Genin Days");
+    assert.equal(QidianParser.cleanVolumeTitle(null), null);
+    assert.equal(QidianParser.cleanVolumeTitle("   "), null);
+});
+
 QUnit.test("getChapterUrls_extractsVolumeSectionsAsNewArc", async function(assert) {
     let dom = new DOMParser().parseFromString(QidianMultiVolumeCatalogSample, "text/html");
     let parser = new QidianParser();
@@ -107,7 +115,7 @@ QUnit.test("getChapterUrls_extractsVolumeSectionsAsNewArc", async function(asser
 
     assert.equal(chapters.length, 4, "total chapters extracted");
     assert.equal(chapters[0].title, "1: The beginning");
-    assert.equal(chapters[0].newArc, "Volume 1 : Introduction", "first chapter in volume 1 has volume title as newArc");
+    assert.equal(chapters[0].newArc, "Volume 1: Introduction", "first chapter in volume 1 has cleaned volume title as newArc");
     assert.equal(chapters[0].isIncludeable, true);
 
     assert.equal(chapters[1].title, "2: The Second Step");
@@ -115,7 +123,7 @@ QUnit.test("getChapterUrls_extractsVolumeSectionsAsNewArc", async function(asser
     assert.equal(chapters[1].isIncludeable, true);
 
     assert.equal(chapters[2].title, "3: Academy Entrance");
-    assert.equal(chapters[2].newArc, "Volume 2 : Academy", "first chapter in volume 2 has volume title as newArc");
+    assert.equal(chapters[2].newArc, "Volume 2: Academy", "first chapter in volume 2 has cleaned volume title as newArc");
     assert.equal(chapters[2].isIncludeable, true);
 
     assert.equal(chapters[3].title, "4: Locked Practice");
