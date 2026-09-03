@@ -1,6 +1,6 @@
-/*
-  Base class that all parsers build from.
-*/
+/**
+ * Base class that all parsers build from.
+ */
 "use strict";
 
 /**
@@ -67,7 +67,7 @@ class ParserState {
         let nextPrevChapters = new Set();
         this.webPages = new Map();
         for (let i = 0; i < urls.length; ++i) {
-            let page = urls[i];
+            const page = urls[i];
             if (i < urls.length - 1) {
                 nextPrevChapters.add(util.normalizeUrlForCompare(urls[i + 1].sourceUrl));
             }
@@ -159,8 +159,8 @@ class Parser {
      * @returns {Object} A custom error descriptor, or an empty object to fail fast.
      */
     setCustomErrorResponse(url, wrapOptions, checkedresponse) {
-        //example
-        let ret = {};
+        // example
+        const ret = {};
         ret.url = url;
         ret.wrapOptions = wrapOptions;
         ret.response = {};
@@ -199,7 +199,7 @@ class Parser {
      * @returns {HTMLElement|null} The sanitized chapter content element, or null.
      */
     convertRawDomToContent(webPage) {
-        let content = this.findContent(webPage.rawDom);
+        const content = this.findContent(webPage.rawDom);
         this.customRawDomToContentStep(webPage, content);
         util.decodeCloudflareProtectedEmails(content);
         if (this.userPreferences.removeNextAndPreviousChapterHyperlinks.value) {
@@ -221,7 +221,7 @@ class Parser {
         util.trimTextContent(content);
         util.ensureSingleNewlineBetweenParagraphs(content);
         if (util.isElementWhiteSpace(content)) {
-            let errorMsg = UIText.Warning.warningNoVisibleContent(webPage.sourceUrl);
+            const errorMsg = UIText.Warning.warningNoVisibleContent(webPage.sourceUrl);
             ErrorLog.showErrorMessage(errorMsg);
         }
         return content;
@@ -241,17 +241,17 @@ class Parser {
                 title = title.textContent;
             }
             title = this.normalizeChapterTitle(title);
-            if (webPage.title == "[placeholder]") {
+            if (webPage.title === "[placeholder]") {
                 webPage.title = title;
             }
             if (!this.titleAlreadyPresent(title, content)) {
-                let titleElement = webPage.rawDom.createElement("h1");
+                const titleElement = webPage.rawDom.createElement("h1");
                 titleElement.appendChild(webPage.rawDom.createTextNode(title));
                 content.insertBefore(titleElement, content.firstChild);
             }
             this.removeDuplicateLeadingChapterTitles(content, title);
         } else {
-            if (webPage.title == "[placeholder]") {
+            if (webPage.title === "[placeholder]") {
                 webPage.title = this.normalizeChapterTitle(webPage.rawDom.title);
             }
         }
@@ -265,7 +265,7 @@ class Parser {
      * @returns {boolean} True when a matching heading already exists.
      */
     titleAlreadyPresent(title, content) {
-        let existingTitle = content.querySelector("h1, h2, h3, h4, h5, h6");
+        const existingTitle = content.querySelector("h1, h2, h3, h4, h5, h6");
         return (existingTitle != null)
             && (Parser.normalizeWhitespace(title) === Parser.normalizeWhitespace(existingTitle.textContent));
     }
@@ -287,9 +287,9 @@ class Parser {
      * @returns {void}
      */
     replaceWpBlockSpacersWithHR(content) {
-        [...content.querySelectorAll("div.wp-block-spacer")].forEach(
-            e => e.replaceWith(content.ownerDocument.createElement("hr"))
-        );
+        [...content.querySelectorAll("div.wp-block-spacer")].forEach(e => {
+            e.replaceWith(content.ownerDocument.createElement("hr"));
+        });
     }
 
     /**
@@ -299,8 +299,8 @@ class Parser {
      * @returns {string} The normalized title.
      */
     normalizeChapterTitle(title) {
-        let normalized = Parser.normalizeWhitespace(title);
-        let stripped = Parser.stripLeadingAggregateChapterCount(normalized);
+        const normalized = Parser.normalizeWhitespace(title);
+        const stripped = Parser.stripLeadingAggregateChapterCount(normalized);
         return Parser.standardizeChapterTitleSeparator(stripped);
     }
 
@@ -321,9 +321,9 @@ class Parser {
      * @returns {string} The title without a leading aggregate count when appropriate.
      */
     static stripLeadingAggregateChapterCount(title) {
-        let match = Parser.LEADING_AGGREGATE_CHAPTER_REGEX.exec(title);
-        if (match && match.groups?.rest) {
-            let rest = Parser.normalizeWhitespace(match.groups.rest);
+        const match = Parser.LEADING_AGGREGATE_CHAPTER_REGEX.exec(title);
+        if (match?.groups?.rest) {
+            const rest = Parser.normalizeWhitespace(match.groups.rest);
             if (Parser.containsChapterNumber(rest) || Parser.isCommonChapterName(rest)) {
                 return rest;
             }
@@ -356,8 +356,8 @@ class Parser {
      * @returns {boolean} True when the title appears to include a chapter number.
      */
     static containsChapterNumber(title) {
-        let normalized = Parser.normalizeWhitespace(title);
-        let match = Parser.CHAPTER_NUMBER_REGEX.exec(normalized);
+        const normalized = Parser.normalizeWhitespace(title);
+        const match = Parser.CHAPTER_NUMBER_REGEX.exec(normalized);
         if (!match) {
             return false;
         }
@@ -371,7 +371,7 @@ class Parser {
      * @returns {boolean} True when the title matches a common chapter label.
      */
     static isCommonChapterName(title) {
-        let normalized = Parser.normalizeWhitespace(title).toLowerCase();
+        const normalized = Parser.normalizeWhitespace(title).toLowerCase();
         return Parser.COMMON_CHAPTER_NAME_REGEX.test(normalized);
     }
 
@@ -386,7 +386,7 @@ class Parser {
         if (!content || util.isNullOrEmpty(title)) {
             return;
         }
-        let normalizedTitle = Parser.normalizeWhitespace(title).toLowerCase();
+        const normalizedTitle = Parser.normalizeWhitespace(title).toLowerCase();
         let seen = false;
         let node = content.firstChild;
         while (node) {
@@ -394,10 +394,10 @@ class Parser {
                 node = node.nextSibling;
                 continue;
             }
-            let nodeText = Parser.normalizeWhitespace(node.textContent || "").toLowerCase();
+            const nodeText = Parser.normalizeWhitespace(node.textContent || "").toLowerCase();
             if (nodeText === normalizedTitle) {
                 if (seen) {
-                    let toRemove = node;
+                    const toRemove = node;
                     node = node.nextSibling;
                     toRemove.remove();
                     continue;
@@ -445,7 +445,7 @@ class Parser {
      */
     populateUI(dom) {
         CoverImageUI.showCoverImageUrlInput(true);
-        let coverUrl = this.findCoverImageUrl(dom);
+        const coverUrl = this.findCoverImageUrl(dom);
         CoverImageUI.setCoverImageUrl(coverUrl);
         this.populateUIImpl();
     }
@@ -470,9 +470,9 @@ class Parser {
      */
     findCoverImageUrl(dom) {
         if (dom != null) {
-            let content = this.findContent(dom);
+            const content = this.findContent(dom);
             if (content != null) {
-                let cover = content.querySelector("img");
+                const cover = content.querySelector("img");
                 if (cover != null) {
                     return cover.src;
                 }
@@ -495,15 +495,15 @@ class Parser {
         if (element == null) {
             return;
         }
-        let elementToRemove = (this.findParentNodeOfChapterLinkToRemoveAt != null) ?
+        const elementToRemove = (this.findParentNodeOfChapterLinkToRemoveAt != null) ?
             this.findParentNodeOfChapterLinkToRemoveAt.bind(this)
             : (node) => node;
 
-        let navigationLinks = [...element.querySelectorAll("a")]
+        const navigationLinks = [...element.querySelectorAll("a")]
             .filter(link => this.isChapterNavigationLink(link, webPage));
 
-        let nodesToRemove = new Set();
-        for (let link of navigationLinks) {
+        const nodesToRemove = new Set();
+        for (const link of navigationLinks) {
             Parser.removeNavigationCueSiblings(link);
             nodesToRemove.add(elementToRemove(link));
         }
@@ -526,9 +526,9 @@ class Parser {
         if (!link) {
             return false;
         }
-        let href = link.href;
+        const href = link.href;
         if (!util.isNullOrEmpty(href)) {
-            let normalized = util.normalizeUrlForCompare(href);
+            const normalized = util.normalizeUrlForCompare(href);
             if (webPage.nextPrevChapters.has(normalized)) {
                 return true;
             }
@@ -544,8 +544,8 @@ class Parser {
      * @returns {ChapterEpubItem[]} A single-item array containing the converted chapter.
      */
     webPageToEpubItems(webPage, epubItemIndex) {
-        let content = this.convertRawDomToContent(webPage);
-        let items = [];
+        const content = this.convertRawDomToContent(webPage);
+        const items = [];
         if (content != null) {
             items.push(new ChapterEpubItem(webPage, content, epubItemIndex));
         }
@@ -565,7 +565,7 @@ class Parser {
      * @returns {ChapterEpubItem[]} An array containing the single placeholder `ChapterEpubItem`.
      */
     makePlaceholderEpubItem(webPage, epubItemIndex) {
-        let temp = Parser.makeEmptyDocForContent(webPage.sourceUrl);
+        const temp = Parser.makeEmptyDocForContent(webPage.sourceUrl);
         temp.content.textContent = UIText.Default.chapterPlaceholderMessage(webPage.sourceUrl, webPage.error);
         util.convertPreTagToPTags(temp.dom, temp.content);
         return [new ChapterEpubItem(webPage, temp.content, epubItemIndex)];
@@ -581,7 +581,7 @@ class Parser {
      * @returns {string} The extracted title.
      */
     static extractTitleDefault(dom) {
-        let title = dom.querySelector("meta[property='og:title']");
+        const title = dom.querySelector("meta[property='og:title']");
         return (title === null) ? dom.title : title.getAttribute("content");
     }
 
@@ -666,7 +666,7 @@ class Parser {
      * @returns {string} The extracted description text.
      */
     extractDescription(dom) {
-        let infoDiv = document.createElement("div");
+        const infoDiv = document.createElement("div");
         if (this.getInformationEpubItemChildNodes !== undefined) {
             this.populateInfoDiv(infoDiv, dom);
         }
@@ -683,12 +683,12 @@ class Parser {
         if (description == null) {
             return "";
         }
-        let text = (typeof description === "string")
+        const text = (typeof description === "string")
             ? description
             : (typeof description.textContent === "string")
                 ? description.textContent
                 : String(description ?? "");
-        let collapsed = text.replace(/\s+/g, " ");
+        const collapsed = text.replace(/\s+/g, " ");
         return collapsed.trim();
     }
 
@@ -700,7 +700,7 @@ class Parser {
      */
     extractPublisher(dom) {
         // try metadata extraction
-        let publisher = dom.querySelector("meta[property='og:site_name']");
+        const publisher = dom.querySelector("meta[property='og:site_name']");
         return publisher?.content ?? "";
     }
 
@@ -736,7 +736,7 @@ class Parser {
      * @returns {EpubMetaInfo} The populated metadata container.
      */
     getEpubMetaInfo(dom, useFullTitle) {
-        let metaInfo = new EpubMetaInfo();
+        const metaInfo = new EpubMetaInfo();
         metaInfo.uuid = dom.baseURI;
         try {
             metaInfo.title = this.extractTitle(dom);
@@ -822,7 +822,7 @@ class Parser {
      * @returns {string} The sanitized filename without an extension.
      */
     makeSaveAsFileNameWithoutExtension(title, useFullTitle, skipWebDefault = false) {
-        let maxFileNameLength = useFullTitle ? 512 : 20;
+        const maxFileNameLength = useFullTitle ? 512 : 20;
         let fileName = (title == null) ? (skipWebDefault ? "" : "web") : util.safeForFileName(title, maxFileNameLength);
         if (util.isStringWhiteSpace(fileName)) {
             // title is probably not English, so just use it as is
@@ -838,7 +838,7 @@ class Parser {
      * @returns {EpubItemSupplier} A supplier configured with processed EPUB items and image collector.
      */
     epubItemSupplier() {
-        let epubItems = this.webPagesToEpubItems([...this.state.webPages.values()]);
+        const epubItems = this.webPagesToEpubItems([...this.state.webPages.values()]);
         this.fixupHyperlinksInEpubItems(epubItems);
         return new EpubItemSupplier(this, epubItems, this.imageCollector);
     }
@@ -864,8 +864,8 @@ class Parser {
             ++index;
         }
 
-        for (let webPage of webPages.filter(c => this.isWebPagePackable(c))) {
-            let newItems = (webPage.error == null)
+        for (const webPage of webPages.filter(c => this.isWebPagePackable(c))) {
+            const newItems = (webPage.error == null)
                 ? webPage.parser.webPageToEpubItems(webPage, index)
                 : this.makePlaceholderEpubItem(webPage, index);
             epubItems = epubItems.concat(newItems);
@@ -883,20 +883,20 @@ class Parser {
      * @returns {ChapterEpubItem} The constructed information chapter ready to be included in the EPUB.
      */
     makeInformationEpubItem(dom) {
-        let titleText = UIText.Default.informationPageTitle;
-        let title = document.createElement("h1");
+        const titleText = UIText.Default.informationPageTitle;
+        const title = document.createElement("h1");
         title.appendChild(document.createTextNode(titleText));
-        let div = document.createElement("div");
-        let urlElement = document.createElement("p");
-        let bold = document.createElement("b");
+        const div = document.createElement("div");
+        const urlElement = document.createElement("p");
+        const bold = document.createElement("b");
         bold.textContent = UIText.Default.tableOfContentsUrl;
         urlElement.appendChild(bold);
         urlElement.appendChild(document.createTextNode(this.state.chapterListUrl));
         div.appendChild(urlElement);
-        let infoDiv = document.createElement("div");
+        const infoDiv = document.createElement("div");
         this.populateInfoDiv(infoDiv, dom);
-        let childNodes = [title, div, infoDiv];
-        let chapter = {
+        const childNodes = [title, div, infoDiv];
+        const chapter = {
             sourceUrl: this.state.chapterListUrl,
             title: titleText,
             newArch: null
@@ -912,8 +912,8 @@ class Parser {
      * @returns {void}
      */
     populateInfoDiv(infoDiv, dom) {
-        for (let n of this.getInformationEpubItemChildNodes(dom).filter(n => n != null)) {
-            let clone = util.sanitizeNode(n);
+        for (const n of this.getInformationEpubItemChildNodes(dom).filter(n => n != null)) {
+            const clone = util.sanitizeNode(n);
             if (clone) {
                 this.cleanInformationNode(clone);
             }
@@ -949,7 +949,7 @@ class Parser {
     async onLoadFirstPage(url, firstPageDom) {
         this.state.firstPageDom = firstPageDom;
         this.state.chapterListUrl = url;
-        let chapterUrlsUI = new ChapterUrlsUI(this);
+        const chapterUrlsUI = new ChapterUrlsUI(this);
         this.userPreferences.setReadingListCheckbox(url);
 
         try {
@@ -958,7 +958,9 @@ class Parser {
                 chapters = this.addFirstPageUrlToWebPages(url, firstPageDom, chapters);
             }
             chapters = this.cleanWebPageUrls(chapters);
-            chapters?.forEach(chapter => chapter.title = this.normalizeChapterTitle(chapter.title));
+            chapters?.forEach(chapter => {
+                chapter.title = this.normalizeChapterTitle(chapter.title);
+            });
             await this.userPreferences.readingList.deselectOldChapters(url, chapters);
             chapterUrlsUI.populateChapterUrlsTable(chapters);
             if (0 < chapters.length) {
@@ -985,9 +987,9 @@ class Parser {
      * @returns {Array<{sourceUrl: string}>} A new array containing unique web pages with valid, normalized URLs.
      */
     cleanWebPageUrls(webPages) {
-        let foundUrls = new Set();
-        let isUnique = function (webPage) {
-            let unique = !foundUrls.has(webPage.sourceUrl);
+        const foundUrls = new Set();
+        const isUnique = function(webPage) {
+            const unique = !foundUrls.has(webPage.sourceUrl);
             if (unique) {
                 foundUrls.add(webPage.sourceUrl);
             }
@@ -1020,7 +1022,7 @@ class Parser {
      * @returns {Array<Object>} The chapter list with the first page prepended when needed.
      */
     addFirstPageUrlToWebPages(url, firstPageDom, webPages) {
-        let present = webPages.find(e => e.sourceUrl === url);
+        const present = webPages.find(e => e.sourceUrl === url);
         if (present) {
             return webPages;
         } else {
@@ -1074,7 +1076,7 @@ class Parser {
      * @returns {Promise<void>} Resolves when all page fetches are complete; rejects on absence of chapters or errors.
      */
     async fetchWebPages() {
-        let pagesToFetch = [...this.state.webPages.values()].filter(c => c.isIncludeable);
+        const pagesToFetch = [...this.state.webPages.values()].filter(c => c.isIncludeable);
         if (pagesToFetch.length === 0) {
             return Promise.reject(new Error("No chapters found."));
         }
@@ -1132,16 +1134,16 @@ class Parser {
         ChapterUrlsUI.showDownloadState(webPage.row, ChapterUrlsUI.DOWNLOAD_STATE_SLEEPING);
         await this.rateLimitDelay();
         ChapterUrlsUI.showDownloadState(webPage.row, ChapterUrlsUI.DOWNLOAD_STATE_DOWNLOADING);
-        let pageParser = webPage.parser;
+        const pageParser = webPage.parser;
         try {
-            let webPageDom = await pageParser.fetchChapter(webPage.sourceUrl);
+            const webPageDom = await pageParser.fetchChapter(webPage.sourceUrl);
             delete webPage.error;
             webPage.rawDom = webPageDom;
             await pageParser.preprocessRawDom(webPageDom);
             pageParser.removeUnusedElementsToReduceMemoryConsumption(webPageDom);
-            let content = pageParser.findContent(webPage.rawDom);
+            const content = pageParser.findContent(webPage.rawDom);
             if (content == null) {
-                let errorMsg = UIText.Error.errorContentNotFound(webPage.sourceUrl);
+                const errorMsg = UIText.Error.errorContentNotFound(webPage.sourceUrl);
                 throw new Error(errorMsg);
             }
             return pageParser.fetchImagesUsedInDocument(content, webPage);
@@ -1166,7 +1168,7 @@ class Parser {
      * @returns {Promise<void>} Resolves once all images are processed and the page load state is updated.
      */
     async fetchImagesUsedInDocument(content, webPage) {
-        let revisedContent = await this.imageCollector.preprocessImageTags(content, webPage.sourceUrl);
+        const revisedContent = await this.imageCollector.preprocessImageTags(content, webPage.sourceUrl);
         this.imageCollector.findImagesUsedInDocument(revisedContent);
         await this.imageCollector.fetchImages(() => { }, webPage.sourceUrl);
         this.updateLoadState(webPage);
@@ -1246,9 +1248,9 @@ class Parser {
      * @returns {void}
      */
     fixupHyperlinksInEpubItems(epubItems) {
-        let targets = this.sourceUrlToEpubItemUrl(epubItems);
-        for (let item of epubItems) {
-            for (let link of item.getHyperlinks().filter(this.isUnresolvedHyperlink)) {
+        const targets = this.sourceUrlToEpubItemUrl(epubItems);
+        for (const item of epubItems) {
+            for (const link of item.getHyperlinks().filter(this.isUnresolvedHyperlink)) {
                 if (!this.hyperlinkToEpubItemUrl(link, targets)) {
                     this.makeHyperlinkAbsolute(link);
                 }
@@ -1263,9 +1265,9 @@ class Parser {
      * @returns {Map<string, string>} A normalized source URL to EPUB href map.
      */
     sourceUrlToEpubItemUrl(epubItems) {
-        let targets = new Map();
-        for (let item of epubItems) {
-            let key = util.normalizeUrlForCompare(item.sourceUrl);
+        const targets = new Map();
+        for (const item of epubItems) {
+            const key = util.normalizeUrlForCompare(item.sourceUrl);
 
             // Some source URLs may generate multiple epub items.
             // In that case, want FIRST epub item
@@ -1283,7 +1285,7 @@ class Parser {
      * @returns {boolean} True when the link is unresolved and should be rewritten.
      */
     isUnresolvedHyperlink(link) {
-        let href = link.getAttribute("href");
+        const href = link.getAttribute("href");
         if (href == null) {
             return false;
         }
@@ -1299,8 +1301,8 @@ class Parser {
      * @returns {boolean} True when the link mapped to an EPUB item.
      */
     hyperlinkToEpubItemUrl(link, targets) {
-        let key = util.normalizeUrlForCompare(link.href);
-        let targetInEpub = targets.has(key);
+        const key = util.normalizeUrlForCompare(link.href);
+        const targetInEpub = targets.has(key);
         if (targetInEpub) {
             link.href = targets.get(key) + link.hash;
         }
@@ -1315,7 +1317,7 @@ class Parser {
      */
     makeHyperlinkAbsolute(link) {
         if (link.href !== link.getAttribute("href")) {
-            link.href = link.href;       // eslint-disable-line no-self-assign
+            link.href = link.href; // eslint-disable-line no-self-assign
         }
     }
 
@@ -1338,15 +1340,15 @@ class Parser {
         if (!link) {
             return "";
         }
-        let labels = [];
+        const labels = [];
         if (!util.isNullOrEmpty(link.textContent)) {
             labels.push(link.textContent);
         }
-        let aria = link.getAttribute ? link.getAttribute("aria-label") : null;
+        const aria = link.getAttribute ? link.getAttribute("aria-label") : null;
         if (!util.isNullOrEmpty(aria)) {
             labels.push(aria);
         }
-        let title = link.getAttribute ? link.getAttribute("title") : null;
+        const title = link.getAttribute ? link.getAttribute("title") : null;
         if (!util.isNullOrEmpty(title)) {
             labels.push(title);
         }
@@ -1360,7 +1362,7 @@ class Parser {
      * @returns {void}
      */
     static removeNavigationCueSiblings(link) {
-        if (!link || !link.parentNode) {
+        if (!link?.parentNode) {
             return;
         }
         Parser.removeNavigationNodesInDirection(link.previousSibling, -1);
@@ -1377,13 +1379,13 @@ class Parser {
     static removeNavigationNodesInDirection(node, direction) {
         while (node != null) {
             if (Parser.shouldRemoveNavigationSibling(node)) {
-                let next = (direction < 0) ? node.previousSibling : node.nextSibling;
+                const next = (direction < 0) ? node.previousSibling : node.nextSibling;
                 node.remove();
                 node = next;
                 continue;
             }
             if (Parser.isWhitespaceNode(node) || Parser.isDividerNode(node)) {
-                let next = (direction < 0) ? node.previousSibling : node.nextSibling;
+                const next = (direction < 0) ? node.previousSibling : node.nextSibling;
                 node.remove();
                 node = next;
                 continue;
@@ -1406,10 +1408,10 @@ class Parser {
             return Parser.isNavigationCueText(node.textContent);
         }
         if (node.nodeType === Node.ELEMENT_NODE) {
-            if (node.querySelector && node.querySelector("a")) {
+            if (node?.querySelector("a")) {
                 return false;
             }
-            let text = node.textContent || "";
+            const text = node.textContent || "";
             if (Parser.isNavigationCueText(text)) {
                 return true;
             }
@@ -1430,7 +1432,7 @@ class Parser {
         if (!node) {
             return false;
         }
-        let text = (node.textContent || "").replace(/\s+/g, " ").trim();
+        const text = (node.textContent || "").replace(/\s+/g, " ").trim();
         if (text === "") {
             return false;
         }
@@ -1457,16 +1459,16 @@ class Parser {
         if (!root) {
             return;
         }
-        let candidates = root.querySelectorAll(Parser.NAVIGATION_CONTAINER_SELECTOR);
-        let nodesToRemove = [];
-        for (let element of candidates) {
+        const candidates = root.querySelectorAll(Parser.NAVIGATION_CONTAINER_SELECTOR);
+        const nodesToRemove = [];
+        for (const element of candidates) {
             if (element === root) {
                 continue;
             }
             if (element.querySelector("a")) {
                 continue;
             }
-            let text = element.textContent?.replace(/\s+/g, " ").trim() || "";
+            const text = element.textContent?.replace(/\s+/g, " ").trim() || "";
             if (text === "" || Parser.isNavigationCueText(text)) {
                 nodesToRemove.push(element);
             }
@@ -1484,14 +1486,14 @@ class Parser {
         if (util.isNullOrEmpty(text)) {
             return false;
         }
-        let normalized = text.replace(/\s+/g, " ").trim();
+        const normalized = text.replace(/\s+/g, " ").trim();
         if ((normalized.length === 0) || (normalized.length > Parser.NAVIGATION_TEXT_MAX_LENGTH)) {
             return false;
         }
         if (Parser.NAVIGATION_TEXT_REGEX.test(normalized)) {
             return true;
         }
-        let sanitized = normalized
+        const sanitized = normalized
             .toLowerCase()
             .replace(/chapter|chap\.?|ch\.?|episode|ep\.?|part|page/gi, " ")
             .replace(/[«»‹›←→⇐⇒<>\-|\\/\u2013\u2014]/g, " ")
@@ -1499,7 +1501,7 @@ class Parser {
         if (sanitized.length === 0) {
             return true;
         }
-        let tokens = sanitized.split(" ").filter(t => t.length > 0);
+        const tokens = sanitized.split(" ").filter(t => t.length > 0);
         if (tokens.length === 0) {
             return true;
         }
@@ -1513,7 +1515,7 @@ class Parser {
      * @returns {void}
      */
     tagAuthorNotes(elements) {
-        for (let e of elements) {
+        for (const e of elements) {
             e.classList.add("webToEpub-author-note");
         }
     }
@@ -1526,7 +1528,7 @@ class Parser {
      * @returns {void}
      */
     tagAuthorNotesBySelector(element, selector) {
-        let notes = element.querySelectorAll(selector);
+        const notes = element.querySelectorAll(selector);
         if (this.userPreferences.removeAuthorNotes.value) {
             util.removeElements(notes);
         } else {
@@ -1541,11 +1543,11 @@ class Parser {
      * @returns {{ dom: Document, content: HTMLElement }} The empty document and its content node.
      */
     static makeEmptyDocForContent(baseUrl) {
-        let dom = document.implementation.createHTMLDocument("");
+        const dom = document.implementation.createHTMLDocument("");
         if (baseUrl != null) {
             util.setBaseTag(baseUrl, dom);
         }
-        let content = dom.createElement("div");
+        const content = dom.createElement("div");
         content.className = Parser.WEB_TO_EPUB_CLASS_NAME;
         dom.body.appendChild(content);
         return {
@@ -1572,13 +1574,13 @@ class Parser {
      * @returns {void}
      */
     static addTextToChapterContent(newDoc, contentText) {
-        let lines = contentText
+        const lines = contentText
             .replace(/\r/g, "\n")
             .replace(/\n\n/g, "\n")
             .split("\n")
             .filter(s => !util.isNullOrEmpty(s));
-        for (let line of lines) {
-            let pnode = newDoc.dom.createElement("p");
+        for (const line of lines) {
+            const pnode = newDoc.dom.createElement("p");
             pnode.textContent = line;
             newDoc.content.appendChild(pnode);
         }
@@ -1594,8 +1596,8 @@ class Parser {
      * @returns {Promise<Array<Object>>} The combined chapter list.
      */
     async getChapterUrlsFromMultipleTocPages(dom, extractPartialChapterList, getUrlsOfTocPages, chapterUrlsUI) {
-        let chapters = extractPartialChapterList(dom);
-        let urlsOfTocPages = getUrlsOfTocPages(dom);
+        const chapters = extractPartialChapterList(dom);
+        const urlsOfTocPages = getUrlsOfTocPages(dom);
         return await this.getChaptersFromAllTocPages(chapters, extractPartialChapterList, urlsOfTocPages, chapterUrlsUI);
     }
 
@@ -1605,11 +1607,11 @@ class Parser {
      * @returns {number} The delay in milliseconds.
      */
     getRateLimit() {
-        let manualDelayPerChapterValue = (!isNaN(parseInt(this.userPreferences.manualDelayPerChapter.value, 10)))
+        const manualDelayPerChapterValue = (!Number.isNaN(parseInt(this.userPreferences.manualDelayPerChapter.value, 10)))
             ? parseInt(this.userPreferences.manualDelayPerChapter.value, 10)
             : this.minimumThrottle;
 
-        let configured = this.userPreferences.overrideMinimumDelay.value
+        const configured = this.userPreferences.overrideMinimumDelay.value
             ? manualDelayPerChapterValue
             : Math.max(this.minimumThrottle, manualDelayPerChapterValue);
 
@@ -1627,7 +1629,7 @@ class Parser {
      * @returns {Promise<void>} Resolves after the delay completes.
      */
     async rateLimitDelay() {
-        let delay = this.getRateLimit();
+        const delay = this.getRateLimit();
         await util.sleep(delay);
     }
 
@@ -1642,13 +1644,13 @@ class Parser {
         }
 
         let increment = parseInt(this.userPreferences.autoIncreaseDelayOn403Amount.value, 10);
-        if (isNaN(increment) || increment < 0) {
+        if (Number.isNaN(increment) || increment < 0) {
             increment = 1000;
         }
 
-        let storyKey = this.state.chapterListUrl;
-        let previous = Parser.additionalDelayByStory.get(storyKey) || 0;
-        let updated = previous + increment;
+        const storyKey = this.state.chapterListUrl;
+        const previous = Parser.additionalDelayByStory.get(storyKey) || 0;
+        const updated = previous + increment;
         Parser.additionalDelayByStory.set(storyKey, updated);
 
         util.log(`[WebToEpub] Increased per-story delay for ${storyKey} by ${increment} ms (total ${updated} ms).`);
@@ -1668,10 +1670,10 @@ class Parser {
         if (0 < chapters.length) {
             chapterUrlsUI.showTocProgress(chapters);
         }
-        for (let url of urlsOfTocPages) {
+        for (const url of urlsOfTocPages) {
             await this.rateLimitDelay();
-            let newDom = (await HttpClient.wrapFetch(url, wrapOptions)).responseXML;
-            let partialList = extractPartialChapterList(newDom);
+            const newDom = (await HttpClient.wrapFetch(url, wrapOptions)).responseXML;
+            const partialList = extractPartialChapterList(newDom);
             chapterUrlsUI.showTocProgress(partialList);
             chapters = chapters.concat(partialList);
         }
@@ -1694,7 +1696,7 @@ class Parser {
         while (url != null) {
             await this.rateLimitDelay();
             dom = (await HttpClient.wrapFetch(url)).responseXML;
-            let partialList = chaptersFromDom(dom);
+            const partialList = chaptersFromDom(dom);
             chapterUrlsUI.showTocProgress(partialList);
             chapters = chapters.concat(partialList);
             url = nextTocPageUrl(dom, chapters, partialList);
@@ -1712,14 +1714,14 @@ class Parser {
      */
     moveFootnotes(dom, content, footnotes) {
         if (0 < footnotes.length) {
-            let list = dom.createElement("ol");
-            for (let f of footnotes) {
-                let item = dom.createElement("li");
+            const list = dom.createElement("ol");
+            for (const f of footnotes) {
+                const item = dom.createElement("li");
                 f.removeAttribute("style");
                 item.appendChild(f);
                 list.appendChild(item);
             }
-            let header = dom.createElement("h2");
+            const header = dom.createElement("h2");
             header.appendChild(dom.createTextNode("Footnotes"));
             content.appendChild(header);
             content.appendChild(list);
@@ -1734,14 +1736,14 @@ class Parser {
      * @returns {Promise<Document>} The DOM containing the merged chapter content.
      */
     async walkPagesOfChapter(url, moreChapterTextUrl) {
-        let dom = (await HttpClient.wrapFetch(url)).responseXML;
+        const dom = (await HttpClient.wrapFetch(url)).responseXML;
         let count = 2;
         let nextUrl = moreChapterTextUrl(dom, url, count);
-        let oldContent = this.findContent(dom);
+        const oldContent = this.findContent(dom);
         while (nextUrl != null) {
             await this.rateLimitDelay();
-            let nextDom = (await HttpClient.wrapFetch(nextUrl)).responseXML;
-            let newContent = this.findContent(nextDom);
+            const nextDom = (await HttpClient.wrapFetch(nextUrl)).responseXML;
+            const newContent = this.findContent(nextDom);
             nextUrl = moreChapterTextUrl(nextDom, url, ++count);
             oldContent.appendChild(dom.createElement("br"));
             util.moveChildElements(newContent, oldContent);
