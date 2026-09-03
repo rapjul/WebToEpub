@@ -3,33 +3,48 @@
 parserFactory.register("patreon.com", () => new PatreonParser());
 
 class PatreonParser extends Parser {
+    /**
+     * Initializes a new instance of PatreonParser.
+     */
     constructor() {
         super();
     }
 
+    /**
+     * Extracts chapter URLs and metadata from Patreon DOM.
+     *
+     * @param {Document} dom - The parsed page DOM.
+     * @returns {Promise<Array<{ title: string, sourceUrl: string }>>} List of chapter metadata.
+     */
     async getChapterUrls(dom) {
         if (this.isCollectionList(dom)) {
             return this.getCollectionLinks(dom);
         }
-        let cards = [...dom.querySelectorAll("div[data-tag='post-card']")];
+        const cards = [...dom.querySelectorAll("div[data-tag='post-card']")];
         return cards
-            .filter(c => this.hasAccessableContent(c))
+            .filter(c => this.hasAccessibleContent(c))
             .map(s => this.cardToChapter(s)).reverse();
     }
 
+    /**
+     * Extracts post links and titles from a Patreon collection page.
+     *
+     * @param {Document} dom - The collection page DOM.
+     * @returns {Array<{ title: string, sourceUrl: string }>} List of collection chapter metadata.
+     */
     getCollectionLinks(dom) {
-        let getTitle = (e) => {
+        const getTitle = (e) => {
             return [...e.querySelectorAll("span.LineClamp-module__N_eOMG__lineClamp1")]
                 .map(s => s.textContent.trim())
                 .join(" ");
         };
 
         if (this.isCondensedView(dom)) {
-            let getLink = (e) => {
+            const getLink = (e) => {
                 return e.querySelector("a");
             };
             // The SVG check skips all locked chapters.
-            let linksContainer = [...dom.querySelectorAll("div.ListPost-module__d2AM5a__listPost:not(:has(svg[data-tag='IconLock']))")];
+            const linksContainer = [...dom.querySelectorAll("div.ListPost-module__d2AM5a__listPost:not(:has(svg[data-tag='IconLock']))")];
             return linksContainer.map(linkContainer => {
                 return {
                     sourceUrl: getLink(linkContainer).href,
@@ -39,31 +54,55 @@ class PatreonParser extends Parser {
         }
 
         // The SVG check skips all locked chapters.
-        let links = [...dom.querySelectorAll("a.CollectionPostList-module__IhO0fW__gridCard:not(:has(svg[data-tag='IconLock']))")];
+        const links = [...dom.querySelectorAll("a.CollectionPostList-module__IhO0fW__gridCard:not(:has(svg[data-tag='IconLock']))")];
         return links.map(link => ({
             sourceUrl: link.href,
             title: getTitle(link),
         }));
     }
 
+    /**
+     * Converts a post card element into a chapter metadata object.
+     *
+     * @param {HTMLElement} card - The card DOM element.
+     * @returns {{ title: string, sourceUrl: string }} Chapter metadata.
+     */
     cardToChapter(card) {
-        let title = card.querySelector("span[data-tag='post-title']").textContent;
-        let link = this.getUrlOfContent(card);
+        const title = card.querySelector("span[data-tag='post-title']").textContent;
+        const link = this.getUrlOfContent(card);
         return ({
             title: title.trim(),
             sourceUrl: link.href
         });
     }
 
-    hasAccessableContent(card) {
-        let link = this.getUrlOfContent(card);
+    /**
+     * Checks if the post card has accessible content with a valid URL.
+     *
+     * @param {HTMLElement} card - The card DOM element.
+     * @returns {boolean} True if accessible content URL is present.
+     */
+    hasAccessibleContent(card) {
+        const link = this.getUrlOfContent(card);
         return !util.isNullOrEmpty(link?.getAttribute("href"));
     }
 
+    /**
+     * Finds the link element pointing to post content inside a card.
+     *
+     * @param {HTMLElement} card - The card DOM element.
+     * @returns {HTMLAnchorElement|null} The content link element.
+     */
     getUrlOfContent(card) {
         return card.querySelector("a[data-tag='post-published-at']");
     }
 
+    /**
+     * Extracts constructed chapter content from a page DOM.
+     *
+     * @param {Document} dom - The chapter page DOM.
+     * @returns {HTMLElement|null} The content element.
+     */
     findContent(dom) {
         return Parser.findConstrutedContent(dom);
     }
@@ -92,13 +131,20 @@ class PatreonParser extends Parser {
         return this.jsonToHtml(bootstrap.post.data.attributes, url);
     }
 
+    /**
+     * Converts post JSON attributes or content HTML into a DOM document.
+     *
+     * @param {Object} json - The post data attributes.
+     * @param {string} url - The chapter source URL.
+     * @returns {Document} The generated chapter DOM document.
+     */
     jsonToHtml(json, url) {
-        let newDoc = Parser.makeEmptyDocForContent(url);
-        let header = newDoc.dom.createElement("h1");
+        const newDoc = Parser.makeEmptyDocForContent(url);
+        const header = newDoc.dom.createElement("h1");
         header.textContent = json.title;
         newDoc.content.appendChild(header);
         if (json.image) {
-            let img = new Image();
+            const img = new Image();
             img.src = json.image.url;
             newDoc.content.append(img);
         }
@@ -191,7 +237,7 @@ class PatreonParser extends Parser {
                         break;
 
                     case "codeBlock": {
-                        let pre = document.createElement("pre");
+                        const pre = document.createElement("pre");
                         element = document.createElement("code");
                         pre.appendChild(element);
 
@@ -254,7 +300,7 @@ class PatreonParser extends Parser {
         if (this.isCollectionList(dom)) {
             return this.extractCollectionAuthor(dom);
         }
-        let authorLabel = dom.querySelector("h1");
+        const authorLabel = dom.querySelector("h1");
         return (authorLabel === null) ? super.extractAuthor(dom) : authorLabel.textContent;
     }
 
@@ -265,7 +311,7 @@ class PatreonParser extends Parser {
      * @returns {string} The extracted author name.
      */
     extractCollectionAuthor(dom) {
-        let title = dom.querySelector("h1");
+        const title = dom.querySelector("h1");
         let parent = title.parentNode;
         while (parent.querySelector("a") === null) {
             parent = parent.parentNode;
@@ -293,11 +339,11 @@ class PatreonParser extends Parser {
      * @returns {string|null} The cover image URL if found.
      */
     extractCollectionCover(dom) {
-        let divsWithPicutres = dom.querySelectorAll("div[src]");
-        if (divsWithPicutres.length === 0) {
+        const divsWithPictures = dom.querySelectorAll("div[src]");
+        if (divsWithPictures.length === 0) {
             return null;
         }
-        return divsWithPicutres[divsWithPicutres.length - 1].getAttribute("src");
+        return divsWithPictures[divsWithPictures.length - 1].getAttribute("src");
     }
 
     /**
@@ -317,7 +363,7 @@ class PatreonParser extends Parser {
      * @returns {boolean} True if in condensed view mode.
      */
     isCondensedView(dom) {
-        let url = new URL(dom.baseURI);
+        const url = new URL(dom.baseURI);
         return url.searchParams.get("view") === "condensed";
     }
 }
