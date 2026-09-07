@@ -46,10 +46,24 @@ class EpubItem {
         return false;
     }
 
+    /**
+     * Generates and validates the serialized XHTML content for this EPUB item.
+     * If validation fails, an automatic XML character sanitization recovery pass is attempted
+     * before logging a warning to ErrorLog.
+     *
+     * @param {function(): Document} emptyDocFactory - Factory function creating an empty XHTML DOM document.
+     * @param {function(string): string|null} contentValidator - Function validating serialized XHTML and returning an error message if invalid.
+     * @returns {string} The serialized XHTML string ready for EPUB packaging.
+     */
     fileContentForEpub(emptyDocFactory, contentValidator) {
         let xml = util.xmlToString(this.makeChapterDoc(emptyDocFactory));
         let errorMessage = contentValidator(xml);
         if (errorMessage) {
+            let sanitizedXml = util.cleanInvalidXmlCharacters(xml);
+            let sanitizedError = contentValidator(sanitizedXml);
+            if (!sanitizedError) {
+                return sanitizedXml;
+            }
             let errorMsg = UIText.Error.convertToXhtmlWarning(this.chapterTitle, this.sourceUrl, errorMessage);
             ErrorLog.log(errorMsg);
         }
