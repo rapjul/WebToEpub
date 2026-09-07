@@ -160,7 +160,18 @@ class QidianParser extends Parser {
      * @returns {Element|null} The chapter content element if found, otherwise `null`.
      */
     findContent(dom) {
-        return dom.querySelector("div.chapter_content");
+        return dom.querySelector("div.chapter_content, div.cha-content, div.cha-words");
+    }
+
+    /**
+     * Locates the chapter title within the provided DOM.
+     *
+     * @param {Document|Element} dom - The DOM to search for the chapter title.
+     * @returns {string|null} The chapter title text if found, otherwise null.
+     */
+    findChapterTitle(dom) {
+        let titleEl = dom.querySelector("div.cha-tit h1, div.cha-tit, div.chapter_content h1");
+        return titleEl?.textContent?.trim() || null;
     }
 
     /**
@@ -235,14 +246,31 @@ class QidianParser extends Parser {
     cleanRawDom(content, webPage) {
         // Remove repeating & unused metadata from document. Approximately halves body length.
         content.querySelectorAll("i.para-comment_num, i.para-comment").forEach(i => i.remove());
-        let chapterContent = content.matches?.("div.chapter_content")
+
+        // Remove heavy tracking and metadata attributes
+        let elementsWithData = content.querySelectorAll("[data-ejs], [data-report-l1], [data-report-eid], [data-report-bid], [data-report-cid]");
+        for (let el of elementsWithData) {
+            el.removeAttribute("data-ejs");
+            el.removeAttribute("data-report-l1");
+            el.removeAttribute("data-report-eid");
+            el.removeAttribute("data-report-bid");
+            el.removeAttribute("data-report-cid");
+        }
+        if (content.hasAttribute?.("data-ejs")) {
+            content.removeAttribute("data-ejs");
+        }
+
+        // Sanitize control characters from DOM
+        util.cleanInvalidXmlCharactersFromDom(content);
+
+        let chapterContent = content.matches?.("div.chapter_content, div.cha-content, div.cha-words")
             ? content
-            : content.querySelector("div.chapter_content") ?? content;
+            : content.querySelector("div.chapter_content, div.cha-content, div.cha-words") ?? content;
         let tmptitle = this.ChacheChapterTitle.get(content.baseURI);
         let newtitlenode = document.createElement("h1");
         let resolvedTitle = tmptitle;
         if (util.isNullOrEmpty(resolvedTitle) || (resolvedTitle == "[placeholder]")) {
-            let titleEl = chapterContent.querySelector("h1");
+            let titleEl = chapterContent.querySelector("h1, div.cha-tit h1, div.cha-tit");
             resolvedTitle = this.normalizeChapterTitle(titleEl?.textContent ?? "");
         }
         if (!util.isNullOrEmpty(resolvedTitle)) {
@@ -814,7 +842,7 @@ class QidianParser extends Parser {
      * @returns {Element|null} The chapter title element if found, otherwise null.
      */
     extractTitleImpl(dom) {
-        let title = dom.querySelector("div.chapter_content h1");
+        let title = dom.querySelector("div.cha-tit h1, div.cha-tit, div.chapter_content h1");
         return title;
     }
 
@@ -835,8 +863,20 @@ class QidianParser extends Parser {
      * @param {Element} content - The chapter content container element to sanitize.
      */
     removeUnwantedElementsFromContentElement(content) {
-        util.removeChildElementsMatchingSelector(content, "form.cha-score, div.cha-bts, pirate, div.cha-content div.user-links-wrap, div.tac");
+        util.removeChildElementsMatchingSelector(
+            content,
+            "form.cha-score, div.cha-bts, pirate, div.cha-content div.user-links-wrap, div.tac, div.g_ad_ph, div.j_bottom_comment_area, .j_ai_bot, .ai-assistant, .cha-paragraph-tool, .cha-tools"
+        );
         this.tagAuthorNotesBySelector(content, "div.m-thou");
+
+        // Remove standalone UI icon/button ligature text paragraphs injected by Webnovel
+        for (let p of content.querySelectorAll("p")) {
+            let text = p.textContent.trim();
+            if (text === "expand" || text === "tune" || text === "chat_spark") {
+                p.remove();
+            }
+        }
+
         super.removeUnwantedElementsFromContentElement(content);
     }
 
