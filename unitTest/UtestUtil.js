@@ -610,3 +610,56 @@ QUnit.test("getParamFromUrl", function (assert) {
     actual = util.getParamFromUrl("https://www.baka-tsuki.org/project/index.php?title=File:HSDxD_v01_cover.jpg", "nonesuch");
     assert.equal(actual, null);
 });
+
+/**
+ * Tests cleanInvalidXmlCharacters for converting form feed and vertical tab to space,
+ * stripping illegal C0 control codes and non-characters, and preserving valid characters.
+ *
+ * @param {Assert} assert - QUnit assert instance.
+ */
+QUnit.test("cleanInvalidXmlCharacters", function (assert) {
+    let input = "nine\x0Cyear-old\x08 and \x0Bvertical\x00tab\x1F!";
+    let actual = util.cleanInvalidXmlCharacters(input);
+    assert.equal(actual, "nine year-old and  verticaltab!");
+
+    // Preserves valid whitespace: tab, newline, carriage return
+    let validWhitespace = "line1\tline2\r\nline3";
+    assert.equal(util.cleanInvalidXmlCharacters(validWhitespace), validWhitespace);
+
+    // Handles null / undefined gracefully
+    assert.equal(util.cleanInvalidXmlCharacters(null), "");
+    assert.equal(util.cleanInvalidXmlCharacters(undefined), "");
+});
+
+/**
+ * Tests cleanInvalidXmlCharactersFromDom for sanitizing text nodes and element attributes in-place.
+ *
+ * @param {Assert} assert - QUnit assert instance.
+ */
+QUnit.test("cleanInvalidXmlCharactersFromDom", function (assert) {
+    let dom = TestUtils.makeDomWithBody(
+        "<div title=\"attr\x0Cval\x08\"><p>text\x0Cnode\x07</p></div>"
+    );
+    util.cleanInvalidXmlCharactersFromDom(dom.body);
+    let div = dom.body.querySelector("div");
+    let p = dom.body.querySelector("p");
+
+    assert.equal(div.getAttribute("title"), "attr val");
+    assert.equal(p.textContent, "text node");
+});
+
+/**
+ * Tests that invalid XHTML with illegal control characters is resolved by cleanInvalidXmlCharacters.
+ *
+ * @param {Assert} assert - QUnit assert instance.
+ */
+QUnit.test("cleanInvalidXmlCharacters_resolvesXhtmlInvalidity", function (assert) {
+    let invalidXml = "<html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title>Test</title></head><body><p>Hello\x0CWorld\x08</p></body></html>";
+    let errorBefore = util.isXhtmlInvalid(invalidXml);
+    assert.ok(errorBefore !== null, "Unsanitized XML should be invalid");
+
+    let sanitizedXml = util.cleanInvalidXmlCharacters(invalidXml);
+    let errorAfter = util.isXhtmlInvalid(sanitizedXml);
+    assert.equal(errorAfter, null, "Sanitized XML should be valid XHTML");
+});
+

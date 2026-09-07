@@ -654,7 +654,104 @@ const util = (function() {
         }
     }
 
+    /**
+     * Sanitizes invalid XML 1.0 characters from a string.
+     * Converts vertical tab (\x0B) and form feed (\x0C) to spaces, removes other
+     * C0 control characters (\x00-\x08, \x0E-\x1F) and non-characters (\uFFFE, \uFFFF),
+     * and normalizes lone surrogates.
+     *
+     * @param {string} text - The input string to sanitize.
+     * @returns {string} The sanitized string containing only valid XML 1.0 characters.
+     */
+    function cleanInvalidXmlCharacters(text) {
+        if (text === null || text === undefined) {
+            return "";
+        }
+        let sanitized = String(text);
+        if (typeof sanitized.toWellFormed === "function") {
+            sanitized = sanitized.toWellFormed();
+        } else {
+            sanitized = sanitized.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "\uFFFD");
+        }
+        // eslint-disable-next-line no-control-regex -- control characters \x0B and \x0C are intentionally targeted
+        sanitized = sanitized.replace(/[\x0B\x0C]/g, " ");
+        // eslint-disable-next-line no-control-regex -- C0 control characters are intentionally stripped for XML 1.0 compliance
+        sanitized = sanitized.replace(/[\u0000-\u0008\u000E-\u001F\uFFFE\uFFFF]/g, "");
+        return sanitized;
+    }
+
+    /**
+     * Cleans invalid XML 1.0 characters from all attributes of a DOM element.
+     *
+     * @param {Element} element - The DOM element whose attributes should be sanitized.
+     */
+    function cleanElementAttributes(element) {
+        if (!element || !element.attributes) {
+            return;
+        }
+        for (let i = 0; i < element.attributes.length; i++) {
+            let attr = element.attributes[i];
+            let cleaned = cleanInvalidXmlCharacters(attr.value);
+            if (cleaned !== attr.value) {
+                attr.value = cleaned;
+            }
+        }
+    }
+
+    /**
+     * Sanitizes invalid XML 1.0 characters in text nodes and attribute values of a DOM subtree.
+     *
+     * @param {Node} rootNode - The root DOM node to sanitize.
+     * @returns {Node} The sanitized root DOM node.
+     */
+    function cleanInvalidXmlCharactersFromDom(rootNode) {
+        if (!rootNode) {
+            return rootNode;
+        }
+        if (rootNode.nodeType === Node.TEXT_NODE) {
+            let cleaned = cleanInvalidXmlCharacters(rootNode.nodeValue);
+            if (cleaned !== rootNode.nodeValue) {
+                rootNode.nodeValue = cleaned;
+            }
+            return rootNode;
+        }
+
+        let doc = rootNode.ownerDocument || rootNode;
+        if (typeof doc.createTreeWalker === "function") {
+            let textWalker = doc.createTreeWalker(
+                rootNode,
+                NodeFilter.SHOW_TEXT,
+                null
+            );
+            let textNode = textWalker.nextNode();
+            while (textNode) {
+                let cleaned = cleanInvalidXmlCharacters(textNode.nodeValue);
+                if (cleaned !== textNode.nodeValue) {
+                    textNode.nodeValue = cleaned;
+                }
+                textNode = textWalker.nextNode();
+            }
+
+            if (rootNode.nodeType === Node.ELEMENT_NODE) {
+                cleanElementAttributes(rootNode);
+            }
+            if (typeof rootNode.querySelectorAll === "function") {
+                for (let el of rootNode.querySelectorAll("*")) {
+                    cleanElementAttributes(el);
+                }
+            }
+        }
+        return rootNode;
+    }
+
+    /**
+     * Prepares an HTML element for conversion to XHTML by transforming deprecated formatting tags
+     * and sanitizing invalid XML characters.
+     *
+     * @param {Element} element - The root HTML element to prepare.
+     */
     function prepForConvertToXhtml(element) {
+        cleanInvalidXmlCharactersFromDom(element);
         replaceCenterTags(element);
         replaceUnderscoreTags(element);
         replaceSTags(element);
@@ -1163,7 +1260,8 @@ const util = (function() {
      */
     function xmlToString(dom) {
         addXmlDeclarationToStart(dom);
-        return new XMLSerializer().serializeToString(dom);
+        let xml = new XMLSerializer().serializeToString(dom);
+        return cleanInvalidXmlCharacters(xml);
     }
 
     /**
@@ -1952,6 +2050,8 @@ const util = (function() {
         ensureSingleNewlineBetweenParagraphs: ensureSingleNewlineBetweenParagraphs,
         replaceSemanticInlineStylesWithTags: replaceSemanticInlineStylesWithTags,
         wrapInnerContentInTag: wrapInnerContentInTag,
+        cleanInvalidXmlCharacters: cleanInvalidXmlCharacters,
+        cleanInvalidXmlCharactersFromDom: cleanInvalidXmlCharactersFromDom,
         getDefaultExtensionByMime: getDefaultExtensionByMime,
         detectMimeType: detectMimeType
     };
