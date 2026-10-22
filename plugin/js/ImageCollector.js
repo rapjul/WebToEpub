@@ -320,9 +320,54 @@ class ImageCollector {
         });
     }
 
+    /**
+     * Checks whether the binary image buffer contains animation chunks (GIF, APNG, or WebP).
+     *
+     * @param {ImageInfo} imageInfo - The image metadata and array buffer to inspect.
+     * @returns {boolean} `true` if the image is animated; otherwise `false`.
+     */
+    isAnimatedImage(imageInfo) {
+        const animatedTypes = ["image/gif", "image/png", "image/webp"];
+
+        if (animatedTypes.includes(imageInfo.mediaType))
+        {
+            const maxScanBytes = 65536;
+            const buffer = imageInfo.arraybuffer;
+            const scanLimit = Math.min(buffer.byteLength, maxScanBytes);
+            const view = new DataView(buffer, 0, scanLimit);
+            const limit = Math.max(0, view.byteLength - 4);
+
+            try {
+                for (let i = 0; i < limit; i++) {
+                    const current32 = view.getUint32(i, false);
+
+                    if ((imageInfo.mediaType == "image/webp" && (current32 === 0x414E494D || current32 === 0x414E4D46))
+                        || (imageInfo.mediaType == "image/png" && current32 === 0x6163544C)
+                        || (imageInfo.mediaType == "image/gif" && (current32 >>> 8) === 0x21F904)
+                    ) return true;
+                }
+            }
+            catch (e) {
+                console.error("Binary animation detection exception:", e);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Determines whether image compression should be skipped to preserve animation.
+     *
+     * @param {ImageInfo} imageInfo - The image metadata to check.
+     * @returns {boolean} `true` if the image is animated and animated compression is disabled.
+     */
+    skipAnimated(imageInfo) {
+        if (this.userPreferences.compressImagesAnimated.value) return false;
+        return this.isAnimatedImage(imageInfo);
+    }
+
     runCompression(imageInfo, img) {
         return new Promise((resolve, reject) => {
-            if (this.userPreferences.compressImages.value) 
+            if (this.userPreferences.compressImages.value && !this.skipAnimated(imageInfo)) 
             {
                 let outputType = "image/jpeg";
                 switch (this.userPreferences.compressImagesType.value) {
@@ -412,18 +457,30 @@ class ImageCollector {
         }
     }
 
+    /**
+     * Normalizes an image's `mediaType` by inspecting its magic bytes first and falling back
+     * to the Content-Type header or file extension when the byte signature is unrecognized.
+     *
+     * @param {ImageInfo} imageInfo - The image metadata object to update.
+     * @returns {void}
+     */
     fixupInvalidMediaType(imageInfo) {
+        // Trust the actual bytes over the server's Content-Type. Some CDNs (e.g. Royal
+        // Road) return a wrong type (image/png for a JPEG), producing an invalid EPUB
+        // image that readers reject. Fall back to the header/extension only when the
+        // bytes are an unrecognised format.
+        let detected = util.detectMimeType(imageInfo.getBase64(25));
+        if (detected != null) {
+            imageInfo.mediaType = detected;
+            return;
+        }
         if (!imageInfo.mediaType?.startsWith("image")) {
-            imageInfo.mediaType = util.detectMimeType(imageInfo.getBase64(25));
-            if (imageInfo.mediaType == null)
-            {
-                let path = new URL(imageInfo.sourceUrl).pathname;
-                let index = path.lastIndexOf(".");
-                let format = (index < 0)
-                    ? "jpeg"
-                    : path.substring(index + 1);
-                imageInfo.mediaType = "image/" + format;
-            }
+            let path = new URL(imageInfo.sourceUrl).pathname;
+            let index = path.lastIndexOf(".");
+            let format = (index < 0)
+                ? "jpeg"
+                : path.substring(index + 1);
+            imageInfo.mediaType = "image/" + format;
         }
     }
 

@@ -95,6 +95,7 @@ test("buildEpub3ContentOpf", function (assert) {
     metaInfo.title = "Dummy <Title>";
     metaInfo.author = "Dummy & Author";
     metaInfo.translator = "GoogleTranslate";
+    metaInfo.datePublished = "2020-01-01";
     let epubPacker = new EpubPacker(metaInfo, EpubPacker.EPUB_VERSION_3);
     epubPacker.metaInfo.seriesName = "BakaSeries";
     epubPacker.metaInfo.seriesIndex = "666";
@@ -108,7 +109,7 @@ test("buildEpub3ContentOpf", function (assert) {
             "<metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:opf=\"http://www.idpf.org/2007/opf\">"+
             "<dc:title>Dummy &lt;Title&gt;</dc:title>" +
             "<dc:language>en</dc:language>"+
-            "<dc:date>2015-10-17T21:04:54.061Z</dc:date>" +
+            "<dc:date>2020-01-01</dc:date>" +
             "<dc:creator id=\"creator\">Dummy &amp; Author</dc:creator>" +
             "<meta refines=\"#creator\" property=\"file-as\">Dummy &amp; Author</meta>" +
             "<meta refines=\"#creator\" property=\"role\">aut</meta>" +
@@ -122,6 +123,9 @@ test("buildEpub3ContentOpf", function (assert) {
             "<meta refines=\"#packingTool\" property=\"role\">bkp</meta>" +
             "<meta name=\"calibre:series\" content=\"BakaSeries\"/>" +
             "<meta name=\"calibre:series_index\" content=\"666\"/>" +
+            "<meta property=\"belongs-to-collection\" id=\"series\">BakaSeries</meta>" +
+            "<meta refines=\"#series\" property=\"collection-type\">series</meta>" +
+            "<meta refines=\"#series\" property=\"group-position\">666</meta>" +
             "<dc:source id=\"id.xhtml0000\">http://dummy.com/Title0</dc:source>" +
             "<dc:source id=\"id.xhtml0001\">http://dummy.com/Title1</dc:source>" +
             "</metadata>"+

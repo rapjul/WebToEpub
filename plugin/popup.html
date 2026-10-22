@@ -338,13 +338,17 @@
                         <td>__MSG_label_Metadata_publisher__</td>
                         <td><input id="publisherInput" type="text" name="publisherInput" /></td>
                     </tr>
+                    <tr>
+                        <td>__MSG_label_Metadata_date_published__</td>
+                        <td><input id="datePublishedInput" type="text" name="datePublishedInput" /></td>
+                    </tr>
                     <tr id="seriesRow">
                         <td>__MSG_label_Series__</td>
                         <td><input id="seriesNameInput" type="text" name="titleInput" /></td>
                     </tr>
                     <tr id="volumeRow">
                         <td>__MSG_label_Volume__</td>
-                        <td><input id="seriesIndexInput" type="text" name="titleInput" /></td>
+                        <td><input id="seriesIndexInput" type="text" name="titleInput" inputmode="decimal" /></td>
                     </tr>
                 </table>
                 <table id="advancedOptionsTable">
@@ -429,6 +433,12 @@
                                     <input id="compressImagesJpgCoverCheckbox" type="checkbox" name="compressImagesJpgCover" value="false">
                                 </td>
                                 <td>__MSG_label_Compress_Images_JPG_Cover__</td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <input id="compressImagesAnimatedCheckbox" type="checkbox" name="compressImagesAnimated" value="true">
+                                </td>
+                                <td>__MSG_label_Compress_Images_Animated__</td>
                             </tr>
                         </table>
                     </td>
@@ -528,7 +538,7 @@
                     </tr>
                     <tr id="manualDelayPerChapter">
                         <td>
-                            <input id="manualDelayPerChapterTag" type="number" name="manualDelayPerChapterTag" style="width: 70px;">
+                            <input id="manualDelayPerChapterTag" type="number" name="manualDelayPerChapterTag" style="width: 70px;" inputmode="decimal">
                         </td>
                         <td>__MSG_label_Manual_Delay_Per_Chapter__</td>
                     </tr>

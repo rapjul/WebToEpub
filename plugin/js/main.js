@@ -498,6 +498,7 @@ var main = (function() {
 
     // details
     let initialWebPage = null;
+    let initialMetaInfo = null;
     let parser = null;
     let userPreferences = null;
     let library = new Library;
@@ -527,6 +528,7 @@ var main = (function() {
             try {
                 await parser.loadEpubMetaInfo(dom);
                 metaInfo = parser.getEpubMetaInfo(dom, userPreferences.useFullTitle.value);
+                initialMetaInfo = metaInfo;
                 populateMetaInfo(metaInfo);
                 setUiToDefaultState();
                 parser.populateUI(dom);
@@ -572,6 +574,7 @@ var main = (function() {
         setUiFieldToValue("subjectInput", metaInfo.subject);
         setUiFieldToValue("descriptionInput", metaInfo.description);
         setUiFieldToValue("publisherInput", metaInfo.publisher);
+        setUiFieldToValue("datePublishedInput", metaInfo.datePublished);
         if (metaInfo.seriesName !== null) {
             document.getElementById("seriesRow").hidden = false;
             document.getElementById("volumeRow").hidden = false;
@@ -602,6 +605,7 @@ var main = (function() {
         metaInfo.subject = getValueFromUiField("subjectInput");
         metaInfo.description = getValueFromUiField("descriptionInput");
         metaInfo.publisher = getValueFromUiField("publisherInput");
+        metaInfo.datePublished = getValueFromUiField("datePublishedInput");
 
         if (document.getElementById("seriesRow").hidden === false) {
             metaInfo.seriesName = getValueFromUiField("seriesNameInput");
@@ -627,12 +631,13 @@ var main = (function() {
     async function fetchContentAndPackEpub() {
         util.resetSleepController();
         let libclick = this;
-        if (document.getElementById("noAdditionalMetadataCheckbox").checked == true) {
-            setUiFieldToValue("subjectInput", "");
-            setUiFieldToValue("descriptionInput", "");
-            setUiFieldToValue("publisherInput", "");
-        }
         let metaInfo = metaInfoFromControls();
+        if (document.getElementById("noAdditionalMetadataCheckbox").checked == true
+            && initialMetaInfo != null) {
+            metaInfo.subject = initialMetaInfo.subject;
+            metaInfo.description = initialMetaInfo.description;
+            metaInfo.publisher = initialMetaInfo.publisher;
+        }
 
         if ("yes" == libclick.dataset.libclick) {
             if (document.getElementById("chaptersPageInChapterListCheckbox").checked) {
@@ -1114,6 +1119,8 @@ var main = (function() {
         document.getElementById("LibShowAdvancedOptionsCheckbox").addEventListener("change", () => Library.LibRenderSavedEpubs());
         document.getElementById("LibAddToLibrary").addEventListener("click", fetchContentAndPackEpub);
         document.getElementById("LibPauseToLibrary").addEventListener("click", pauseToLibrary);
+        document.getElementById("seriesIndexInput").addEventListener("beforeinput", (event) => seriesIndexInpuValidator(event));
+        document.getElementById("manualDelayPerChapterTag").addEventListener("beforeinput", (event) => manualDelayPerChapterValidator(event));
         document.getElementById("stylesheetToDefaultButton").onclick = onStylesheetToDefaultClick;
         document.getElementById("resetButton").onclick = resetUI;
         document.getElementById("clearCoverImageUrlButton").onclick = clearCoverUrl;
@@ -1130,6 +1137,30 @@ var main = (function() {
         document.getElementById("sbClose").onclick = () => sbHide();
         document.getElementById("viewReadingListButton").onclick = () => showReadingList();
         window.addEventListener("beforeunload", onUnloadEvent);
+    }
+
+    /**
+     * Restricts `seriesIndexInput` beforeinput events to digits and decimal points.
+     *
+     * @param {InputEvent} event - The beforeinput event to validate.
+     * @returns {void}
+     */
+    function seriesIndexInpuValidator(event) {
+        if (event.data && !/^[0-9.]+$/.test(event.data)) {
+            event.preventDefault();
+        }
+    }
+
+    /**
+     * Restricts `manualDelayPerChapterTag` beforeinput events to integer digits.
+     *
+     * @param {InputEvent} event - The beforeinput event to validate.
+     * @returns {void}
+     */
+    function manualDelayPerChapterValidator(event) {
+        if (event.data && !/^[0-9]+$/.test(event.data)) {
+            event.preventDefault();
+        }
     }
 
 

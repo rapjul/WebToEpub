@@ -24,6 +24,7 @@ class EpubMetaInfo {
         this.subject = "";
         this.description = "";
         this.publisher = "";
+        this.datePublished = null;
         this.seriesName = null;
         this.seriesIndex = null;
         this.styleSheet = EpubMetaInfo.getDefaultStyleSheet();

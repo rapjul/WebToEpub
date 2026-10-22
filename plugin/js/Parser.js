@@ -701,6 +701,19 @@ class Parser {
     }
 
     /**
+     * Extracts the original publication date from the document metadata.
+     *
+     * @param {Document|Element} dom - The DOM containing publication date metadata.
+     * @returns {string|null} The publication date string, or `null` if not found.
+     */
+    extractDatePublished(dom) {
+        const published = dom.querySelector(
+            "meta[property='article:published_time'], time[itemprop='datePublished']"
+        );
+        return published?.content ?? published?.dateTime ?? null;
+    }
+
+    /**
      * Populates series-related metadata fields.
      *
      * Default implementation does nothing. Override in subclasses that expose series data.
@@ -775,6 +788,12 @@ class Parser {
         }
         catch (err) {
             metaInfo.publisher = "";
+        }
+        try {
+            metaInfo.datePublished = this.extractDatePublished(dom);
+        }
+        catch (err) {
+            metaInfo.datePublished = null;
         }
         this.extractSeriesInfo(dom, metaInfo);
         return metaInfo;
