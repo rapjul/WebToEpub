@@ -6,16 +6,24 @@ class DefaultParserSiteSettings {
         this.loadSiteConfigs();
     }
 
-    /** @private */
+    /**
+     * Loads saved per-site CSS selector configurations from localStorage.
+     *
+     * @returns {void}
+     */
     loadSiteConfigs() {
         let config = window.localStorage.getItem(DefaultParserSiteSettings.storageName);
         this.configs = new Map();
         if (config != null) {
-            for (let e of JSON.parse(config)) {
-                let selectors = e[1];
-                if (DefaultParserSiteSettings.isConfigValid(selectors)) {
-                    this.configs.set(e[0], selectors);
+            try {
+                for (let e of JSON.parse(config)) {
+                    let selectors = e[1];
+                    if (DefaultParserSiteSettings.isConfigValid(selectors)) {
+                        this.configs.set(e[0], selectors);
+                    }
                 }
+            } catch {
+                window.localStorage.removeItem(DefaultParserSiteSettings.storageName);
             }
         }
     }
@@ -62,16 +70,32 @@ class DefaultParserSiteSettings {
         };
         let config = this.getConfigForSite(hostname);
         if (config != null) {
-            logic.findContent = dom => dom.querySelector(config.contentCss);
+            logic.findContent = dom => {
+                try {
+                    return dom.querySelector(config.contentCss);
+                } catch {
+                    return null;
+                }
+            };
             if (!util.isNullOrEmpty(config.titleCss))
             {
-                logic.findChapterTitle = dom => dom.querySelector(config.titleCss);
+                logic.findChapterTitle = dom => {
+                    try {
+                        return dom.querySelector(config.titleCss);
+                    } catch {
+                        return null;
+                    }
+                };
             }
             if (!util.isNullOrEmpty(config.removeCss))
             {
                 logic.removeUnwanted = (element) => {
-                    for (let e of element.querySelectorAll(config.removeCss)) {
-                        e.remove();
+                    try {
+                        for (let e of element.querySelectorAll(config.removeCss)) {
+                            e.remove();
+                        }
+                    } catch {
+                        // Ignore invalid CSS selector errors
                     }
                 };
             }
@@ -86,10 +110,19 @@ class DefaultParserUI { // eslint-disable-line no-unused-vars
     constructor() {
     }
 
-    static setupDefaultParserUI(hostname, parser) {
+    /**
+     * Initializes and displays the Default Parser configuration UI.
+     *
+     * @param {string} hostname - The target site hostname.
+     * @param {DefaultParser} parser - The active `DefaultParser` instance.
+     * @param {Document} [dom] - Optional preloaded live DOM from the active tab.
+     * @returns {void}
+     */
+    static setupDefaultParserUI(hostname, parser, dom) {
         DefaultParserUI.copyInstructions();
         DefaultParserUI.setDefaultParserUiVisibility(true);
-        DefaultParserUI.populateDefaultParserUI(hostname, parser);
+        // Pass the preloaded live DOM down to the populate method
+        DefaultParserUI.populateDefaultParserUI(hostname, parser, dom);
         document.getElementById("testDefaultParserButton").onclick = DefaultParserUI.testDefaultParser.bind(null, parser);
         document.getElementById("finisheddefaultParserButton").onclick = DefaultParserUI.onFinishedClicked.bind(null, parser);
     }
@@ -109,7 +142,15 @@ class DefaultParserUI { // eslint-disable-line no-unused-vars
         parser.siteConfigs.saveSiteConfig(hostname, contentCss, titleCss, removeCss, testUrl);
     }
 
-    static populateDefaultParserUI(hostname, parser) {
+    /**
+     * Populates the Default Parser UI controls with saved site configuration or auto-detected selectors.
+     *
+     * @param {string} hostname - The target site hostname.
+     * @param {DefaultParser} parser - The active `DefaultParser` instance.
+     * @param {Document} [dom] - Optional preloaded live DOM for heuristic scanning.
+     * @returns {void}
+     */
+    static populateDefaultParserUI(hostname, parser, dom) {
         DefaultParserUI.getDefaultParserHostnameInput().value = hostname;
 
         DefaultParserUI.getContentCssInput().value = "body";
@@ -118,11 +159,100 @@ class DefaultParserUI { // eslint-disable-line no-unused-vars
         DefaultParserUI.getTestChapterUrlInput().value = "";
 
         let config = parser.siteConfigs.getConfigForSite(hostname);
+        let activeUrl = document.getElementById("startingUrlInput").value;
+
         if (config != null) {
             DefaultParserUI.getContentCssInput().value = config.contentCss;
             DefaultParserUI.getChapterTitleCssInput().value = config.titleCss;
             DefaultParserUI.getUnwantedElementsCssInput().value = config.removeCss;
             DefaultParserUI.getTestChapterUrlInput().value = config.testUrl;
+            return;
+        }
+
+        // Always ensure the Test URL is filled out, falling back to activeUrl
+        if (!DefaultParserUI.getTestChapterUrlInput().value) {
+            DefaultParserUI.getTestChapterUrlInput().value = activeUrl;
+        }
+
+        DefaultParserUI.bindSmartScanner();
+
+        // Proactively scan using the live DOM to avoid network/403 issues.
+        // This will override the old/default config purely in the UI if successful.
+        if (dom && activeUrl) {
+            DefaultParserUI.executeSmartScan(activeUrl, dom);
+        }
+    }
+
+    /**
+     * Binds a debounced input listener on the test chapter URL field to trigger heuristic selector detection.
+     *
+     * @returns {void}
+     */
+    static bindSmartScanner() {
+        const testUrlInput = DefaultParserUI.getTestChapterUrlInput();
+
+        if (!testUrlInput) return;
+        if (testUrlInput.dataset.smartBound === "true") return;
+        testUrlInput.dataset.smartBound = "true";
+
+        let debounceTimer = null;
+
+        testUrlInput.addEventListener("input", () => {
+            clearTimeout(debounceTimer);
+            let url = testUrlInput.value.trim();
+
+            if (!url) {
+                const statusSpan = document.getElementById("smartDetectStatus");
+                if (statusSpan) statusSpan.textContent = "";
+                return;
+            }
+
+            const statusSpan = document.getElementById("smartDetectStatus");
+            if (statusSpan) {
+                statusSpan.textContent = "\u23F3 Detecting...";
+                statusSpan.style.color = "#666";
+            }
+
+            // User manually typed a URL, we cannot use preloaded DOM anymore.
+            debounceTimer = setTimeout(() => {
+                DefaultParserUI.executeSmartScan(url, null);
+            }, 500);
+        });
+    }
+
+    /**
+     * Runs `HeuristicScanner.scan` on the given URL/DOM and updates the Default Parser UI fields.
+     *
+     * @param {string} url - The chapter URL to scan.
+     * @param {Document|null} [preloadedDom=null] - Optional preloaded DOM document.
+     * @returns {Promise<void>}
+     */
+    static async executeSmartScan(url, preloadedDom = null) {
+        const statusSpan = document.getElementById("smartDetectStatus");
+        if (!statusSpan) return;
+
+        statusSpan.textContent = "\u23F3 Detecting...";
+        statusSpan.style.color = "#666";
+
+        try {
+            // Pass the preloaded DOM directly to the scanner
+            let result = await HeuristicScanner.scan(url, preloadedDom);
+
+            if (result.status === "success") {
+                DefaultParserUI.getContentCssInput().value = result.contentCss;
+                DefaultParserUI.getChapterTitleCssInput().value = result.titleCss;
+                statusSpan.textContent = "\u2705 Detection Successful";
+                statusSpan.style.color = "green";
+            } else if (result.status === "toc_detected") {
+                statusSpan.textContent = "\u26A0\uFE0F Seems to be ToC. Please use the ToC flow.";
+                statusSpan.style.color = "orange";
+            } else {
+                statusSpan.textContent = "\u274C Detection Failed. Please enter CSS manually.";
+                statusSpan.style.color = "red";
+            }
+        } catch {
+            statusSpan.textContent = "\u274C Detection Failed. Please enter CSS manually.";
+            statusSpan.style.color = "red";
         }
     }
 
