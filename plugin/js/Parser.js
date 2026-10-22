@@ -174,6 +174,38 @@ class Parser {
         return {};
     }
 
+    /**
+     * Checks whether the `noContentToError403` preference is enabled and the fetched response contains no content.
+     *
+     * @param {Object} response - The checked HTTP response wrapper containing `responseXML`.
+     * @returns {boolean} `true` if `noContentToError403` is active and `findContent` returns `null`.
+     */
+    isNoContentToError403AndContentNull(response) {
+        if (this.userPreferences?.noContentToError403?.value) {
+            const content = this.findContent(response.responseXML);
+            return (content == null);
+        }
+        return false;
+    }
+
+    /**
+     * Builds a synthetic HTTP 403 error response object when chapter content is missing.
+     *
+     * @param {string} url - The requested URL.
+     * @param {Object} wrapOptions - Options passed to `HttpClient.wrapFetch`.
+     * @param {Object} checkedresponse - The checked HTTP response object.
+     * @returns {{ url: string, wrapOptions: Object, response: { url: string, status: number } }} Synthetic 403 response payload.
+     */
+    setNoContentToError403Response(url, wrapOptions, checkedresponse) {
+        const ret = {};
+        ret.url = url;
+        ret.wrapOptions = wrapOptions;
+        ret.response = {};
+        ret.response.url = checkedresponse.response.url;
+        ret.response.status = 403;
+        return ret;
+    }
+
     onUserPreferencesUpdate(userPreferences) {
         this.userPreferences = userPreferences;
         this.imageCollector.onUserPreferencesUpdate(userPreferences);
@@ -1162,8 +1194,13 @@ class Parser {
             pageParser.removeUnusedElementsToReduceMemoryConsumption(webPageDom);
             const content = pageParser.findContent(webPage.rawDom);
             if (content == null) {
-                const errorMsg = UIText.Error.errorContentNotFound(webPage.sourceUrl);
-                throw new Error(errorMsg);
+                if (this.userPreferences?.noContentToError403?.value) {
+                    const errorMsg = UIText.Warning.warningNoContentTo403ErrorResponse(new URL(webPage.sourceUrl).hostname);
+                    throw new Error(errorMsg);
+                } else {
+                    const errorMsg = UIText.Error.errorContentNotFound(webPage.sourceUrl);
+                    throw new Error(errorMsg);
+                }
             }
             return pageParser.fetchImagesUsedInDocument(content, webPage);
         } catch (error) {
@@ -1225,6 +1262,10 @@ class Parser {
      * @returns {Promise<Document>} The fetched response XML.
      */
     async fetchChapter(url) {
+        if (this.userPreferences?.noContentToError403?.value) {
+            const options = { parser: this, storyUrl: this.state.chapterListUrl };
+            return (await HttpClient.wrapFetch(url, options)).responseXML;
+        }
         return (await HttpClient.wrapFetch(url, { storyUrl: this.state.chapterListUrl })).responseXML;
     }
 

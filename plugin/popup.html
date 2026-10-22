@@ -20,12 +20,13 @@
             <table id="errorSectionTable">
                 <tr>
                     <td>
-                        <button class="expandedButton" id="errorButtonOk">__MSG_button_error_OK__</button>
-                        <button class="expandedButton" id="errorButtonRetry">__MSG_button_error_Retry__</button>
-                        <button class="expandedButton" id="errorButtonKeepRetrying">__MSG_button_error_Keep_Retrying__</button>
-                        <button class="expandedButton" id="errorButtonCancel">__MSG_button_error_Cancel__</button>
-                        <button class="expandedButton" id="errorButtonOpenURL">__MSG_button_error_Open_URL__</button>
-                        <button class="expandedButton" id="errorButtonBlockURL">__MSG_button_error_Block_URL__</button>
+                        <button class="expandedButton" id="errorButtonOk" style="margin-left:4px; margin-right: 4px;">__MSG_button_error_OK__</button>
+                        <button class="expandedButton" id="errorButtonRetry" style="margin-left:4px; margin-right: 4px;">__MSG_button_error_Retry__</button>
+                        <button class="expandedButton" id="errorButtonKeepRetrying" style="margin-left:4px; margin-right: 4px;">__MSG_button_error_Keep_Retrying__</button>
+                        <button class="expandedButton" id="errorButtonOpenURL" style="margin-left:4px; margin-right: 4px;">__MSG_button_error_Open_URL__</button>
+                        <button class="expandedButton" id="errorButtonCopyURL" style="margin-left:4px; margin-right: 4px;">__MSG_button_error_Copy_URL__</button>
+                        <button class="expandedButton" id="errorButtonBlockURL" style="margin-left:4px; margin-right: 4px;">__MSG_button_error_Block_URL__</button>
+                        <button class="expandedButton" id="errorButtonCancel" style="margin-left:4px; margin-right: 4px;">__MSG_button_error_Cancel__</button>
                     </td>
                 </tr>
                 <tr id="errorMessageRow">
@@ -521,6 +522,10 @@
                     <tr id="skipChaptersThatFailFetch">
                         <td><input id="skipChaptersThatFailFetchCheckbox" type="checkbox" name="skipChaptersThatFailFetchCheckbox" value="false"></td>
                         <td>__MSG_label_Skip_Chapters_That_Fail_Fetch__</td>
+                    </tr>
+                    <tr id="noContentToError403">
+                        <td><input id="noContentToError403Checkbox" type="checkbox" name="noContentToError403Checkbox" value="false"></td>
+                        <td>__MSG_label_No_Content_To_Error_403_Page__</td>
                     </tr>
                     <tr id="maxChaptersPerEpub">
                         <td>

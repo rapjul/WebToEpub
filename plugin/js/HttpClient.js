@@ -77,8 +77,13 @@ class FetchErrorHandler {
 
     promptUserForRetry(url, wrapOptions, response, failError) {
         let msg;
+        let userPreferences = (typeof main !== "undefined") ? main.getUserPreferences() : null;
         if (wrapOptions.retry.HTTP === 403) {
-            msg = new Error(UIText.Warning.warning403ErrorResponse(new URL(response.url).hostname) + this.makeFailCanRetryMessage(url, response.status));
+            if (userPreferences?.noContentToError403?.value) {
+                msg = new Error(UIText.Warning.warningNoContentTo403ErrorResponse(new URL(response.url).hostname) + this.makeFailCanRetryMessage(url, response.status));
+            } else {
+                msg = new Error(UIText.Warning.warning403ErrorResponse(new URL(response.url).hostname) + this.makeFailCanRetryMessage(url, response.status));
+            }
         } else {
             msg = new Error(new Error(this.makeFailCanRetryMessage(url, response.status)));
         }
@@ -532,6 +537,10 @@ class HttpClient {
                 FetchErrorHandler.clearStalled403Warning(wrapOptions.storyUrl);
             }
             let ret = await HttpClient.checkResponseAndGetData(url, wrapOptions, response);
+            if (wrapOptions.parser?.isNoContentToError403AndContentNull(ret)) {
+                let CustomNoContentToError403Response = wrapOptions.parser.setNoContentToError403Response(url, wrapOptions, ret);
+                return wrapOptions.errorHandler.onResponseError(CustomNoContentToError403Response.url, CustomNoContentToError403Response.wrapOptions, CustomNoContentToError403Response.response, CustomNoContentToError403Response.errorMessage);
+            }
             if (wrapOptions.parser?.isCustomError(ret)) {
                 let CustomErrorResponse = wrapOptions.parser.setCustomErrorResponse(url, wrapOptions, ret);
                 return wrapOptions.errorHandler.onResponseError(CustomErrorResponse.url, CustomErrorResponse.wrapOptions, CustomErrorResponse.response, CustomErrorResponse.errorMessage);

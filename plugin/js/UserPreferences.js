@@ -110,6 +110,7 @@ class UserPreferences { // eslint-disable-line no-unused-vars
         this.selectRetryLonger = this.addPreference("selectRetryLonger", "selectRetryLongerCheckbox", false);
         this.removeTranslated = this.addPreference("removeTranslated", "removeTranslatedCheckbox", false);
         this.skipChaptersThatFailFetch = this.addPreference("skipChaptersThatFailFetch", "skipChaptersThatFailFetchCheckbox", false);
+        this.noContentToError403 = this.addPreference("noContentToError403", "noContentToError403Checkbox", false);
         this.maxChaptersPerEpub = this.addPreference("maxChaptersPerEpub", "maxChaptersPerEpubTag", "10,000");
         this.manualDelayPerChapter = this.addPreference("manualDelayPerChapter", "manualDelayPerChapterTag", "500");
         this.autoRetryOn403 = this.addPreference("autoRetryOn403", "autoRetryOn403Checkbox", false);

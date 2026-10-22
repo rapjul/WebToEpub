@@ -147,6 +147,10 @@
 		"message": "Open URL for Captcha",
 		"description": "Label on 'Open URL for Captcha' button when show error HTTP 403"
 	},
+	"__MSG_button_error_Copy_URL__": {
+		"message": "Copy URL for Captcha",
+		"description": "Label on 'Copy URL for Captcha' button when show error HTTP 403"
+	},
 	"__MSG_button_error_Block_URL__": {
 		"message": "Block Website for future requests",
 		"description": "Label on 'Block Website for future requests' button when show error HTTP 403"
@@ -539,6 +543,10 @@
 		"message": "Skip chapters that return HTTP 404 error",
 		"description": "Label in front of checkbox for skipping chapters that can't be fetched"
 	},
+	"__MSG_label_No_Content_To_Error_403_Page__": {
+		"message": "Allow retry on 'No Content Found' error.",
+		"description": "Label in front of checkbox for treating 'no content found' error as 'HTTP 403 error'"
+	},
 	"__MSG_label_Stylesheet__": {
 		"message": "Stylesheet:",
 		"description": "Label in front of edit field for setting the stylesheet (in Advanced settings)."
@@ -910,6 +918,15 @@
 		"description": "Warning message when downloaded image is in webp format",
 		"placeholders": {
 			"filename": {
+				"content": "$1"
+			}
+		}
+	},
+	"warningNoContentTo403ErrorResponse": {
+		"message": "Warning: No content found on target page, treated as site `$host$` sending an Access Denied (403) error.\nYou may need to logon to site, or browse site normally\nuntil you get a Cloudflare \"Are you a human\" page or satisfy some other CAPTCHA\nbefore WebToEpub can continue.\nThis happens if you are downloading too fast, try to increase 'Advanced Options -> Delay per chapter in ms'\n",
+		"description": "Warning message for user when content element for a page has no content and the `Treat 'no content found error' as 'HTTP 403 error'.` user preferences is checked.",
+		"placeholders": {
+			"host": {
 				"content": "$1"
 			}
 		}
