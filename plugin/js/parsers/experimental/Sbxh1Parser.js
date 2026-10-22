@@ -1,7 +1,7 @@
 "use strict";
 
 parserFactory.registerUrlRule(
-    (url) => /^https?:\/\/(?:www\.)?sbxh\d+\.com(?:\/|$)/.test(url),
+    (url) => /^https?:\/\/(?:www\.)?(sbxh|toki)\d+\.com(?:\/|$)/.test(url),
     () => new Sbxh1Parser(),
 );
 
@@ -10,48 +10,83 @@ class Sbxh1Parser extends Parser {
         super();
     }
 
-    getChapterUrls(dom) {
+    async getChapterUrls(dom) {
         let novelId = Sbxh1Parser.extractNovelId(dom.baseURI);
         if (novelId == null) {
             return [];
         }
 
+        let chapterLinks = Sbxh1Parser.extractChapterLinks(dom, novelId).map(
+            (a) => Sbxh1Parser.anchorToChapter(a),
+        );
+
+        let baseUrl = new URL(dom.baseURI).origin;
+        await Sbxh1Parser.setApiRequestHeaders(baseUrl, dom.baseURI);
+
+        let cursor = Sbxh1Parser.extractEpisodeCursor(dom);
+        while (cursor != null) {
+            let apiUrl = new URL(
+                `${baseUrl}/api/novel/${novelId}/episodes/window`,
+            );
+            apiUrl.searchParams.set("direction", "older");
+            apiUrl.searchParams.set("cursor", cursor);
+
+            const { json } = await HttpClient.fetchJson(apiUrl.href);
+            if (
+                json?.ok !== true ||
+                !Array.isArray(json.items) ||
+                json.items.length === 0
+            ) {
+                break;
+            }
+
+            let newChapters = json.items.map((item) => ({
+                sourceUrl: `${baseUrl}/novel/${novelId}/${item.id}`,
+                title: `${item.episodeLabel} - ${item.title}`,
+            }));
+
+            const exists = newChapters.some((newCh) =>
+                chapterLinks.some((ch) => ch.sourceUrl === newCh.sourceUrl)
+            );
+            if (exists) {
+                break;
+            }
+
+            chapterLinks.push(...newChapters);
+            cursor = json.hasOlder ? (json.olderCursor ?? null) : null;
+        }
+
+        return chapterLinks.reverse();
+    }
+
+    static extractChapterLinks(dom, novelId) {
         let chapterLinks = [
             ...dom.querySelectorAll(`a.novel-ep-link[href*="/novel/${novelId}/"]`),
         ];
         if (chapterLinks.length === 0) {
             chapterLinks = [...dom.querySelectorAll(`a[href*="/novel/${novelId}/"]`)];
         }
+        return chapterLinks;
+    }
 
-        let chaptersByUrl = new Map();
-        chapterLinks
-            .filter((a) => Sbxh1Parser.isEpisodeUrl(a.href, novelId))
-            .forEach((a) => {
-                let episodeNumber = Sbxh1Parser.extractEpisodeNumber(a.textContent);
-                if (episodeNumber == null) {
-                    return;
-                }
-                let normalized = util.normalizeUrlForCompare(a.href);
-                let chapter = {
-                    sourceUrl: a.href,
-                    title: Sbxh1Parser.cleanEpisodeTitle(a.textContent),
-                    episodeNumber: episodeNumber,
-                };
-                let existing = chaptersByUrl.get(normalized);
-                if (
-                    existing == null ||
-                    Sbxh1Parser.isBetterEpisodeTitle(chapter.title, existing.title)
-                ) {
-                    chaptersByUrl.set(normalized, chapter);
-                }
-            });
+    static anchorToChapter(anchor) {
+        let chapterNumber = anchor.querySelector(".ne-num")?.textContent ?? "";
+        let chapterTitle = anchor.querySelector(".ne-title")?.textContent ?? "";
+        return {
+            sourceUrl: anchor.href,
+            title: `${chapterNumber} - ${chapterTitle}`,
+        };
+    }
 
-        return [...chaptersByUrl.values()]
-            .sort((a, b) => a.episodeNumber - b.episodeNumber)
-            .map((a) => ({
-                sourceUrl: a.sourceUrl,
-                title: a.title,
-            }));
+    static extractEpisodeCursor(dom) {
+        let rows = [...dom.querySelectorAll("li.novel-ep-row")];
+        let last = rows[rows.length - 1];
+        let episodeNumber = last?.getAttribute("data-ep");
+        let episodeId = last?.getAttribute("data-episode-id");
+        if (episodeNumber == null || episodeId == null) {
+            return null;
+        }
+        return `${episodeNumber}:${episodeId}`;
     }
 
     findContent(dom) {
@@ -104,7 +139,7 @@ class Sbxh1Parser extends Parser {
     }
 
     findCoverImageUrl(dom) {
-        return dom.querySelector("main img[alt]")?.src ?? null;
+        return dom.querySelector(".nd-thumb img[alt]")?.src ?? null;
     }
 
     findChapterTitle(dom) {
@@ -290,37 +325,6 @@ class Sbxh1Parser extends Parser {
 
     static extractNovelId(url) {
         return new URL(url).pathname.match(/^\/novel\/(\d+)/)?.[1] ?? null;
-    }
-
-    static isEpisodeUrl(url, novelId) {
-        return (
-            new URL(url).pathname.match(new RegExp(`^/novel/${novelId}/\\d+$`)) !=
-            null
-        );
-    }
-
-    static cleanEpisodeTitle(title) {
-        return title
-            .replace(/\bNEW\b/g, "")
-            .replace(/\d{2}\.\s*\d{2}\.\s*\d{2}\.?/g, "")
-            .replace(/\s+/g, " ")
-            .replace(/^(\d+\s*화)\1$/, "$1")
-            .trim();
-    }
-
-    static extractEpisodeNumber(title) {
-        let match = title.match(/(\d+)\s*화/);
-        return match == null ? null : parseInt(match[1], 10);
-    }
-
-    static isBetterEpisodeTitle(candidate, existing) {
-        let candidateHasNumber = /^\d+\s*화\b/.test(candidate);
-        let existingHasNumber = /^\d+\s*화\b/.test(existing);
-        return (
-            (candidateHasNumber && !existingHasNumber) ||
-            (candidateHasNumber === existingHasNumber &&
-                candidate.length > existing.length)
-        );
     }
 
     static extractViewerInfo(dom) {

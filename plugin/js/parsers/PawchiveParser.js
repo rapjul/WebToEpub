@@ -70,7 +70,7 @@ class PawchiveParser extends Parser {
         header.textContent = post.title;
         newDoc.content.appendChild(header);
 
-        let content = util.sanitize(post.content);
+        let content = util.sanitize(this.escapeUnknownTags(post.content));
         util.moveChildElements(content.body, newDoc.content);
 
         let attachments = post.attachments;
@@ -98,15 +98,36 @@ class PawchiveParser extends Parser {
         return newDoc.dom;
     }
 
+    escapeUnknownTags(html) {
+        return html.replace(/<([^<>]+)>/g, (match, inner) => {
+            let candidate = inner.trim();
+            if (candidate.startsWith("!--") ||
+                /^!doctype\b/i.test(candidate) ||
+                candidate.startsWith("?")) {
+                return match;
+            }
+            let tag = candidate.match(/^\/?\s*([A-Za-z][\w:-]*)/);
+            if (tag !== null && this.isKnownHtmlTag(tag[1])) {
+                return match;
+            }
+            return `&lt;${inner}&gt;`;
+        });
+    }
+
+    isKnownHtmlTag(tagName) {
+        let element = document.createElement(tagName);
+        return element.constructor.name !== "HTMLUnknownElement";
+    }
+
     buildImageUrl(path) {
         return new URL(
-            "/data" + this.normalizePath(path),
-            "https://file.pawchive.st"
+            "/thumbnail/data" + this.normalizePath(path),
+            "https://img.pawchive.pw"
         ).href;
     }
 
     buildFileUrl(path) {
-        return new URL("/data" + this.normalizePath(path), "https://pawchive.st")
+        return new URL("/data" + this.normalizePath(path), "https://pawchive.pw")
             .href;
     }
 

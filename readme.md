@@ -272,7 +272,9 @@ WebToEpub is a browser extension for Firefox and Chrome that converts web novels
     <li>kemono.su</li>
     <li>knoxt.space</li>
     <li>kobatochan.com</li>
+    <li>konkon.ink</li>
     <li>krytykal.org</li>
+    <li>kuupress.com</li>
     <li>lazygirltranslations.com</li>
     <li>liberspark.com</li>
     <li>libread.com</li>
@@ -766,7 +768,7 @@ Don't forget to give the project a star! Thanks again!
     <li>Kondeeza</li>
     <li>Mathnerd314</li>
     <li>Sickan90</li>
-    <li>Miracutor</li>
+    <li>mddanish00</li>
     <li>Kiradien</li>
     <li>Synteresis</li>
     <li>Lej77</li>
@@ -807,7 +809,7 @@ Don't forget to give the project a star! Thanks again!
     <li>MD Shabrez</li>
     <li>jurassicplayer</li>
     <li>X2E4VXpZKv</li>
-    <li>meson1271 (Parser for jadescrolls.com)</li>
+    <li>meson1271 (Parser for jadescrolls.com and sakuraze.vercel.app)</li>
     <li>AgatZan (Parser for ficbook.net)</li>
     <li>Joel Sunil</li>
     <li>nothing0074</li>
@@ -825,6 +827,18 @@ Don't forget to give the project a star! Thanks again!
     <li>fnx4</li>
     <li>Fox6935</li>
     <li>ARYAN-9099</li>
+    <li>possibletoactual (Royal Road redesign fix)</li>
+    <li>kuwoyuki</li>
+    <li>bendur</li>
+    <li>Bartuzen</li>
+    <li>kerimmkirac</li>
+    <li>baalthasar</li>
+    <li>David Siewert</li>
+    <li>MineRobber9000 (Parser for konkon.ink and kuupress.com)</li>
+    <li>KitKat31337 (TWKAN paragraph markup fix)</li>
+    <li>Yash Raj (Parser for novelping.com)</li>
+    <li>sakthi719</li>
+    <li>MarTeezy</li>
   </ul>
 </details>
 

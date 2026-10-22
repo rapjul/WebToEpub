@@ -131,10 +131,10 @@ class PatreonParser extends Parser {
     /**
      * Fetches a chapter's document structure and converts it to HTML.
      * Checks for server-rendered post content first before falling back
-     * to Next.js bootstrap payload.
+     * to Next.js bootstrap payload or App Router flight data.
      *
      * @param {string} url - Target chapter URL to fetch.
-     * @returns {Promise<{ dom: Document, content: HTMLElement }>} The constructed chapter document.
+     * @returns {Promise<Document>} The constructed chapter document.
      */
     async fetchChapter(url) {
         const xhr = await HttpClient.wrapFetch(url);
@@ -145,11 +145,108 @@ class PatreonParser extends Parser {
                 content: postContent.innerHTML
             }, url);
         }
-        const script = xhr.responseXML.querySelector("script#__NEXT_DATA__").textContent;
-        const json = JSON.parse(script);
-        const envelope = json.props.pageProps.bootstrapEnvelope;
-        const bootstrap = envelope.bootstrap || envelope.pageBootstrap;
-        return this.jsonToHtml(bootstrap.post.data.attributes, url);
+        return this.jsonToHtml(PatreonParser.findPostAttributes(xhr.responseXML), url);
+    }
+
+    /**
+     * Extracts Patreon post attributes from either `__NEXT_DATA__` or Next.js App Router flight data.
+     *
+     * @param {Document} dom - The parsed chapter page DOM.
+     * @returns {Object} The post attributes object.
+     */
+    static findPostAttributes(dom) {
+        let script = dom.querySelector("script#__NEXT_DATA__");
+        if (script !== null) {
+            let envelope = JSON.parse(script.textContent).props.pageProps.bootstrapEnvelope;
+            return PatreonParser.envelopeToPostAttributes(envelope);
+        }
+        return PatreonParser.findPostAttributesInFlightData(dom);
+    }
+
+    /**
+     * Unwraps post attributes from a Patreon bootstrap envelope object.
+     *
+     * @param {Object} envelope - The Patreon `bootstrapEnvelope` object.
+     * @returns {Object} The post attributes object.
+     */
+    static envelopeToPostAttributes(envelope) {
+        let bootstrap = envelope.bootstrap || envelope.pageBootstrap;
+        return bootstrap.post.data.attributes;
+    }
+
+    /**
+     * Extracts Patreon post attributes from Next.js App Router React Server Components flight data.
+     * Pages built with Next.js App Router no longer have `__NEXT_DATA__`; instead, data is streamed
+     * via inline `<script>self.__next_f.push([1,"..."])</script>` calls.
+     *
+     * @param {Document} dom - The parsed chapter page DOM.
+     * @returns {Object} The resolved post attributes object.
+     */
+    static findPostAttributesInFlightData(dom) {
+        let flight = PatreonParser.extractFlightData(dom);
+        let envelope = util.locateAndExtractJson(flight, "\"bootstrapEnvelope\":");
+        if (envelope === null) {
+            throw new Error("Could not find post data in Patreon page");
+        }
+        let attributes = PatreonParser.envelopeToPostAttributes(envelope);
+        for (let field of ["content", "content_json_string"]) {
+            attributes[field] = PatreonParser.resolveFlightReference(flight, attributes[field]);
+        }
+        return attributes;
+    }
+
+    /**
+     * Concatenates all string chunks pushed to `self.__next_f` across `<script>` elements in `dom`.
+     *
+     * @param {Document} dom - The parsed chapter page DOM.
+     * @returns {string} Concatenated Next.js flight stream payload.
+     */
+    static extractFlightData(dom) {
+        let startString = "self.__next_f.push(";
+        return [...dom.querySelectorAll("script")]
+            .map(el => el.textContent.trim())
+            .filter(text => text.startsWith(startString))
+            .map(text => {
+                try {
+                    return JSON.parse(text.slice(startString.length, text.lastIndexOf(")")));
+                } catch {
+                    return null;
+                }
+            })
+            .filter(chunk => chunk?.[0] === 1 && typeof chunk[1] === "string")
+            .map(chunk => chunk[1])
+            .join("");
+    }
+
+    /**
+     * Resolves a Next.js flight text row reference (e.g. `"$6e"`) against the full flight stream.
+     * Large strings are sent as separate `"text"` rows (`"6e:T757d,<text>"`) where row length is
+     * the hexadecimal count of UTF-8 bytes.
+     *
+     * @param {string} flight - Concatenated Next.js flight stream string.
+     * @param {*} value - Raw field value (potentially a `"$id"` flight reference or `"$$"` escaped string).
+     * @returns {*} The dereferenced string or original value.
+     */
+    static resolveFlightReference(flight, value) {
+        if (typeof value !== "string" || !value.startsWith("$")) {
+            return value;
+        }
+        if (value.startsWith("$$")) {
+            return value.substring(1);
+        }
+        let match = new RegExp("(^|\n)" + value.substring(1) + ":T([0-9a-f]+),").exec(flight);
+        if (match === null) {
+            return value;
+        }
+        let start = match.index + match[0].length;
+        let byteCount = parseInt(match[2], 16);
+        let end = start;
+        while ((0 < byteCount) && (end < flight.length)) {
+            let codePoint = flight.codePointAt(end);
+            byteCount -= (codePoint < 0x80) ? 1 : (codePoint < 0x800) ? 2 : (codePoint < 0x10000) ? 3 : 4;
+            end += (0xFFFF < codePoint) ? 2 : 1;
+        }
+        return flight.substring(start, end);
     }
 
     /**

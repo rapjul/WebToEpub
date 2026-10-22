@@ -67,27 +67,28 @@ class ReadRiftParser extends Parser {
          * ids we need to make an API request to get the chapter urls directly.
          */
         const urls = [];
+        if (!this.novelId) return urls;
 
-        if (!this.novelId) {
-            return urls;
-        }
+        let apiUrl = `https://readrift.net/api/v1/books/${this.novelId}/chapters/?limit=30&page=1`;
 
-        // Now we're getting the chapter ids directly from the api so we can
-        // populate the urls
-        let apiUrl =
-            "https://readrift.net/api/v1/books/" +
-            this.novelId +
-            "/chapters/?limit=10&page=1";
+        // Temporarily overwriting throttle for TOC requests. We are overwriting
+        // the `minimumThrottle` this way instead of using a sleep so that users
+        // can manually overwrite the delay if they want
+        const originalThrottle = this.minimumThrottle;
 
         while (apiUrl) {
             try {
                 apiUrl = await this.getChaptersFromApi(apiUrl, urls);
-                await util.sleep(300);
+                if (apiUrl) {
+                    this.minimumThrottle = 150 + Math.random() * 100;
+                    await this.rateLimitDelay(); // Handles the sleep logic for us
+                }
             } catch (err) {
-                apiUrl = null;
                 throw new Error(
                     `ReadRiftParser failed while scanning novel's chapters: ${err.message}`,
                 );
+            } finally {
+                this.minimumThrottle = originalThrottle; // Restoring throttle back to the original delay configured for chapter downloads
             }
         }
 
@@ -134,6 +135,10 @@ class ReadRiftParser extends Parser {
         }
         const chapterId = match[1];
 
+        // They changed the site to block the chapter until you watch an AD, but
+        // I figured out how to bypass
+        await this.bypassAd(chapterId);
+
         // I also found the chapter API so we can just directly request the content
         const apiUrl = `https://readrift.net/api/v1/books/chapter/${chapterId}/`;
 
@@ -145,6 +150,56 @@ class ReadRiftParser extends Parser {
         } catch (err) {
             throw new Error(
                 `ReadRiftParser aborted while fetching chapter: ${err.message}`,
+            );
+        }
+    }
+
+    /**
+     * Bypasses the chapter ad
+     *
+     * Interestingly enough, the way ReadRift implements their ad lock is
+     * by requesting a token using the user session id, then making a POST
+     * request with the token you receive to unlock the chapter for you.
+     * But while the video is around 30 seconds, the api lets you make the
+     * request instantly, allowing us to instantly bypass.
+     *
+     * @param {number} chapterId
+     @ @throws { Error } If either API request fails
+     */
+    async bypassAd(chapterId) {
+        const tokenPayload = await this.obtainAdToken(chapterId);
+        await this.bypassAdWithToken(tokenPayload);
+    }
+
+    async obtainAdToken(chapterId) {
+        const apiUrl = `https://readrift.net/api/v1/books/ad-reward/token/?chapter_no=${chapterId}`;
+
+        try {
+            const adTokenResponse = await HttpClient.fetchJson(apiUrl);
+            const tokenPayload = adTokenResponse.json;
+            return tokenPayload;
+        } catch (err) {
+            throw new Error(
+                `ReadRiftParser aborted while getting ad token: ${err.message}`,
+            );
+        }
+    }
+
+    async bypassAdWithToken(tokenPayload) {
+        const apiUrl = "https://readrift.net/api/v1/books/ad-reward/grant/";
+        const fetchOptions = {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(tokenPayload),
+        };
+
+        try {
+            await HttpClient.fetchJson(apiUrl, fetchOptions);
+        } catch (err) {
+            throw new Error(
+                `ReadRiftParser aborted while bypassing ad: ${err.message}`,
             );
         }
     }

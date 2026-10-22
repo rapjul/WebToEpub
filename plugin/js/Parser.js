@@ -1674,11 +1674,12 @@ class Parser {
      * @returns {number} The delay in milliseconds.
      */
     getRateLimit() {
-        const manualDelayPerChapterValue = (!Number.isNaN(parseInt(this.userPreferences.manualDelayPerChapter.value, 10)))
-            ? parseInt(this.userPreferences.manualDelayPerChapter.value, 10)
+        const rawManualDelay = this.userPreferences?.manualDelayPerChapter?.value;
+        const manualDelayPerChapterValue = (!Number.isNaN(parseInt(rawManualDelay, 10)))
+            ? parseInt(rawManualDelay, 10)
             : this.minimumThrottle;
 
-        const configured = this.userPreferences.overrideMinimumDelay.value
+        const configured = this.userPreferences?.overrideMinimumDelay?.value
             ? manualDelayPerChapterValue
             : Math.max(this.minimumThrottle, manualDelayPerChapterValue);
 

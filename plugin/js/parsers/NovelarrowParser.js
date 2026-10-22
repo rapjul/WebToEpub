@@ -52,40 +52,31 @@ class NovelarrowParser extends Parser { // eslint-disable-line no-unused-vars
         let title = this.contentHasTitle(content)
             ? ""
             : `<h1>${this.getChapterTitleFromHead(webPageDom)}</h1>`;
-        let doc = util.sanitize(`<div class='${Parser.WEB_TO_EPUB_CLASS_NAME}'>"${title}${content}</div>`);
+        let doc = util.sanitize(`<div class='${Parser.WEB_TO_EPUB_CLASS_NAME}'>${title}${content}</div>`);
         let node = doc.querySelector("."+Parser.WEB_TO_EPUB_CLASS_NAME);
         webPageDom.body.appendChild(node);
     }
 
     locateContent(webPageDom) {
-        let encoded = [...webPageDom.querySelectorAll("script")]
-            .filter(s => this.isContent(s))
-            .map(s => this.extractContentString(s.textContent))[0];
-        return encoded
-            ? this.cleanUnicode(encoded)
-            : "";
-    }
-
-    cleanUnicode(s) {
-        return s.replace(/\\u003c/g, "<")
-            .replace(/\\u003e/g, ">")
-            .replace(/\\"/g, "\"")
-            .replace(/\\n/g, "");
-    }
-
-    extractContentString(raw) {
-        let start = raw.indexOf("\"");
-        let end = raw.lastIndexOf("\"");
-        return raw.substring(start + 1, end);
-    }
-
-    isContent(script) {
-        let text = script.textContent;
-        if (text.includes("self.__next_f.push([1,")) {
-            let s = this.extractContentString(text);
-            return s.startsWith("\\u003c");
+        for (let script of webPageDom.querySelectorAll("script")) {
+            let text = script.textContent;
+            if (text.includes("self.__next_f.push([1,")) {
+                let start = text.indexOf("[");
+                let end = text.lastIndexOf("]");
+                try {
+                    let json = JSON.parse(text.substring(start, end + 1));
+                    if (Array.isArray(json) && json[0] === 1 && typeof json[1] === "string") {
+                        let content = json[1];
+                        if (content.startsWith("<")) {
+                            return content;
+                        }
+                    }
+                } catch {
+                    // ignore malformed JSON
+                }
+            }
         }
-        return false;
+        return "";
     }
 
     contentHasTitle(content) {

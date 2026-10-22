@@ -17,10 +17,11 @@ class WtrlabParser extends Parser {
     }
 
     async getChapterUrls(dom) {
-        let json = dom.querySelector("script#__NEXT_DATA__")?.textContent;
+        let tocHtml = (await HttpClient.wrapFetch(dom.baseURI)).responseXML;
+        let json = tocHtml.querySelector("script#__NEXT_DATA__")?.textContent;
         json = JSON.parse(json);
         this.magickey = json?.buildId;
-        let leaves = dom.baseURI.split("/");
+        let leaves = tocHtml.baseURI.split("/");
         let novelIndex = leaves.indexOf("novel");
         let language = leaves[novelIndex - 1];
         let id = leaves[novelIndex + 1];
@@ -71,7 +72,8 @@ class WtrlabParser extends Parser {
 
 
     async loadEpubMetaInfo(dom) {
-        let json = dom.querySelector("script#__NEXT_DATA__")?.textContent;
+        let tocHtml = (await HttpClient.wrapFetch(dom.baseURI)).responseXML;
+        let json = tocHtml.querySelector("script#__NEXT_DATA__")?.textContent;
         json = JSON.parse(json);
         this.img = json?.props.pageProps.serie.serie_data.data.image;
         return;
@@ -112,6 +114,18 @@ class WtrlabParser extends Parser {
         return [...dom.querySelectorAll("div#contents-tabpane-about")];
     }
 
+    extractAuthor(dom) {
+        let spans = [...dom.querySelectorAll("span")];
+        let authorSpan = spans.find(span => span.textContent.trim() === "Author");
+        if (authorSpan && authorSpan.nextElementSibling) {
+            let links = [...authorSpan.nextElementSibling.querySelectorAll("a")];
+            if (links.length > 0) {
+                return links.map(link => link.textContent.trim()).join(" - ");
+            }
+        }
+        return super.extractAuthor(dom);
+    }
+
     async fetchChapter(url) {
         let leaves = url.split("/");
         let novelIndex = leaves.indexOf("novel");
@@ -139,13 +153,15 @@ class WtrlabParser extends Parser {
             parser: this
         };
         let json = (await HttpClient.fetchJson(fetchUrl, options)).json;
-        return this.buildChapter(json, url);
+        let contentjson = (await HttpClient.fetchJson("https://wtr-lab.com"+json.content_url)).json;
+        return this.buildChapter(contentjson, url);
     }
+    
     isCustomError(response) {
         if (response.json?.code == "CHAPTER_LOCKED") {
             return true;
         }
-        if (response.json.data?.data?.body?false:true) {
+        if (response.json?.content_url?false:true) {
             return true;
         }
         if (response.json.requireTurnstile) {
@@ -204,7 +220,7 @@ class WtrlabParser extends Parser {
         let chapter = leaves[leaves.length - 1].replace("chapter-","");
         let newDoc = Parser.makeEmptyDocForContent(url);
         let title = newDoc.dom.createElement("h1");
-        title.textContent = ((document.getElementById("removeChapterNumberCheckbox").checked)?"":chapter+": ")+json.chapter.title;
+        title.textContent = this.replaceTextWithCustomTerms(json, ((document.getElementById("removeChapterNumberCheckbox").checked)?"":chapter+": ")+json.data.data.title);
         newDoc.content.appendChild(title);
         let br = newDoc.dom.createElement("br");
         let imagecounter = 0;
@@ -219,38 +235,7 @@ class WtrlabParser extends Parser {
                 newDoc.content.appendChild(imgnode);
             } else {
                 let pnode = newDoc.dom.createElement("p");
-                let newtext = element;
-                // replace chapter provided translation with story one
-                for (let i = 0; i < json?.data?.data?.glossary_data?.terms?.length??0; i++) {
-                    for (let term of this.termsstory) {
-                        if ((json.data.data.glossary_data.terms[i][1]??"") == term?.from) {
-                            json.data.data.glossary_data.terms[i][0] = term?.to;
-                        }
-                    }
-                }
-                // replace chapter provided translation with user one
-                for (let i = 0; i < json?.data?.data?.glossary_data?.terms?.length??0; i++) {
-                    for (let term of this.termsuser) {
-                        if ((json.data.data.glossary_data.terms[i][1]??"") == term?.from) {
-                            json.data.data.glossary_data.terms[i][0] = term?.to;
-                        }
-                    }
-                }
-                // replace with provided translation
-                for (let i = 0; i < json?.data?.data?.glossary_data?.terms?.length??0; i++) {
-                    let term = json.data.data.glossary_data.terms[i][0]??"※"+i+"⛬";
-                    newtext = newtext.replaceAll("※"+i+"⛬", term);
-                    newtext = newtext.replaceAll("※" + i + "〓", term);
-                }
-                // replace custom terms
-                for (let term of this.termsuser) {
-                    newtext = newtext.replaceAll(term?.from, term?.to);
-                }
-                // patch
-                // replace with provided chapter patch wtf?!? why are there so many different terms patches etc.?
-                for (let i = 0; i < json?.data?.data?.patch?.length??0; i++) {
-                    newtext = newtext.replaceAll(json?.data?.data?.patch[i].zh, " "+json?.data?.data?.patch[i].en);
-                }
+                let newtext = this.replaceTextWithCustomTerms(json, element);
                 pnode.textContent = newtext;
                 newDoc.content.appendChild(pnode);
             }
@@ -258,4 +243,41 @@ class WtrlabParser extends Parser {
         }
         return newDoc.dom;
     }
+
+    replaceTextWithCustomTerms(json, element) {
+        let newtext = element;
+        // replace chapter provided translation with story one
+        for (let i = 0; i < json?.data?.data?.glossary_data?.terms?.length??0; i++) {
+            for (let term of this.termsstory) {
+                if ((json.data.data.glossary_data.terms[i][1]??"") == term?.from) {
+                    json.data.data.glossary_data.terms[i][0] = term?.to;
+                }
+            }
+        }
+        // replace chapter provided translation with user one
+        for (let i = 0; i < json?.data?.data?.glossary_data?.terms?.length??0; i++) {
+            for (let term of this.termsuser) {
+                if ((json.data.data.glossary_data.terms[i][1]??"") == term?.from) {
+                    json.data.data.glossary_data.terms[i][0] = term?.to;
+                }
+            }
+        }
+        // replace with provided translation
+        for (let i = 0; i < json?.data?.data?.glossary_data?.terms?.length??0; i++) {
+            let term = json.data.data.glossary_data.terms[i][0]??"※"+i+"⛬";
+            newtext = newtext.replaceAll("※"+i+"⛬", term);
+            newtext = newtext.replaceAll("※" + i + "〓", term);
+        }
+        // replace custom terms
+        for (let term of this.termsuser) {
+            newtext = newtext.replaceAll(term?.from, term?.to);
+        }
+        // patch
+        // replace with provided chapter patch wtf?!? why are there so many different terms patches etc.?
+        for (let i = 0; i < json?.data?.data?.patch?.length??0; i++) {
+            newtext = newtext.replaceAll(json?.data?.data?.patch[i].zh, " "+json?.data?.data?.patch[i].en);
+        }
+        return newtext;
+    }
+
 }

@@ -65,7 +65,9 @@ QUnit.test("fetchExtraChapterContent", function (assert) {
         "uriStart": "https://s.wattpad.com/i",
         "uriEnd": ""
     };
-    new WattpadParser().fetchExtraChapterContent(extraUris).then(function(actual) {
+    let parser = new WattpadParser();
+    parser.minimumThrottle = 0;
+    parser.fetchExtraChapterContent(extraUris).then(function(actual) {
         assert.deepEqual(actual, watpaddExtraContent);
         done();
     });
