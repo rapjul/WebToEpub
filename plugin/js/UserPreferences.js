@@ -272,12 +272,16 @@ class UserPreferences { // eslint-disable-line no-unused-vars
         }
     }
 
+    /**
+     * Merge reading list entries from a deserialized JSON backup into the current ReadingList.
+     * @param {Object} json - Deserialized backup object containing ReadingList data.
+     */
     loadReadingListFromJson(json) {
         let val = json[ReadingList.storageName];
         if (val !== undefined) {
-            let serialized = JSON.stringify(val);
-            this.readingList = ReadingList.fromJson(serialized);
-            window.localStorage.setItem(ReadingList.storageName, serialized);
+            for (let i = 0; i < val.epubs.length; i++) {
+                this.readingList.setEpub(val.epubs[i].toc, val.epubs[i].lastUrl);
+            }
         }
     }
 
