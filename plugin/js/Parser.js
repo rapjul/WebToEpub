@@ -415,7 +415,7 @@ class Parser {
     removeUnwantedElementsFromContentElement(element) {
         util.removeScriptableElements(element);
         util.removeComments(element);
-        util.removeElements(element.querySelectorAll("noscript, input"));
+        util.removeElements(element.querySelectorAll("noscript, input, [aria-hidden=\"true\"]"));
         util.removeUnwantedWordpressElements(element);
         util.removeMicrosoftWordCrapElements(element);
         util.removeShareLinkElements(element);
@@ -887,7 +887,11 @@ class Parser {
         const bold = document.createElement("b");
         bold.textContent = UIText.Default.tableOfContentsUrl;
         urlElement.appendChild(bold);
-        urlElement.appendChild(document.createTextNode(this.state.chapterListUrl));
+        const link = document.createElement("a");
+        link.classList.add("webToEpub-table-of-content-url");
+        link.href = this.state.chapterListUrl;
+        link.textContent = this.state.chapterListUrl;
+        urlElement.appendChild(link);
         div.appendChild(urlElement);
         const infoDiv = document.createElement("div");
         this.populateInfoDiv(infoDiv, dom);
@@ -1090,7 +1094,7 @@ class Parser {
                 await Promise.all(group.map(async (webPage) => this.fetchWebPageContent(webPage)));
                 index += group.length;
                 group = this.groupPagesToFetch(pagesToFetch, index);
-                if (util.sleepController.signal.aborted) {
+                if (util.getSleepController().signal.aborted) {
                     break;
                 }
             }
@@ -1246,7 +1250,7 @@ class Parser {
     fixupHyperlinksInEpubItems(epubItems) {
         const targets = this.sourceUrlToEpubItemUrl(epubItems);
         for (const item of epubItems) {
-            for (const link of item.getHyperlinks().filter(this.isUnresolvedHyperlink)) {
+            for (const link of item.getHyperlinks().filter(this.isUnresolvedHyperlink).filter(link => !link.classList.contains("webToEpub-table-of-content-url"))) {
                 if (!this.hyperlinkToEpubItemUrl(link, targets)) {
                     this.makeHyperlinkAbsolute(link);
                 }

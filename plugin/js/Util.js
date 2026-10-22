@@ -23,13 +23,33 @@ const util = (function() {
      */
     function sleep(ms) {
         return new Promise(resolve => {
+            let timer;
+            /**
+             * Cleans up the timeout and abort listener before resolving the sleep promise.
+             *
+             * @returns {void}
+             */
             function finished() {
-                resolve();
+                clearTimeout(timer);
                 sleepController.signal.removeEventListener("abort", finished);
+                resolve();
             }
+            // to catch 403 etc. delayed requests
+            if (sleepController.signal.aborted) {
+                return finished();
+            }
+            timer = setTimeout(finished, ms);
             sleepController.signal.addEventListener("abort", finished);
-            setTimeout(finished, ms);
         });
+    }
+
+    /**
+     * Replaces the current `AbortController` instance used by `sleep()` with a fresh one.
+     *
+     * @returns {void}
+     */
+    function resetSleepController() {
+        sleepController = new AbortController;
     }
 
     function randomInteger(min, max) {
@@ -820,14 +840,18 @@ const util = (function() {
     }
 
     /**
-     * Retrieves the `src` of the first <img> within the first element matching the selector under the given DOM root.
+     * Retrieves the `src` of the first `<img>` matched directly by or nested within the first element matching the selector.
      *
      * @param {Document|Element} dom - The DOM root to search within.
-     * @param {string} selector - A CSS selector used to locate a parent element.
+     * @param {string} selector - A CSS selector used to locate an image or parent element.
      * @returns {string|null} The image `src` if found, otherwise `null`.
      */
     function getFirstImgSrc(dom, selector) {
-        return dom.querySelector(selector)?.querySelector("img")?.src ?? null;
+        var element = dom.querySelector(selector);
+        if (element && (element.tagName !== "IMG")) {
+            element = element.querySelector("img");
+        }
+        return element?.src ?? null;
     }
 
     function extractHashFromUri(uri) {
@@ -1844,7 +1868,8 @@ const util = (function() {
         BLOCK_ELEMENTS: BLOCK_ELEMENTS,
         HEADER_TAGS: HEADER_TAGS,
         sleep: sleep,
-        sleepController: sleepController,
+        getSleepController: () => sleepController,
+        resetSleepController: resetSleepController,
         randomInteger: randomInteger,
         isFirefox: isFirefox,
         extensionVersion: extensionVersion,

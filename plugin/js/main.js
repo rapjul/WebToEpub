@@ -625,6 +625,7 @@ var main = (function() {
     }
 
     async function fetchContentAndPackEpub() {
+        util.resetSleepController();
         let libclick = this;
         if (document.getElementById("noAdditionalMetadataCheckbox").checked == true) {
             setUiFieldToValue("subjectInput", "");
@@ -667,7 +668,7 @@ var main = (function() {
         let backgroundDownload = userPreferences.noDownloadPopup.value;
         try {
             let fileName = Download.CustomFilename();
-            if ("yes" == libclick.dataset.libclick || util.sleepController.signal.aborted) {
+            if ("yes" == libclick.dataset.libclick || util.getSleepController().signal.aborted) {
                 await library.LibAddToLibrary(content, fileName, document.getElementById("startingUrlInput").value, overwriteExisting, backgroundDownload);
             } else {
                 await Download.save(content, fileName, overwriteExisting, backgroundDownload);
@@ -677,8 +678,8 @@ var main = (function() {
         }
         try {
             parser.updateReadingList();
-            if (util.sleepController.signal.aborted) {
-                util.sleepController = new AbortController;
+            if (util.getSleepController().signal.aborted) {
+                util.resetSleepController();
                 resetUI();
             }
             if (libclick.dataset.libsuppressErrorLog == true) {
@@ -690,8 +691,8 @@ var main = (function() {
         } catch (err) {
             window.workInProgress = false;
             main.getPackEpubButton().disabled = false;
-            if (util.sleepController.signal.aborted) {
-                util.sleepController = new AbortController;
+            if (util.getSleepController().signal.aborted) {
+                util.resetSleepController();
             }
             replaceLibAddToLibrary();
             ErrorLog.showErrorMessage(err);
@@ -706,7 +707,7 @@ var main = (function() {
     }
 
     function pauseToLibrary() {
-        util.sleepController.abort();
+        util.getSleepController().abort();
     }
 
     function epubVersionFromPreferences() {
