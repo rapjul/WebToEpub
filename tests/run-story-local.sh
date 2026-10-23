@@ -160,7 +160,7 @@ has_firefox_profile_arg() {
 
 ensure_dev_firefox_profile() {
     mkdir -p "$default_firefox_profile"
-    cat > "$default_firefox_profile/user.js" <<'EOF'
+    cat > "$default_firefox_profile/prefs.js" <<'EOF'
 user_pref("browser.aboutwelcome.enabled", false);
 user_pref("browser.startup.homepage_override.mstone", "ignore");
 user_pref("startup.homepage_welcome_url", "about:blank");
@@ -169,7 +169,15 @@ user_pref("trailhead.firstrun.didSeeAboutWelcome", true);
 user_pref("browser.shell.checkDefaultBrowser", false);
 user_pref("browser.tabs.warnOnClose", false);
 user_pref("browser.newtabpage.enabled", false);
+user_pref("termsofuse.bypassNotification", true);
+user_pref("termsofuse.acceptedVersion", 999);
+user_pref("termsofuse.acceptedDate", "1792719283133");
+user_pref("browser.termsofuse.prefMigrationCheck", true);
+user_pref("datareporting.policy.dataSubmissionPolicyBypassNotification", true);
+user_pref("datareporting.policy.firstRunURL", "");
+user_pref("toolkit.telemetry.reportingpolicy.firstRun", false);
 EOF
+    cp "$default_firefox_profile/prefs.js" "$default_firefox_profile/user.js"
 }
 
 build_cmd() {
@@ -186,6 +194,11 @@ build_cmd() {
         --pref "devtools.console.stdout.content=true"
         --pref "browser.dom.window.dump.enabled=true"
         --pref "extensions.webextensions.warnings-as-errors=false"
+        --pref "termsofuse.bypassNotification=true"
+        --pref "browser.termsofuse.prefMigrationCheck=true"
+        --pref "datareporting.policy.dataSubmissionPolicyBypassNotification=true"
+        --pref "datareporting.policy.firstRunURL="
+        --pref "toolkit.telemetry.reportingpolicy.firstRun=false"
     )
 
     for url in "${story_urls[@]}"; do
