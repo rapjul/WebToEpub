@@ -90,6 +90,7 @@ class RoyalRoadParser extends Parser {
     preprocessRawDom(webPageDom) { 
         this.removeWatermarks(webPageDom);
         this.removeImgTagsWithNoSrc(webPageDom);
+        this.removeOrphanEpubImageArtifacts(webPageDom);
         this.tagAuthorNotesBySelector(webPageDom, "div.author-note-portlet");
         this.tagAuthorNotesBySelector(webPageDom, "div.author-note-card");
 
@@ -348,6 +349,49 @@ class RoyalRoadParser extends Parser {
             return ogImage;
         }
         return dom.querySelector("img.thumbnail, img[data-type='cover']")?.src ?? null;
+    }
+
+    /**
+     * Removes <img> elements and empty wrapping hyperlinks referencing local EPUB relative image paths
+     * (e.g. "../Images/0002_clear.png" or paths resolving to "/chapter/Images/"),
+     * which are artifacts left over from pasting chapter HTML from an EPUB editor.
+     *
+     * @param {Document|Element} webPageDom - The DOM document or root element to sanitize.
+     * @returns {void}
+     */
+    removeOrphanEpubImageArtifacts(webPageDom) {
+        const isEpubImageArtifact = (url) => {
+            if (util.isNullOrEmpty(url)) {
+                return false;
+            }
+            return /(?:^|\/)Images\/\d{4}_/i.test(url) ||
+                /\.\.\/Images\//i.test(url) ||
+                /\/chapter(?:\/\d+)?\/Images\//i.test(url);
+        };
+
+        const images = [...webPageDom.querySelectorAll("img")];
+        for (const img of images) {
+            const rawSrc = img.getAttribute("src") || "";
+            const resolvedSrc = img.src || "";
+            if (isEpubImageArtifact(rawSrc) || isEpubImageArtifact(resolvedSrc)) {
+                const parent = img.parentElement;
+                img.remove();
+                if ((parent != null) && (parent.tagName.toLowerCase() === "a") && (parent.children.length === 0) && util.isNullOrEmpty(parent.textContent)) {
+                    parent.remove();
+                }
+            }
+        }
+
+        const links = [...webPageDom.querySelectorAll("a")];
+        for (const link of links) {
+            const rawHref = link.getAttribute("href") || "";
+            const resolvedHref = link.href || "";
+            if (isEpubImageArtifact(rawHref) || isEpubImageArtifact(resolvedHref)) {
+                if ((link.children.length === 0) && util.isNullOrEmpty(link.textContent)) {
+                    link.remove();
+                }
+            }
+        }
     }
 
     removeImgTagsWithNoSrc(webPageDom) {
