@@ -52,7 +52,12 @@ class EpubItemSupplier { // eslint-disable-line no-unused-vars
         return util.xmlToString(doc);
     }
 
+    /**
+     * Determines whether a valid cover image is available to pack into the EPUB.
+     *
+     * @returns {boolean} `true` if cover image metadata exists and has not failed fetch; otherwise `false`.
+     */
     hasCoverImageFile() {
-        return (this.coverImageInfo != null);
+        return (this.coverImageInfo != null) && !this.coverImageInfo.failed;
     }
 }

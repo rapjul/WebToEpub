@@ -307,3 +307,55 @@ QUnit.test("findHighestResImage", function (assert) {
     let actual = new ImageCollector().findHighestResImage(img);
     assert.equal(actual, "https://i0.wp.com/graverobbertl.site/wp-content/uploads/2019/08/d9s1e0ybizb43otviytn8jqbjw2t_15g0_1f3_1z4_che9.jpg?w=1839&ssl=1");
 });
+
+QUnit.test("replaceTag removes wrapping element when imageInfo is null or failed", function (assert) {
+    let dom = new DOMParser().parseFromString(
+        "<div><p><span id=\"wrap1\"><img src=\"https://example.com/failed.png\"></span></p></div>",
+        "text/html"
+    );
+    let span = dom.getElementById("wrap1");
+    let replacer = new ImageTagReplacer(span, "https://example.com/failed.png", new UserPreferences());
+
+    // Case 1: imageInfo is null
+    replacer.replaceTag(null);
+    assert.equal(dom.getElementById("wrap1"), null, "wrapping element removed when imageInfo is null");
+
+    // Case 2: imageInfo has failed = true
+    let dom2 = new DOMParser().parseFromString(
+        "<div><p><span id=\"wrap2\"><img src=\"https://example.com/failed2.png\"></span></p></div>",
+        "text/html"
+    );
+    let span2 = dom2.getElementById("wrap2");
+    let replacer2 = new ImageTagReplacer(span2, "https://example.com/failed2.png", new UserPreferences());
+    let failedInfo = new ImageInfo("https://example.com/failed2.png", 0, "https://example.com/failed2.png");
+    failedInfo.failed = true;
+    replacer2.replaceTag(failedInfo);
+    assert.equal(dom2.getElementById("wrap2"), null, "wrapping element removed when imageInfo failed");
+});
+
+QUnit.test("imagesToPackInEpub excludes failed images", function (assert) {
+    let collector = new ImageCollector();
+    let validInfo = new ImageInfo("https://example.com/valid.png", 0, "https://example.com/valid.png");
+
+    let failedInfo = new ImageInfo("https://example.com/failed.png", 1, "https://example.com/failed.png");
+    failedInfo.failed = true;
+
+    collector.imagesToPack = [validInfo, failedInfo];
+
+    let toPack = collector.imagesToPackInEpub();
+    assert.equal(toPack.length, 1, "only 1 image returned");
+    assert.equal(toPack[0].wrappingUrl, "https://example.com/valid.png");
+});
+
+QUnit.test("hasCoverImageFile returns false when cover image failed", function (assert) {
+    let collector = new ImageCollector();
+    let coverInfo = new ImageInfo("https://example.com/cover.jpg", 0, "https://example.com/cover.jpg");
+    collector.coverImageInfo = coverInfo;
+    let supplier = new EpubItemSupplier(null, [], collector);
+
+    coverInfo.failed = true;
+    assert.notOk(supplier.hasCoverImageFile(), "returns false when failed is true");
+
+    coverInfo.failed = false;
+    assert.ok(supplier.hasCoverImageFile(), "returns true when not failed");
+});

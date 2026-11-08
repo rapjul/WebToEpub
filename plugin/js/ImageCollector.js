@@ -431,6 +431,16 @@ class ImageCollector {
         });
     }
 
+    /**
+     * Fetches an individual image, resolves redirects/pages, determines media type and dimensions,
+     * compresses the image if enabled, and adds it to the packing queue.
+     *
+     * @async
+     * @param {ImageInfo} imageInfo - The image metadata object containing fetch targets and state.
+     * @param {function(): void} progressIndicator - Callback invoked when the image has been successfully fetched.
+     * @param {string} parentPageUrl - The URL of the chapter page containing the image, used for error logging.
+     * @returns {Promise<void>} Resolves when the fetch attempt completes.
+     */
     async fetchImage(imageInfo, progressIndicator, parentPageUrl) {
         try
         {
@@ -451,8 +461,8 @@ class ImageCollector {
         }
         catch (error)
         {
-            // ToDo, implement error handler.
-            this.imagesToPack.push(imageInfo);
+            imageInfo.failed = true;
+            imageInfo.fetchError = error;
             ErrorLog.log(error);
         }
     }
@@ -518,8 +528,13 @@ class ImageCollector {
         return await this.findImageFileUrl(xhr, imageInfo, null);
     }
     
+    /**
+     * Returns the array of images that have been successfully fetched and verified to pack into the EPUB.
+     *
+     * @returns {ImageInfo[]} Valid image assets that did not fail fetch.
+     */
     imagesToPackInEpub() {
-        return this.imagesToPack;
+        return this.imagesToPack.filter(image => !image.failed);
     }
 
     /*
@@ -658,13 +673,19 @@ class ImageTagReplacer {
     }
 
     /**
-     * @param {imageInfo} imageInfo to use to construct replacement tag
+     * Replaces the image wrapping element with the processed EPUB image tag,
+     * or removes it if the image is a duplicate, failed to fetch, or unavailable.
+     *
+     * @param {ImageInfo|null} imageInfo - Metadata for the image used to construct the replacement tag.
+     * @returns {void}
      */
     replaceTag(imageInfo) {
         // replace tag with nested <img> tag, with new <img> tag
         let parent = this.wrappingElement.parentElement;
-        if ((imageInfo != null) && (parent != null)) {
-            if (this.isDuplicateImageToRemove(imageInfo)) {
+        if (parent != null) {
+            if ((imageInfo == null) || imageInfo.failed) {
+                this.wrappingElement.remove();
+            } else if (this.isDuplicateImageToRemove(imageInfo)) {
                 this.wrappingElement.remove();
             } else {
                 this.insertImageInLegalParent(parent, imageInfo);
