@@ -48,6 +48,31 @@ class FetchErrorHandler {
     }
 
     /**
+     * Resolves the active user preferences instance from wrapOptions, main, or global scope.
+     *
+     * @param {Object} [wrapOptions] - Optional fetch wrapper options containing a parser reference.
+     * @returns {UserPreferences|null} The resolved user preferences, or null if unavailable.
+     */
+    static getUserPreferences(wrapOptions) {
+        if (wrapOptions?.parser?.userPreferences) {
+            return wrapOptions.parser.userPreferences;
+        }
+        if ((typeof main !== "undefined") && (typeof main.getUserPreferences === "function")) {
+            let prefs = main.getUserPreferences();
+            if (prefs) {
+                return prefs;
+            }
+        }
+        if ((typeof userPreferences !== "undefined") && (userPreferences !== null)) {
+            return userPreferences;
+        }
+        if ((typeof window !== "undefined") && window.userPreferences) {
+            return window.userPreferences;
+        }
+        return null;
+    }
+
+    /**
      * Handles non-OK HTTP responses by scheduling automatic retries, prompting the user,
      * or rejecting with a formatted status error.
      *
@@ -69,13 +94,15 @@ class FetchErrorHandler {
         failError.status = response.status;
         failError.url = targetUrl;
 
-        // Track and enforce a hard limit of 5 retries
-        wrapOptions.retryCount = (wrapOptions.retryCount || 0) + 1;
-        if (wrapOptions.retryCount > 5) {
-            if (wrapOptions.retry?.promptUser) {
-                return this.promptUserForRetry(url, wrapOptions, response, failError);
+        // Track and enforce a hard limit of 5 retries when not in keepRetrying mode
+        if (!wrapOptions.retry?.keepRetrying) {
+            wrapOptions.retryCount = (wrapOptions.retryCount || 0) + 1;
+            if (wrapOptions.retryCount > 5) {
+                if (wrapOptions.retry?.promptUser) {
+                    return this.promptUserForRetry(url, wrapOptions, response, failError);
+                }
+                return Promise.reject(failError);
             }
-            return Promise.reject(failError);
         }
 
         let keepRetrying = wrapOptions.retry?.keepRetrying;
@@ -117,7 +144,7 @@ class FetchErrorHandler {
      */
     promptUserForRetry(url, wrapOptions, response, failError) {
         let msg;
-        let userPreferences = (typeof main !== "undefined") ? main.getUserPreferences() : null;
+        let userPreferences = FetchErrorHandler.getUserPreferences(wrapOptions);
         let host = FetchErrorHandler.getHostname(response?.url, url);
         if (wrapOptions.retry.HTTP === 403) {
             if (userPreferences?.noContentToError403?.value) {
@@ -141,6 +168,7 @@ class FetchErrorHandler {
             }
             msg.retryAction = () => {
                 wrapOptions.retryCount = 0;
+                wrapOptions.retry = undefined;
                 resolve(HttpClient.wrapFetchImpl(url, wrapOptions));
             };
             msg.cancelAction = () => reject(failError);
@@ -185,21 +213,24 @@ class FetchErrorHandler {
         let retryDelay = [120, 60, 30, 15];
         switch (response.status) {
             case 403: {
-                let autoRetry = (typeof userPreferences !== "undefined") && userPreferences?.autoRetryOn403?.value;
+                let userPreferences = FetchErrorHandler.getUserPreferences(wrapOptions);
+                let autoRetry = userPreferences?.autoRetryOn403?.value;
                 let delaySeconds = 5;
                 let storyUrl = wrapOptions?.storyUrl;
                 let host = FetchErrorHandler.getHostname(response?.url, storyUrl);
-                if ((typeof userPreferences !== "undefined") && userPreferences?.autoIncreaseDelayOn403?.value && !util.isNullOrEmpty(storyUrl) && (typeof Parser !== "undefined") && (Parser.additionalDelayByStory != null)) {
-                    let increment = parseInt(userPreferences.autoIncreaseDelayOn403Amount.value, 10);
+                let autoIncrease = userPreferences?.autoIncreaseDelayOn403?.value;
+                let toastMsg = UIText.Warning.warning403ErrorResponse(host);
+                if (autoIncrease && !util.isNullOrEmpty(storyUrl) && (typeof Parser !== "undefined") && (Parser.additionalDelayByStory != null)) {
+                    let increment = parseInt(userPreferences?.autoIncreaseDelayOn403Amount?.value, 10);
                     if (isNaN(increment) || increment < 0) {
                         increment = 1000;
                     }
                     let previous = Parser.additionalDelayByStory.get(storyUrl) || 0;
                     let updated = previous + increment;
                     Parser.additionalDelayByStory.set(storyUrl, updated);
-                    delaySeconds = updated / 1000;
+                    delaySeconds = Math.max(5, Math.ceil(updated / 1000));
                     return {
-                        retryDelay: [delaySeconds],
+                        retryDelay: [delaySeconds * 3, delaySeconds * 2, delaySeconds],
                         promptUser: !autoRetry,
                         HTTP: 403,
                         toastHost: host,
@@ -207,7 +238,7 @@ class FetchErrorHandler {
                         toastMessage: UIText.Warning.warning403AutoIncreaseDelayToast(host, updated, delaySeconds)
                     };
                 } else if (autoRetry) {
-                    let configured = parseInt(userPreferences.autoRetryOn403Delay.value, 10);
+                    let configured = parseInt(userPreferences?.autoRetryOn403Delay?.value, 10);
                     if (!isNaN(configured) && configured >= 0) {
                         delaySeconds = configured;
                     }
@@ -220,10 +251,9 @@ class FetchErrorHandler {
                         toastMessage: UIText.Warning.warning403AutoRetryToast(host, delaySeconds)
                     };
                 }
-                const toastMsg = UIText.Warning.warning403ErrorResponse(host);
                 return {
-                    retryDelay: [delaySeconds],
-                    promptUser: !autoRetry,
+                    retryDelay: [60, 30, 15, 5],
+                    promptUser: true,
                     HTTP: 403,
                     toastHost: host,
                     stallWarningMessage: UIText.Warning.warning403StalledRetry(host),
@@ -339,7 +369,7 @@ class FetchErrorHandler {
         };
 
         let startDismissTimer = () => {
-            let stickyToasts = (typeof userPreferences !== "undefined") && userPreferences?.toastMessagesRequireDismiss?.value;
+            let stickyToasts = FetchErrorHandler.getUserPreferences()?.toastMessagesRequireDismiss?.value;
             if (stickyToasts) {
                 return;
             }
@@ -474,7 +504,7 @@ class FetchErrorHandler {
         };
 
         let startDismissTimer = () => {
-            let stickyToasts = (typeof userPreferences !== "undefined") && userPreferences?.toastMessagesRequireDismiss?.value;
+            let stickyToasts = FetchErrorHandler.getUserPreferences()?.toastMessagesRequireDismiss?.value;
             if (stickyToasts) {
                 return;
             }
@@ -658,14 +688,19 @@ class HttpClient {
      * @returns {Promise<void>} Resolves when session rules have been updated.
      */
     static async setDeclarativeNetRequestRules(RulesArray) {
+        if (util.isFirefox() && (typeof Firefox !== "undefined") && (typeof Firefox.setModifyHeaderRules === "function")) {
+            Firefox.setModifyHeaderRules(RulesArray);
+        }
         if ((typeof chrome === "undefined") || !chrome?.runtime?.getURL || !chrome?.declarativeNetRequest?.updateSessionRules) {
             return;
         }
-        let url = chrome.runtime.getURL("").split("/").filter(a => a != "");
-        let id = url[url.length - 1];
-        for (let i = 0; i < RulesArray.length; i++) {
-            //limit rule to only webtoepub domain to prevent potiential security problems
-            RulesArray[i].condition.initiatorDomains = [id];
+        if (!util.isFirefox()) {
+            let url = chrome.runtime.getURL("").split("/").filter(a => a != "");
+            let id = url[url.length - 1];
+            for (let i = 0; i < RulesArray.length; i++) {
+                //limit rule to only webtoepub domain to prevent potiential security problems
+                RulesArray[i].condition.initiatorDomains = [id];
+            }
         }
         let oldRules = await chrome.declarativeNetRequest.getSessionRules();
         //In firefox i had declarativeNetRequest.getSessionRules() fail with undefined

@@ -108,11 +108,111 @@ QUnit.test("onResponseError_403_prompts_user_when_auto_retry_disabled", function
     let wrapOptions = createDummyFetchErrorHandler(response);
     let handler = wrapOptions.errorHandler;
     handler.onResponseError(response.url, wrapOptions, response).catch(function() {
-        assert.equal(handler.count, 1, "performs one initial automatic retry");
+        assert.equal(handler.count, 4, "performs progressive backoff retries before prompting");
         assert.equal(handler.prompted, true, "prompts the user once the retry queue drains");
         window.userPreferences = previousPrefs;
         done();
     });
+});
+
+QUnit.test("getUserPreferences_resolves_from_parser_or_main_or_global", function (assert) {
+    let parserPrefs = { id: "parser" };
+    let mainPrefs = { id: "main" };
+    let globalPrefs = { id: "global" };
+
+    let wrapOptionsWithParser = { parser: { userPreferences: parserPrefs } };
+    assert.equal(FetchErrorHandler.getUserPreferences(wrapOptionsWithParser), parserPrefs, "resolves from parser options");
+
+    let prevMain = window.main;
+    let prevGlobal = window.userPreferences;
+    window.main = { getUserPreferences: () => mainPrefs };
+    delete window.userPreferences;
+    assert.equal(FetchErrorHandler.getUserPreferences({}), mainPrefs, "resolves from main.getUserPreferences");
+
+    delete window.main;
+    window.userPreferences = globalPrefs;
+    assert.equal(FetchErrorHandler.getUserPreferences({}), globalPrefs, "resolves from global userPreferences");
+
+    window.main = prevMain;
+    window.userPreferences = prevGlobal;
+});
+
+QUnit.test("promptUserForRetry_retryAction_resets_retry_object", function (assert) {
+    let handler = new FetchErrorHandler();
+    let wrapOptions = {
+        retry: { HTTP: 403, retryDelay: [] },
+        retryCount: 4
+    };
+    let response = { status: 403, url: "https://www.royalroad.com/fiction/159064/chapter/1" };
+    let failError = new Error("failed");
+    let showedMessage = null;
+    let prevShowErrorMessage = ErrorLog.showErrorMessage;
+    ErrorLog.showErrorMessage = (msg) => { showedMessage = msg; };
+
+    handler.promptUserForRetry(response.url, wrapOptions, response, failError);
+    assert.ok(showedMessage != null, "displayed error prompt message");
+    assert.equal(typeof showedMessage.retryAction, "function", "attached retryAction handler");
+
+    showedMessage.retryAction();
+    assert.equal(wrapOptions.retryCount, 0, "reset retryCount on retry action");
+    assert.equal(wrapOptions.retry, undefined, "reset retry state so fresh retries can be scheduled");
+
+    ErrorLog.showErrorMessage = prevShowErrorMessage;
+});
+
+QUnit.test("keepRetrying_continues_past_five_retries", function (assert) {
+    let done = assert.async();
+    let response = { status: 403, url: "https://www.royalroad.com/fiction/159064/chapter/1" };
+    let wrapOptions = createDummyFetchErrorHandler(response);
+    wrapOptions.retryCount = 6;
+    wrapOptions.retry = {
+        keepRetrying: true,
+        retryDelay: [0]
+    };
+    let handler = wrapOptions.errorHandler;
+    handler.retryFetch = function(url, retryWrapOptions) {
+        assert.equal(retryWrapOptions.retry.keepRetrying, true, "kept retrying despite retryCount > 5");
+        return Promise.reject(new Error("stop"));
+    };
+    handler.onResponseError(response.url, wrapOptions, response).catch(function() {
+        assert.equal(handler.prompted, false, "did not prompt or fail fast when keepRetrying was active");
+        done();
+    });
+});
+
+QUnit.test("Firefox_filterHeaders_applies_active_rules", function (assert) {
+    let prevRules = Firefox.activeRules;
+    Firefox.setModifyHeaderRules([
+        {
+            id: 1,
+            action: {
+                type: "modifyHeaders",
+                requestHeaders: [
+                    { header: "referer", operation: "set", value: "https://www.royalroad.com/fiction/159064" },
+                    { header: "origin", operation: "remove" }
+                ]
+            },
+            condition: {
+                urlFilter: "royalroad.com"
+            }
+        }
+    ]);
+
+    let event = {
+        url: "https://www.royalroad.com/fiction/159064/chapter/1",
+        requestHeaders: [
+            { name: "Origin", value: "moz-extension://dummy-id" },
+            { name: "User-Agent", value: "TestAgent" }
+        ]
+    };
+    let filtered = Firefox.filterHeaders(event);
+    let names = filtered.requestHeaders.map(h => h.name.toLowerCase());
+    let referer = filtered.requestHeaders.find(h => h.name.toLowerCase() === "referer");
+
+    assert.ok(!names.includes("origin"), "origin header is removed");
+    assert.equal(referer?.value, "https://www.royalroad.com/fiction/159064", "referer header is set from rule");
+
+    Firefox.setModifyHeaderRules(prevRules);
 });
 
 QUnit.test("wrapFetchImpl_403_rejection_does_not_recursively_wrap_error_message", function (assert) {
