@@ -122,3 +122,17 @@ QUnit.test("fetchChapter updates previousChapterUrl for Referer chaining", async
     HttpClient.setDeclarativeNetRequestRules = prevSetRules;
     HttpClient.wrapFetch = prevWrapFetch;
 });
+
+QUnit.test("makeFetchRules sets referer and removes origin without spoofing sec-fetch headers", function (assert) {
+    let rules = RoyalRoadParser.makeFetchRules("https://www.royalroad.com/fiction/159064/slug");
+    assert.equal(rules.length, 1, "generates one rule");
+    let actionHeaders = rules[0].action.requestHeaders;
+    let headersMap = new Map(actionHeaders.map(h => [h.header.toLowerCase(), h]));
+
+    assert.equal(headersMap.get("origin")?.operation, "remove", "origin header removed");
+    assert.equal(headersMap.get("referer")?.operation, "set", "referer header set");
+    assert.equal(headersMap.get("referer")?.value, "https://www.royalroad.com/fiction/159064/slug", "referer value matches");
+    assert.notOk(headersMap.has("sec-fetch-dest"), "does not spoof sec-fetch-dest");
+    assert.notOk(headersMap.has("sec-fetch-mode"), "does not spoof sec-fetch-mode");
+    assert.notOk(headersMap.has("sec-fetch-site"), "does not spoof sec-fetch-site");
+});

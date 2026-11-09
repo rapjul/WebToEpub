@@ -87,7 +87,7 @@ class RoyalRoadParser extends Parser {
 
     /**
      * Builds `declarativeNetRequest` session rules for `royalroad.com` so extension-initiated
-     * `fetch` calls omit the extension `Origin` header and include a valid `Referer` and navigation `Sec-Fetch-*` headers.
+     * `fetch` calls omit the extension `Origin` header and include a valid `Referer` header.
      *
      * @param {string} [referer] - The referer URL to attach to requests.
      * @returns {Array<Object>} Session rule definitions for `HttpClient.setDeclarativeNetRequestRules`.
@@ -115,21 +115,6 @@ class RoyalRoadParser extends Parser {
                             header: "referer",
                             operation: "set",
                             value: fallbackReferer
-                        },
-                        {
-                            header: "sec-fetch-dest",
-                            operation: "set",
-                            value: "document"
-                        },
-                        {
-                            header: "sec-fetch-mode",
-                            operation: "set",
-                            value: "navigate"
-                        },
-                        {
-                            header: "sec-fetch-site",
-                            operation: "set",
-                            value: "same-origin"
                         }
                     ]
                 },
