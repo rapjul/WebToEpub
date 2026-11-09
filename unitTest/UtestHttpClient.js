@@ -3,6 +3,8 @@
 
 module("HttpClient");
 
+const realWrapFetchImpl = HttpClient.wrapFetchImpl;
+
 QUnit.test("charsetFromHeaders", function (assert) {
     let evaluate = (val) => {
         let mockHeader = { get: () => val };
@@ -93,5 +95,68 @@ QUnit.test("onResponseError_403_keep_retrying_retries_without_prompting", functi
         assert.equal(handler.count, 1);
         assert.equal(handler.prompted, false);
         done();
+    });
+});
+
+QUnit.test("onResponseError_403_prompts_user_when_auto_retry_disabled", function (assert) {
+    let done = assert.async();
+    let previousPrefs = window.userPreferences;
+    window.userPreferences = {
+        autoRetryOn403: {value: false}
+    };
+    let response = {status: 403, url: "https://www.royalroad.com/fiction/159064/chapter/3191775"};
+    let wrapOptions = createDummyFetchErrorHandler(response);
+    let handler = wrapOptions.errorHandler;
+    handler.onResponseError(response.url, wrapOptions, response).catch(function() {
+        assert.equal(handler.count, 1, "performs one initial automatic retry");
+        assert.equal(handler.prompted, true, "prompts the user once the retry queue drains");
+        window.userPreferences = previousPrefs;
+        done();
+    });
+});
+
+QUnit.test("wrapFetchImpl_403_rejection_does_not_recursively_wrap_error_message", function (assert) {
+    let done = assert.async();
+    let previousWrapFetchImpl = HttpClient.wrapFetchImpl;
+    let previousFetch = window.fetch;
+    let previousSleep = util.sleep;
+    let previousPrefs = window.userPreferences;
+    let testUrl = "https://www.royalroad.com/fiction/159064/chapter/3191775";
+
+    HttpClient.wrapFetchImpl = realWrapFetchImpl;
+    window.userPreferences = {
+        autoRetryOn403: {value: true},
+        autoRetryOn403Delay: {value: "0"}
+    };
+    util.sleep = () => Promise.resolve();
+    window.fetch = () => Promise.resolve({
+        ok: false,
+        status: 403,
+        url: testUrl
+    });
+
+    let errorHandler = new FetchErrorHandler();
+    errorHandler.makeFailMessage = (url, error) => `Fetch of URL '${url}' failed with network error ${error}.`;
+    let wrapOptions = {
+        errorHandler: errorHandler,
+        responseHandler: new FetchTextResponseHandler()
+    };
+
+    let cleanup = () => {
+        HttpClient.wrapFetchImpl = previousWrapFetchImpl;
+        window.fetch = previousFetch;
+        util.sleep = previousSleep;
+        window.userPreferences = previousPrefs;
+        done();
+    };
+
+    HttpClient.wrapFetchImpl(testUrl, wrapOptions).then(function() {
+        assert.ok(false, "expected wrapFetchImpl to reject on HTTP 403");
+        cleanup();
+    }).catch(function(error) {
+        let occurrences = (error.message.match(/failed with network error/g) || []).length;
+        assert.equal(occurrences, 1, "error message is formatted once without recursive wrapping");
+        assert.equal(error.status, 403, "HTTP 403 status is preserved on the rejected error");
+        cleanup();
     });
 });

@@ -28,39 +28,70 @@ class FetchErrorHandler {
         return Promise.reject(new Error(this.makeFailMessage(url, error.message)));
     }
 
+    /**
+     * Safely extracts the hostname from the first valid URL candidate.
+     *
+     * @param {...(string|null|undefined)} candidates - Candidate URL strings to parse.
+     * @returns {string} The parsed hostname, or `"unknown"` if no valid URL is provided.
+     */
+    static getHostname(...candidates) {
+        for (const candidate of candidates) {
+            if (!util.isNullOrEmpty(candidate)) {
+                try {
+                    return new URL(candidate).hostname;
+                } catch {
+                    // try next candidate
+                }
+            }
+        }
+        return "unknown";
+    }
+
+    /**
+     * Handles non-OK HTTP responses by scheduling automatic retries, prompting the user,
+     * or rejecting with a formatted status error.
+     *
+     * @param {string} url - The originally requested URL.
+     * @param {Object} wrapOptions - Fetch wrapper options and retry state.
+     * @param {Response|{status: number, url?: string, retryDelay?: number[]}} response - The HTTP response object.
+     * @param {string} [errorMessage] - Optional custom error message override.
+     * @returns {Promise<*>} Resolves with a retried fetch result or rejects on terminal failure.
+     */
     onResponseError(url, wrapOptions, response, errorMessage) {
         let failError;
+        let targetUrl = response?.url || url;
         if (errorMessage) {
             failError = new Error(errorMessage);
         } else {
-            failError = new Error(this.makeFailMessage(response.url, response.status));
+            failError = new Error(this.makeFailMessage(targetUrl, response.status));
         }
         // keep HTTP status visible for caller logic (403, etc.)
         failError.status = response.status;
-        failError.url = response.url;
+        failError.url = targetUrl;
 
         // Track and enforce a hard limit of 5 retries
         wrapOptions.retryCount = (wrapOptions.retryCount || 0) + 1;
         if (wrapOptions.retryCount > 5) {
+            if (wrapOptions.retry?.promptUser) {
+                return this.promptUserForRetry(url, wrapOptions, response, failError);
+            }
             return Promise.reject(failError);
         }
 
         let keepRetrying = wrapOptions.retry?.keepRetrying;
-        let retry = FetchErrorHandler.getAutomaticRetryBehaviourForStatus(response, wrapOptions);
-        if (retry.retryDelay.length === 0) {
-            return Promise.reject(failError);
-        }
-
         if (wrapOptions.retry === undefined) {
+            let retry = FetchErrorHandler.getAutomaticRetryBehaviourForStatus(response, wrapOptions);
+            if (retry.retryDelay.length === 0) {
+                return Promise.reject(failError);
+            }
             wrapOptions.retry = retry;
             return this.retryFetch(url, wrapOptions);
         }
 
-        if (keepRetrying) {
-            retry.keepRetrying = true;
-        }
-        wrapOptions.retry = retry;
         if (keepRetrying && response.status === 403) {
+            let retry = FetchErrorHandler.getAutomaticRetryBehaviourForStatus(response, wrapOptions);
+            retry.keepRetrying = true;
+            wrapOptions.retry = retry;
             return this.retryFetch(url, wrapOptions);
         }
 
@@ -75,14 +106,24 @@ class FetchErrorHandler {
         }
     }
 
+    /**
+     * Prompts the user with retry, keep-retrying, open-URL, or cancel actions when automatic retries are exhausted.
+     *
+     * @param {string} url - The originally requested URL.
+     * @param {Object} wrapOptions - Fetch wrapper options and retry state.
+     * @param {Response|{status: number, url?: string}} response - The HTTP response object.
+     * @param {Error} failError - The terminal error to reject with if the user cancels.
+     * @returns {Promise<*>} Resolves if the user retries and succeeds, or rejects if cancelled.
+     */
     promptUserForRetry(url, wrapOptions, response, failError) {
         let msg;
         let userPreferences = (typeof main !== "undefined") ? main.getUserPreferences() : null;
+        let host = FetchErrorHandler.getHostname(response?.url, url);
         if (wrapOptions.retry.HTTP === 403) {
             if (userPreferences?.noContentToError403?.value) {
-                msg = new Error(UIText.Warning.warningNoContentTo403ErrorResponse(new URL(response.url).hostname) + this.makeFailCanRetryMessage(url, response.status));
+                msg = new Error(UIText.Warning.warningNoContentTo403ErrorResponse(host) + this.makeFailCanRetryMessage(url, response.status));
             } else {
-                msg = new Error(UIText.Warning.warning403ErrorResponse(new URL(response.url).hostname) + this.makeFailCanRetryMessage(url, response.status));
+                msg = new Error(UIText.Warning.warning403ErrorResponse(host) + this.makeFailCanRetryMessage(url, response.status));
             }
         } else {
             msg = new Error(new Error(this.makeFailCanRetryMessage(url, response.status)));
@@ -90,20 +131,31 @@ class FetchErrorHandler {
         let cancelLabel = this.getCancelButtonText();
         return new Promise((resolve, reject) => {
             if (wrapOptions.retry.HTTP === 403) {
-                msg.openurl = response.url;
+                msg.openurl = response?.url || url;
                 msg.blockurl = url;
                 msg.keepRetryingAction = () => {
+                    wrapOptions.retryCount = 0;
                     wrapOptions.retry.keepRetrying = true;
                     resolve(HttpClient.wrapFetchImpl(url, wrapOptions));
                 };
             }
-            msg.retryAction = () => resolve(HttpClient.wrapFetchImpl(url, wrapOptions));
+            msg.retryAction = () => {
+                wrapOptions.retryCount = 0;
+                resolve(HttpClient.wrapFetchImpl(url, wrapOptions));
+            };
             msg.cancelAction = () => reject(failError);
             msg.cancelLabel = cancelLabel;
             ErrorLog.showErrorMessage(msg);
         });
     }
 
+    /**
+     * Waits for the next scheduled delay in `wrapOptions.retry.retryDelay` and re-invokes `HttpClient.wrapFetchImpl`.
+     *
+     * @param {string} url - The URL to retry fetching.
+     * @param {Object} wrapOptions - Fetch wrapper options containing retry delay state.
+     * @returns {Promise<*>} The result of the retried fetch call.
+     */
     async retryFetch(url, wrapOptions) {
         let delaySeconds = wrapOptions.retry.retryDelay.pop();
         if (wrapOptions.retry?.toastMessage) {
@@ -121,6 +173,13 @@ class FetchErrorHandler {
         return HttpClient.wrapFetchImpl(url, wrapOptions);
     }
 
+    /**
+     * Determines the automatic retry delays and user-prompting behavior for a given HTTP response status.
+     *
+     * @param {Response|{status: number, url?: string, retryDelay?: number[]}} response - The HTTP response object.
+     * @param {Object} [wrapOptions] - Optional fetch wrapper options containing `storyUrl`.
+     * @returns {{retryDelay: number[], promptUser: boolean, HTTP?: number, toastHost?: string, stallWarningMessage?: string, toastMessage?: string}} Retry configuration object.
+     */
     static getAutomaticRetryBehaviourForStatus(response, wrapOptions) {
         // seconds to wait before each retry (note: order is reversed)
         let retryDelay = [120, 60, 30, 15];
@@ -129,7 +188,7 @@ class FetchErrorHandler {
                 let autoRetry = (typeof userPreferences !== "undefined") && userPreferences?.autoRetryOn403?.value;
                 let delaySeconds = 5;
                 let storyUrl = wrapOptions?.storyUrl;
-                let host = new URL(response.url).hostname;
+                let host = FetchErrorHandler.getHostname(response?.url, storyUrl);
                 if ((typeof userPreferences !== "undefined") && userPreferences?.autoIncreaseDelayOn403?.value && !util.isNullOrEmpty(storyUrl) && (typeof Parser !== "undefined") && (Parser.additionalDelayByStory != null)) {
                     let increment = parseInt(userPreferences.autoIncreaseDelayOn403Amount.value, 10);
                     if (isNaN(increment) || increment < 0) {
@@ -506,13 +565,32 @@ class HttpClient {
         return HttpClient.wrapFetchImpl(url, wrapOptions);
     }
 
-    static fetchText(url) {
+    /**
+     * Fetches a URL and decodes the response body as plain text.
+     *
+     * @param {string} url - The URL to fetch.
+     * @param {Object} [fetchOptions] - Optional fetch options (may include a `parser` reference for custom error handling).
+     * @returns {Promise<string>} Resolves with the decoded text content.
+     */
+    static fetchText(url, fetchOptions) {
+        let parser = fetchOptions?.parser;
+        delete fetchOptions?.parser;
         let wrapOptions = {
             responseHandler: new FetchTextResponseHandler(),
+            fetchOptions: fetchOptions,
+            parser: parser
         };
         return HttpClient.wrapFetchImpl(url, wrapOptions);
     }
 
+    /**
+     * Executes a wrapped `fetch` call with partitioned cookie synchronization, blocked-site checks,
+     * and response error/retry handling.
+     *
+     * @param {string} url - The URL to fetch.
+     * @param {Object} wrapOptions - Options containing `responseHandler`, `errorHandler`, `fetchOptions`, and optional `parser`.
+     * @returns {Promise<*>} Resolves with the extracted response data or rejects on failure.
+     */
     static async wrapFetchImpl(url, wrapOptions) {
         let hostname = new URL(url).hostname;
         if (HttpClient.blockedSites.has(hostname)) {
@@ -523,36 +601,46 @@ class HttpClient {
             let skipurlerror = new Error("!Blocked! URL skipped because the user blocked the site");
             return wrapOptions.errorHandler.onFetchError(url, skipurlerror);
         }
-        await HttpClient.setPartitionCookies(url);
         if (wrapOptions.fetchOptions == null) {
             wrapOptions.fetchOptions = HttpClient.makeOptions();
         }
         if (wrapOptions.errorHandler == null) {
             wrapOptions.errorHandler = new FetchErrorHandler();
         }
+        let response;
         try
         {
-            let response = await fetch(url, wrapOptions.fetchOptions);
-            if (!util.isNullOrEmpty(wrapOptions.storyUrl)) {
-                FetchErrorHandler.clearStalled403Warning(wrapOptions.storyUrl);
-            }
-            let ret = await HttpClient.checkResponseAndGetData(url, wrapOptions, response);
-            if (wrapOptions.parser?.isNoContentToError403AndContentNull(ret)) {
-                let CustomNoContentToError403Response = wrapOptions.parser.setNoContentToError403Response(url, wrapOptions, ret);
-                return wrapOptions.errorHandler.onResponseError(CustomNoContentToError403Response.url, CustomNoContentToError403Response.wrapOptions, CustomNoContentToError403Response.response, CustomNoContentToError403Response.errorMessage);
-            }
-            if (wrapOptions.parser?.isCustomError(ret)) {
-                let CustomErrorResponse = wrapOptions.parser.setCustomErrorResponse(url, wrapOptions, ret);
-                return wrapOptions.errorHandler.onResponseError(CustomErrorResponse.url, CustomErrorResponse.wrapOptions, CustomErrorResponse.response, CustomErrorResponse.errorMessage);
-            }
-            return ret;
+            await HttpClient.setPartitionCookies(url);
+            response = await fetch(url, wrapOptions.fetchOptions);
+            await HttpClient.unsetPartitionCookies(url);
         }
         catch (error)
         {
             return wrapOptions.errorHandler.onFetchError(url, error);
         }
+        if (!util.isNullOrEmpty(wrapOptions.storyUrl)) {
+            FetchErrorHandler.clearStalled403Warning(wrapOptions.storyUrl);
+        }
+        let ret = await HttpClient.checkResponseAndGetData(url, wrapOptions, response);
+        if (wrapOptions.parser?.isNoContentToError403AndContentNull(ret)) {
+            let CustomNoContentToError403Response = wrapOptions.parser.setNoContentToError403Response(url, wrapOptions, ret);
+            return wrapOptions.errorHandler.onResponseError(CustomNoContentToError403Response.url, CustomNoContentToError403Response.wrapOptions, CustomNoContentToError403Response.response, CustomNoContentToError403Response.errorMessage);
+        }
+        if (wrapOptions.parser?.isCustomError(ret)) {
+            let CustomErrorResponse = wrapOptions.parser.setCustomErrorResponse(url, wrapOptions, ret);
+            return wrapOptions.errorHandler.onResponseError(CustomErrorResponse.url, CustomErrorResponse.wrapOptions, CustomErrorResponse.response, CustomErrorResponse.errorMessage);
+        }
+        return ret;
     }
 
+    /**
+     * Checks whether the HTTP response succeeded and extracts its content, or delegates to `onResponseError`.
+     *
+     * @param {string} url - The requested URL.
+     * @param {Object} wrapOptions - Fetch wrapper options.
+     * @param {Response} response - The raw `fetch` response object.
+     * @returns {Promise<*>} Extracted content or retry/error handler result.
+     */
     static checkResponseAndGetData(url, wrapOptions, response) {
         if (!response.ok) {
             return wrapOptions.errorHandler.onResponseError(url, wrapOptions, response);
@@ -563,7 +651,16 @@ class HttpClient {
         }
     }
 
+    /**
+     * Replaces active `declarativeNetRequest` session rules, scoping `initiatorDomains` to this extension.
+     *
+     * @param {Array<Object>} RulesArray - Array of `declarativeNetRequest` rule definitions.
+     * @returns {Promise<void>} Resolves when session rules have been updated.
+     */
     static async setDeclarativeNetRequestRules(RulesArray) {
+        if ((typeof chrome === "undefined") || !chrome?.runtime?.getURL || !chrome?.declarativeNetRequest?.updateSessionRules) {
+            return;
+        }
         let url = chrome.runtime.getURL("").split("/").filter(a => a != "");
         let id = url[url.length - 1];
         for (let i = 0; i < RulesArray.length; i++) {
@@ -609,19 +706,22 @@ class HttpClient {
             let cookies = partitionedCookies.filter(item => item.partitionKey != undefined);
             for (const element of cookies) {
                 const cleanDomain = element.domain.startsWith(".") ? element.domain.substring(1) : element.domain;
+                const cookieDetails = {
+                    url: `https://${cleanDomain}${element.path}`,
+                    name: element.name,
+                    value: element.value,
+                    path: element.path,
+                    secure: element.secure,
+                    httpOnly: element.httpOnly,
+                    sameSite: element.sameSite,
+                    expirationDate: element.expirationDate,
+                    storeId: element.storeId
+                };
+                if (!element.hostOnly && !element.name.startsWith("__Host-")) {
+                    cookieDetails.domain = element.domain;
+                }
                 try {
-                    await cookieApi.set({
-                        url: `https://${cleanDomain}${element.path}`,
-                        domain: element.domain,
-                        name: element.name,
-                        value: element.value,
-                        path: element.path,
-                        secure: element.secure,
-                        httpOnly: element.httpOnly,
-                        sameSite: element.sameSite,
-                        expirationDate: element.expirationDate,
-                        storeId: element.storeId
-                    });
+                    await cookieApi.set(cookieDetails);
                 } catch (cookieError) {
                     console.error(`[WebToEpub] Failed to set cookie ${element.name}:`, cookieError);
                 }
@@ -629,6 +729,39 @@ class HttpClient {
         } catch (err) {
             // Probably running browser that doesn't support partitionKey, e.g. Kiwi
             console.log("failed to set cookie", err);
+        }
+    }
+
+    /**
+     * Removes temporary unpartitioned copies of partitioned cookies after a `fetch` request completes
+     * to prevent stale challenge cookies (e.g. Anubis or Cloudflare) from causing infinite loops.
+     *
+     * @param {string} url - The URL of the completed request.
+     * @returns {Promise<void>} Resolves when temporary unpartitioned cookies have been removed.
+     */
+    static async unsetPartitionCookies(url) {
+        let parsedUrl = new URL(url);
+        try {
+            let urlparts = parsedUrl.hostname.split(".");
+            let domain = urlparts[urlparts.length - 2] + "." + urlparts[urlparts.length - 1];
+            let cookieApi = util.isFirefox() ? browser.cookies : chrome.cookies;
+            let partitionedCookies = await cookieApi.getAll({domain: domain, partitionKey: {}});
+            let cookies = partitionedCookies.filter(item => item.partitionKey != undefined);
+            for (const element of cookies) {
+                const cleanDomain = element.domain.startsWith(".") ? element.domain.substring(1) : element.domain;
+                try {
+                    await cookieApi.remove({
+                        name: element.name,
+                        url: `https://${cleanDomain}${element.path}`,
+                        storeId: element.storeId
+                    });
+                } catch (cookieError) {
+                    console.error(`[WebToEpub] Failed to unset cookie ${element.name}:`, cookieError);
+                }
+            }
+        } catch (err) {
+            // Probably running browser that doesn't support partitionKey, e.g. Kiwi
+            console.log("failed to unset cookie", err);
         }
     }
 
