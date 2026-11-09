@@ -7,10 +7,21 @@ parserFactory.register("royalroadl.com", () => new RoyalRoadParser());
 parserFactory.register("royalroad.com", () => new RoyalRoadParser());
 
 class RoyalRoadParser extends Parser {
+    /**
+     * Creates a new `RoyalRoadParser` instance with a 1500 ms minimum throttle.
+     */
     constructor() {
         super();
+        this.minimumThrottle = 1500;
     }
 
+    /**
+     * Fetches the full chapter list from the fiction index page, configuring navigation headers
+     * and extracting embedded `window.chapters` JSON or fallback table links.
+     *
+     * @param {Document} dom - The initial page DOM.
+     * @returns {Promise<Array<{sourceUrl: string, title: string, newArc: string|null}>>} Ordered chapter list.
+     */
     async getChapterUrls(dom) {
         // Page in browser has links reduced to "Number of links to show"
         // Fetch new page to get all chapter links.
@@ -21,20 +32,101 @@ class RoyalRoadParser extends Parser {
         // variant is the full chapter list embedded as a `window.chapters = [...]`
         // JSON array (each entry has id/title/slug/url). Parse that first
         // (redesign-proof); fall back to scraping the old table for legacy pages.
-        let tocHtml = await HttpClient.fetchText(dom.baseURI);
+        let tocUrl = RoyalRoadParser.fictionUrl(dom.baseURI);
+        this.tocUrl = tocUrl;
+        await HttpClient.setDeclarativeNetRequestRules(
+            RoyalRoadParser.makeFetchRules(tocUrl)
+        );
+        let options = {
+            parser: this
+        };
+        let tocHtml = await HttpClient.fetchText(tocUrl, options);
         let tocDoc = new DOMParser().parseFromString(tocHtml, "text/html");
+        util.setBaseTag(tocUrl, tocDoc);
         // Capture book metadata (description + genres) from the raw page now — the DOM
         // the parser later sees has its <script> tags stripped and, on the redesign, no
         // JSON-LD at all, so the full description must be scraped here. Stash it on the
         // (shared) first-page DOM so the metadata and information-page code can read it.
         dom.royalRoadBookMeta = RoyalRoadParser.extractBookMeta(tocHtml, tocDoc);
-        let fromJson = RoyalRoadParser.chaptersFromWindowChapters(tocHtml, dom.baseURI);
+        let fromJson = RoyalRoadParser.chaptersFromWindowChapters(tocHtml, tocUrl);
         if (0 < fromJson.length) {
             return fromJson;
         }
         // fallback: legacy server-rendered table (reuse the parse above)
         let table = tocDoc.querySelector("table#chapters");
         return util.hyperlinksToChapterList(table);
+    }
+
+    /**
+     * Normalizes a Royal Road chapter URL back to its parent fiction index URL.
+     *
+     * @param {string} url - The chapter or fiction URL to normalize.
+     * @returns {string} The canonical fiction index URL.
+     */
+    static fictionUrl(url) {
+        let fictionUrl = new URL(url);
+        let match = fictionUrl.pathname.match(/^(\/fiction\/\d+(?:\/[^/]+)?)(?:\/chapter\/\d+(?:\/[^/]*)?)\/?$/i);
+        if (match !== null) {
+            fictionUrl.pathname = match[1];
+            fictionUrl.search = "";
+            fictionUrl.hash = "";
+        }
+        return fictionUrl.href;
+    }
+
+    /**
+     * Builds `declarativeNetRequest` session rules for `royalroad.com` so extension-initiated
+     * `fetch` calls omit the extension `Origin` header and include a valid `Referer` and navigation `Sec-Fetch-*` headers.
+     *
+     * @param {string} [referer] - The referer URL to attach to requests.
+     * @returns {Array<Object>} Session rule definitions for `HttpClient.setDeclarativeNetRequestRules`.
+     */
+    static makeFetchRules(referer) {
+        let fallbackReferer = referer || "https://www.royalroad.com/";
+        let hostname = "royalroad.com";
+        try {
+            hostname = new URL(fallbackReferer).hostname;
+        } catch {
+            // keep default hostname
+        }
+        return [
+            {
+                id: 1,
+                priority: 1,
+                action: {
+                    type: "modifyHeaders",
+                    requestHeaders: [
+                        {
+                            header: "origin",
+                            operation: "remove"
+                        },
+                        {
+                            header: "referer",
+                            operation: "set",
+                            value: fallbackReferer
+                        },
+                        {
+                            header: "sec-fetch-dest",
+                            operation: "set",
+                            value: "document"
+                        },
+                        {
+                            header: "sec-fetch-mode",
+                            operation: "set",
+                            value: "navigate"
+                        },
+                        {
+                            header: "sec-fetch-site",
+                            operation: "set",
+                            value: "same-origin"
+                        }
+                    ]
+                },
+                condition: {
+                    urlFilter: hostname
+                }
+            }
+        ];
     }
 
     // Extract the chapter list from the page's `window.chapters = [...]` JSON blob.
@@ -434,5 +526,75 @@ class RoyalRoadParser extends Parser {
         }
         // legacy fallback
         return [...dom.querySelectorAll("div.fic-title, div.fiction-info div.portlet.row")];
+    }
+
+    /**
+     * Fetches a chapter page with `declarativeNetRequest` navigation headers and custom bot-challenge detection.
+     *
+     * @param {string} url - The chapter URL to fetch.
+     * @returns {Promise<Document>} Resolves with the parsed chapter DOM.
+     */
+    async fetchChapter(url) {
+        let referer = this.tocUrl || this.state?.chapterListUrl || RoyalRoadParser.fictionUrl(url);
+        await HttpClient.setDeclarativeNetRequestRules(
+            RoyalRoadParser.makeFetchRules(referer)
+        );
+        let options = {
+            parser: this,
+            storyUrl: this.state?.chapterListUrl
+        };
+        return (await HttpClient.wrapFetch(url, options)).responseXML;
+    }
+
+    /**
+     * Extracts a `Document` from either a `FetchResponseHandler` instance (`response.responseXML`)
+     * or a raw HTML string.
+     *
+     * @param {FetchResponseHandler|string|null|undefined} response - The response payload to inspect.
+     * @returns {Document|null} The parsed DOM document, or `null` if unavailable.
+     */
+    static extractDocumentFromResponse(response) {
+        if (response?.responseXML != null) {
+            return response.responseXML;
+        }
+        if (typeof response === "string") {
+            return new DOMParser().parseFromString(response, "text/html");
+        }
+        return null;
+    }
+
+    /**
+     * Detects whether a fetched Royal Road response is an anti-bot challenge page (`"Making sure you're not a bot!"`).
+     *
+     * @param {FetchResponseHandler|string} response - The fetched response object or HTML string.
+     * @returns {boolean} `true` if the response is a bot challenge interstitial.
+     */
+    isCustomError(response) {
+        let doc = RoyalRoadParser.extractDocumentFromResponse(response);
+        if (doc?.title === "Making sure you're not a bot!") {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Converts a detected anti-bot interstitial response into a retryable HTTP 403 error descriptor.
+     *
+     * @param {string} url - The requested URL.
+     * @param {Object} wrapOptions - Fetch wrapper options.
+     * @param {FetchResponseHandler|string} checkedresponse - The checked response payload.
+     * @returns {{url: string, wrapOptions: Object, response: {url: string, status: number}}|undefined} Synthetic 403 response descriptor.
+     */
+    setCustomErrorResponse(url, wrapOptions, checkedresponse) {
+        let doc = RoyalRoadParser.extractDocumentFromResponse(checkedresponse);
+        if (doc?.title === "Making sure you're not a bot!") {
+            let newresp = {};
+            newresp.url = url;
+            newresp.wrapOptions = wrapOptions;
+            newresp.response = {};
+            newresp.response.url = checkedresponse?.response?.url || url;
+            newresp.response.status = 403;
+            return newresp;
+        }
     }
 }

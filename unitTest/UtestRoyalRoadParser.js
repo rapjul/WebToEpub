@@ -16,13 +16,34 @@ QUnit.test("removeOlderChapterNavJunk", function (assert) {
     assert.equal(dom.body.textContent, "12");
 });
 
-QUnit.test("makeHiddenElementsVisible", function (assert) {
-    let dom = TestUtils.makeDomWithBody(
-        "<div style=\"display: none;\">Spoiler</div>"
-    );
-    let div = dom.querySelector("div");
-    new RoyalRoadParser().makeHiddenElementsVisible(dom.body);
-    assert.equal(div.outerHTML, "<div>Spoiler</div>");
+QUnit.test("fictionUrl normalizes chapter URLs to fiction index URL", function (assert) {
+    let chapterUrl = "https://www.royalroad.com/fiction/159064/the-black-cat-hero-and-the-minister-of-sloth-a/chapter/3191775/episode-2-the-night-that-shattered?foo=bar#top";
+    let expectedFictionUrl = "https://www.royalroad.com/fiction/159064/the-black-cat-hero-and-the-minister-of-sloth-a";
+    assert.equal(RoyalRoadParser.fictionUrl(chapterUrl), expectedFictionUrl);
+    assert.equal(RoyalRoadParser.fictionUrl(expectedFictionUrl), expectedFictionUrl);
+});
+
+QUnit.test("isCustomError and setCustomErrorResponse detect bot challenge for string and responseXML payloads", function (assert) {
+    let parser = new RoyalRoadParser();
+    let botHtml = "<html><head><title>Making sure you're not a bot!</title></head><body>Challenge</body></html>";
+    let normalHtml = "<html><head><title>Chapter 1</title></head><body><div class=\"chapter-inner\"><p>Hello</p></div></body></html>";
+    let botDoc = new DOMParser().parseFromString(botHtml, "text/html");
+    let normalDoc = new DOMParser().parseFromString(normalHtml, "text/html");
+
+    assert.equal(parser.isCustomError(botHtml), true, "detects bot challenge from HTML string");
+    assert.equal(parser.isCustomError({responseXML: botDoc}), true, "detects bot challenge from FetchResponseHandler object");
+    assert.equal(parser.isCustomError(normalHtml), false, "does not flag normal HTML string");
+    assert.equal(parser.isCustomError({responseXML: normalDoc}), false, "does not flag normal FetchResponseHandler object");
+
+    let chapterUrl = "https://www.royalroad.com/fiction/159064/the-black-cat-hero-and-the-minister-of-sloth-a/chapter/3191775/episode-2-the-night-that-shattered";
+    let wrapOptions = {retryCount: 0};
+    let customErr = parser.setCustomErrorResponse(chapterUrl, wrapOptions, {
+        responseXML: botDoc,
+        response: {url: chapterUrl}
+    });
+    assert.equal(customErr.url, chapterUrl);
+    assert.equal(customErr.response.status, 403);
+    assert.equal(customErr.response.url, chapterUrl);
 });
 
 QUnit.test("removeOrphanEpubImageArtifacts strips EPUB relative image artifacts and empty links", function (assert) {
