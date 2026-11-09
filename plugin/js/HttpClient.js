@@ -219,7 +219,6 @@ class FetchErrorHandler {
                 let storyUrl = wrapOptions?.storyUrl;
                 let host = FetchErrorHandler.getHostname(response?.url, storyUrl);
                 let autoIncrease = userPreferences?.autoIncreaseDelayOn403?.value;
-                let toastMsg = UIText.Warning.warning403ErrorResponse(host);
                 if (autoIncrease && !util.isNullOrEmpty(storyUrl) && (typeof Parser !== "undefined") && (Parser.additionalDelayByStory != null)) {
                     let increment = parseInt(userPreferences?.autoIncreaseDelayOn403Amount?.value, 10);
                     if (isNaN(increment) || increment < 0) {
@@ -257,7 +256,7 @@ class FetchErrorHandler {
                     HTTP: 403,
                     toastHost: host,
                     stallWarningMessage: UIText.Warning.warning403StalledRetry(host),
-                    toastMessage: toastMsg
+                    toastMessage: undefined
                 };
             }
             case 429:
@@ -309,7 +308,13 @@ class FetchErrorHandler {
         }
         let containerId = "rateLimitToastContainer";
         let container = document.getElementById(containerId);
-        if (!container) {
+        if (container) {
+            for (let child of container.children) {
+                if (child.dataset?.toastMessage === message) {
+                    return;
+                }
+            }
+        } else {
             container = document.createElement("div");
             container.id = containerId;
             container.style.position = "fixed";
@@ -325,6 +330,7 @@ class FetchErrorHandler {
         }
 
         let toast = document.createElement("div");
+        toast.dataset.toastMessage = message;
         toast.style.background = "rgba(30, 30, 30, 0.9)";
         toast.style.color = "#ffffff";
         toast.style.padding = "12px 16px";
@@ -427,7 +433,13 @@ class FetchErrorHandler {
         }
         let containerId = "rateLimitToastContainer";
         let container = document.getElementById(containerId);
-        if (!container) {
+        if (container) {
+            for (let child of container.children) {
+                if (child.dataset?.toastMessage === message) {
+                    return;
+                }
+            }
+        } else {
             container = document.createElement("div");
             container.id = containerId;
             container.style.position = "fixed";
@@ -443,6 +455,7 @@ class FetchErrorHandler {
         }
 
         let toast = document.createElement("div");
+        toast.dataset.toastMessage = message;
         toast.style.background = "rgba(30, 30, 30, 0.9)";
         toast.style.color = "#ffffff";
         toast.style.padding = "12px 16px";
@@ -768,8 +781,22 @@ class HttpClient {
     }
 
     /**
+     * Checks if a cookie is a Cloudflare or authentication clearance cookie that must be preserved.
+     *
+     * @param {string} cookieName - The name of the cookie.
+     * @returns {boolean} True if the cookie should not be removed.
+     */
+    static isClearanceCookie(cookieName) {
+        if (!cookieName) {
+            return false;
+        }
+        let lower = cookieName.toLowerCase();
+        return lower.startsWith("cf_") || lower.startsWith("__cf") || lower.includes("clearance") || lower.startsWith("_cf");
+    }
+
+    /**
      * Removes temporary unpartitioned copies of partitioned cookies after a `fetch` request completes
-     * to prevent stale challenge cookies (e.g. Anubis or Cloudflare) from causing infinite loops.
+     * while preserving Cloudflare clearance tokens to prevent infinite challenge verification loops.
      *
      * @param {string} url - The URL of the completed request.
      * @returns {Promise<void>} Resolves when temporary unpartitioned cookies have been removed.
@@ -783,6 +810,9 @@ class HttpClient {
             let partitionedCookies = await cookieApi.getAll({domain: domain, partitionKey: {}});
             let cookies = partitionedCookies.filter(item => item.partitionKey != undefined);
             for (const element of cookies) {
+                if (HttpClient.isClearanceCookie(element.name)) {
+                    continue;
+                }
                 const cleanDomain = element.domain.startsWith(".") ? element.domain.substring(1) : element.domain;
                 try {
                     await cookieApi.remove({

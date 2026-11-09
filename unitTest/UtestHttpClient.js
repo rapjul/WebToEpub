@@ -63,6 +63,7 @@ QUnit.test("onResponseError_504_error_retries_4_times", function (assert) {
 
 QUnit.test("onResponseError_403_error_auto_retries_when_enabled", function (assert) {
     let done = assert.async();
+    let prevPrefs = window.userPreferences;
     window.userPreferences = {
         autoRetryOn403: {value: true},
         autoRetryOn403Delay: {value: "2"}
@@ -73,6 +74,7 @@ QUnit.test("onResponseError_403_error_auto_retries_when_enabled", function (asse
     handler.onResponseError(null, wrapOptions, response).catch(function() {
         assert.equal(handler.count, 1);
         assert.equal(handler.prompted, false);
+        window.userPreferences = prevPrefs;
         done();
     });
 });
@@ -259,4 +261,100 @@ QUnit.test("wrapFetchImpl_403_rejection_does_not_recursively_wrap_error_message"
         assert.equal(error.status, 403, "HTTP 403 status is preserved on the rejected error");
         cleanup();
     });
+});
+
+QUnit.test("Firefox filterHeaders ignores tab requests to prevent breaking tab challenges", function (assert) {
+    let prevRules = Firefox.activeRules;
+    Firefox.setModifyHeaderRules([
+        {
+            action: {
+                requestHeaders: [
+                    { header: "referer", operation: "set", value: "https://www.royalroad.com/fiction/159064" },
+                    { header: "origin", operation: "remove" }
+                ]
+            },
+            condition: {
+                urlFilter: "royalroad.com"
+            }
+        }
+    ]);
+
+    let tabEvent = {
+        tabId: 5,
+        originUrl: "https://www.royalroad.com/fiction/159064",
+        documentUrl: "https://www.royalroad.com/fiction/159064",
+        url: "https://www.royalroad.com/cdn-cgi/challenge-platform/h/b/flow/ov1/check",
+        requestHeaders: [
+            { name: "Origin", value: "https://www.royalroad.com" },
+            { name: "User-Agent", value: "TestBrowser" }
+        ]
+    };
+    let tabFiltered = Firefox.filterHeaders(tabEvent);
+    assert.equal(tabFiltered.requestHeaders.length, 2, "tab request headers are untouched");
+    let originHeader = tabFiltered.requestHeaders.find(h => h.name.toLowerCase() === "origin");
+    let refererHeader = tabFiltered.requestHeaders.find(h => h.name.toLowerCase() === "referer");
+    assert.equal(originHeader?.value, "https://www.royalroad.com", "tab origin is not stripped");
+    assert.equal(refererHeader, undefined, "tab referer is not overridden by declarative rule");
+
+    Firefox.setModifyHeaderRules(prevRules);
+});
+
+QUnit.test("HttpClient isClearanceCookie and unsetPartitionCookies preserve Cloudflare tokens", async function (assert) {
+    assert.ok(HttpClient.isClearanceCookie("cf_clearance"), "identifies cf_clearance");
+    assert.ok(HttpClient.isClearanceCookie("__cf_bm"), "identifies __cf_bm");
+    assert.ok(HttpClient.isClearanceCookie("_cfuvid"), "identifies _cfuvid");
+    assert.ok(HttpClient.isClearanceCookie("custom_clearance_token"), "identifies clearance in name");
+    assert.notOk(HttpClient.isClearanceCookie("session_id"), "does not flag normal session cookie");
+
+    let prevCookies = window.chrome?.cookies;
+    let removed = [];
+    let fakeCookiesApi = {
+        getAll: async () => [
+            { name: "cf_clearance", domain: ".royalroad.com", path: "/", partitionKey: { topLevelSite: "https://royalroad.com" }, storeId: "0" },
+            { name: "__cf_bm", domain: ".royalroad.com", path: "/", partitionKey: { topLevelSite: "https://royalroad.com" }, storeId: "0" },
+            { name: "temp_partitioned", domain: ".royalroad.com", path: "/", partitionKey: { topLevelSite: "https://royalroad.com" }, storeId: "0" }
+        ],
+        remove: async (details) => {
+            removed.push(details.name);
+        }
+    };
+    if (!window.chrome) {
+        window.chrome = {};
+    }
+    window.chrome.cookies = fakeCookiesApi;
+
+    await HttpClient.unsetPartitionCookies("https://www.royalroad.com/fiction/159064");
+    assert.deepEqual(removed, ["temp_partitioned"], "only non-clearance partitioned cookie is removed");
+
+    window.chrome.cookies = prevCookies;
+});
+
+QUnit.test("showTransientRateLimitWarning deduplicates identical messages and avoids stacking", function (assert) {
+    let container = document.getElementById("rateLimitToastContainer");
+    if (container) {
+        container.remove();
+    }
+    FetchErrorHandler.showTransientRateLimitWarning("Warning message 1", 5000);
+    FetchErrorHandler.showTransientRateLimitWarning("Warning message 1", 5000);
+    FetchErrorHandler.showTransientRateLimitWarning("Warning message 2", 5000);
+
+    let activeContainer = document.getElementById("rateLimitToastContainer");
+    assert.ok(activeContainer != null, "container created");
+    assert.equal(activeContainer.children.length, 2, "duplicate message ignored; exactly 2 toasts created");
+
+    activeContainer.remove();
+});
+
+QUnit.test("getAutomaticRetryBehaviourForStatus returns undefined toastMessage for default 403 backoff", function (assert) {
+    let prevPrefs = window.userPreferences;
+    window.userPreferences = { autoRetryOn403: { value: false } };
+    let response = { status: 403, url: "https://www.royalroad.com/fiction/159064" };
+    let wrapOptions = { storyUrl: "https://www.royalroad.com/fiction/159064" };
+    let behaviour = FetchErrorHandler.getAutomaticRetryBehaviourForStatus(response, wrapOptions);
+
+    assert.equal(behaviour.HTTP, 403, "status is 403");
+    assert.equal(behaviour.promptUser, true, "promptUser is true after retries");
+    assert.deepEqual(behaviour.retryDelay, [60, 30, 15, 5], "standard backoff delays present");
+    assert.equal(behaviour.toastMessage, undefined, "toastMessage is undefined to prevent spamming giant toast during retries");
+    window.userPreferences = prevPrefs;
 });

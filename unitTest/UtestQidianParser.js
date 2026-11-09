@@ -135,6 +135,7 @@ QUnit.test("getChapterUrls_extractsVolumeSectionsAsNewArc", async function(asser
 
 QUnit.test("getChapterUrls_flatCatalogFallback", async function(assert) {
     let dom = new DOMParser().parseFromString(QidianChatperLinkSample, "text/html");
+    util.setBaseTag("https://www.webnovel.com/book/9017100806001205/catalog", dom);
     let parser = new QidianParser();
     let chapters = await parser.getChapterUrls(dom);
 

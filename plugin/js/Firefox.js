@@ -21,13 +21,39 @@ class Firefox { // eslint-disable-line no-unused-vars
     }
 
     /**
-     * Inspects outgoing Firefox HTTP headers, removes moz-extension origin headers to avoid CORS blocks,
-     * and applies any active declarative header modification rules.
+     * Determines whether a webRequest event originated from within the WebToEpub extension
+     * (background page or popup) rather than an open browser tab.
      *
-     * @param {{url: string, requestHeaders: Array<{name: string, value?: string}>}} e - webRequest onBeforeSendHeaders event payload.
+     * @param {{tabId?: number, originUrl?: string, documentUrl?: string}} e - webRequest details object.
+     * @returns {boolean} True if the request originated from the extension.
+     */
+    static isExtensionRequest(e) {
+        if (!e) {
+            return false;
+        }
+        if (e.tabId === undefined || e.tabId === -1) {
+            return true;
+        }
+        if (typeof e.originUrl === "string" && e.originUrl.startsWith("moz-extension://")) {
+            return true;
+        }
+        if (typeof e.documentUrl === "string" && e.documentUrl.startsWith("moz-extension://")) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Inspects outgoing Firefox HTTP headers, removes moz-extension origin headers to avoid CORS blocks,
+     * and applies any active declarative header modification rules for extension-initiated requests.
+     *
+     * @param {{url: string, tabId?: number, originUrl?: string, documentUrl?: string, requestHeaders: Array<{name: string, value?: string}>}} e - webRequest onBeforeSendHeaders event payload.
      * @returns {{requestHeaders: Array<{name: string, value?: string}>}} Modified request headers.
      */
     static filterHeaders(e) {
+        if (!Firefox.isExtensionRequest(e)) {
+            return { requestHeaders: e?.requestHeaders || [] };
+        }
         let headers = e.requestHeaders.filter(
             h => ((h.name.toLowerCase() !== "origin")
                 || !(h.value && h.value.startsWith("moz-extension://")))
