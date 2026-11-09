@@ -8,11 +8,22 @@ parserFactory.register("royalroad.com", () => new RoyalRoadParser());
 
 class RoyalRoadParser extends Parser {
     /**
-     * Creates a new `RoyalRoadParser` instance with a 1500 ms minimum throttle.
+     * Creates a new `RoyalRoadParser` instance with a 2000 ms minimum throttle.
      */
     constructor() {
         super();
-        this.minimumThrottle = 1500;
+        this.minimumThrottle = 2000;
+        this.previousChapterUrl = null;
+    }
+
+    /**
+     * Returns the rate-limit delay for Royal Road, enforcing a strict minimum of 2000 ms
+     * to prevent burst rate-limiting and Cloudflare HTTP 403 blocks.
+     *
+     * @returns {number} The delay in milliseconds.
+     */
+    getRateLimit() {
+        return Math.max(this.minimumThrottle, super.getRateLimit());
     }
 
     /**
@@ -535,7 +546,8 @@ class RoyalRoadParser extends Parser {
      * @returns {Promise<Document>} Resolves with the parsed chapter DOM.
      */
     async fetchChapter(url) {
-        let referer = this.tocUrl || this.state?.chapterListUrl || RoyalRoadParser.fictionUrl(url);
+        let referer = this.previousChapterUrl || this.tocUrl || this.state?.chapterListUrl || RoyalRoadParser.fictionUrl(url);
+        this.previousChapterUrl = url;
         await HttpClient.setDeclarativeNetRequestRules(
             RoyalRoadParser.makeFetchRules(referer)
         );

@@ -73,3 +73,52 @@ QUnit.test("removeOrphanEpubImageArtifacts strips EPUB relative image artifacts 
     assert.notEqual(dom.getElementById("legit3"), null, "legitimate linked CDN image preserved");
     assert.notEqual(dom.getElementById("legitLink"), null, "legitimate anchor preserved");
 });
+
+QUnit.test("getRateLimit enforces minimumThrottle even when overrideMinimumDelay is enabled", function (assert) {
+    let parser = new RoyalRoadParser();
+    parser.userPreferences = {
+        overrideMinimumDelay: { value: true },
+        manualDelayPerChapter: { value: "500" }
+    };
+
+    assert.equal(parser.minimumThrottle, 2000, "minimum throttle is 2000 ms");
+    assert.equal(parser.getRateLimit(), 2000, "enforces 2000 ms floor despite overrideMinimumDelay=true and manualDelay=500");
+
+    parser.userPreferences.manualDelayPerChapter.value = "3500";
+    assert.equal(parser.getRateLimit(), 3500, "allows higher manual delay when user selects a slower rate");
+
+    parser.userPreferences.overrideMinimumDelay.value = false;
+    parser.userPreferences.manualDelayPerChapter.value = "500";
+    assert.equal(parser.getRateLimit(), 2000, "defaults to 2000 ms when override is false");
+});
+
+QUnit.test("fetchChapter updates previousChapterUrl for Referer chaining", async function (assert) {
+    let parser = new RoyalRoadParser();
+    let recordedRules = null;
+    let prevSetRules = HttpClient.setDeclarativeNetRequestRules;
+    let prevWrapFetch = HttpClient.wrapFetch;
+
+    HttpClient.setDeclarativeNetRequestRules = async (rules) => {
+        recordedRules = rules;
+    };
+    HttpClient.wrapFetch = async (url) => ({
+        responseXML: new DOMParser().parseFromString("<html><head><title>Chapter</title></head></html>", "text/html")
+    });
+
+    let ch1 = "https://www.royalroad.com/fiction/159064/slug/chapter/1/ch1";
+    let ch2 = "https://www.royalroad.com/fiction/159064/slug/chapter/2/ch2";
+
+    parser.tocUrl = "https://www.royalroad.com/fiction/159064/slug";
+    await parser.fetchChapter(ch1);
+    assert.equal(parser.previousChapterUrl, ch1, "recorded ch1 as previous chapter");
+    let ch1Referer = recordedRules?.[0]?.action?.requestHeaders?.find(h => h.header === "referer")?.value;
+    assert.equal(ch1Referer, parser.tocUrl, "ch1 used TOC as referer");
+
+    await parser.fetchChapter(ch2);
+    assert.equal(parser.previousChapterUrl, ch2, "recorded ch2 as previous chapter");
+    let ch2Referer = recordedRules?.[0]?.action?.requestHeaders?.find(h => h.header === "referer")?.value;
+    assert.equal(ch2Referer, ch1, "ch2 chained ch1 as referer");
+
+    HttpClient.setDeclarativeNetRequestRules = prevSetRules;
+    HttpClient.wrapFetch = prevWrapFetch;
+});
