@@ -308,6 +308,7 @@ QUnit.test("HttpClient isClearanceCookie and unsetPartitionCookies preserve Clou
 
     let prevCookies = window.chrome?.cookies;
     let removed = [];
+    let setCookies = [];
     let fakeCookiesApi = {
         getAll: async () => [
             { name: "cf_clearance", domain: ".royalroad.com", path: "/", partitionKey: { topLevelSite: "https://royalroad.com" }, storeId: "0" },
@@ -316,6 +317,9 @@ QUnit.test("HttpClient isClearanceCookie and unsetPartitionCookies preserve Clou
         ],
         remove: async (details) => {
             removed.push(details.name);
+        },
+        set: async (details) => {
+            setCookies.push(details.name);
         }
     };
     if (!window.chrome) {
@@ -323,13 +327,16 @@ QUnit.test("HttpClient isClearanceCookie and unsetPartitionCookies preserve Clou
     }
     window.chrome.cookies = fakeCookiesApi;
 
+    await HttpClient.setPartitionCookies("https://www.royalroad.com/fiction/159064");
+    assert.deepEqual(setCookies, ["temp_partitioned"], "setPartitionCookies skips copying clearance cookies");
+
     await HttpClient.unsetPartitionCookies("https://www.royalroad.com/fiction/159064");
     assert.deepEqual(removed, ["temp_partitioned"], "only non-clearance partitioned cookie is removed");
 
     window.chrome.cookies = prevCookies;
 });
 
-QUnit.test("showTransientRateLimitWarning deduplicates identical messages and avoids stacking", function (assert) {
+QUnit.test("showTransientRateLimitWarning deduplicates identical messages and prefixes timestamp", function (assert) {
     let container = document.getElementById("rateLimitToastContainer");
     if (container) {
         container.remove();
@@ -341,6 +348,7 @@ QUnit.test("showTransientRateLimitWarning deduplicates identical messages and av
     let activeContainer = document.getElementById("rateLimitToastContainer");
     assert.ok(activeContainer != null, "container created");
     assert.equal(activeContainer.children.length, 2, "duplicate message ignored; exactly 2 toasts created");
+    assert.ok(/^\[\d{1,2}:\d{2}:\d{2}/.test(activeContainer.children[0].textContent), "toast has timestamp prefix");
 
     activeContainer.remove();
 });
@@ -356,5 +364,13 @@ QUnit.test("getAutomaticRetryBehaviourForStatus returns undefined toastMessage f
     assert.equal(behaviour.promptUser, true, "promptUser is true after retries");
     assert.deepEqual(behaviour.retryDelay, [60, 30, 15, 5], "standard backoff delays present");
     assert.equal(behaviour.toastMessage, undefined, "toastMessage is undefined to prevent spamming giant toast during retries");
+
+    let challengeHeaders = new Headers();
+    challengeHeaders.set("cf-mitigated", "challenge");
+    let challengeResponse = { status: 403, url: "https://www.royalroad.com/fiction/159064", headers: challengeHeaders };
+    let challengeBehaviour = FetchErrorHandler.getAutomaticRetryBehaviourForStatus(challengeResponse, wrapOptions);
+    assert.equal(challengeBehaviour.promptUser, true, "challenge response prompts immediately");
+    assert.deepEqual(challengeBehaviour.retryDelay, [], "challenge response does not schedule backoff retry loops");
+
     window.userPreferences = prevPrefs;
 });

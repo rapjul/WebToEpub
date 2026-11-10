@@ -213,11 +213,29 @@ class FetchErrorHandler {
         let retryDelay = [120, 60, 30, 15];
         switch (response.status) {
             case 403: {
+                let isChallenge = false;
+                if (typeof response?.headers?.get === "function") {
+                    let cfMitigated = response.headers.get("cf-mitigated");
+                    if (cfMitigated === "challenge") {
+                        isChallenge = true;
+                    }
+                }
                 let userPreferences = FetchErrorHandler.getUserPreferences(wrapOptions);
                 let autoRetry = userPreferences?.autoRetryOn403?.value;
                 let delaySeconds = 5;
                 let storyUrl = wrapOptions?.storyUrl;
                 let host = FetchErrorHandler.getHostname(response?.url, storyUrl);
+                if (isChallenge) {
+                    console.warn(`[WebToEpub][HttpClient] Cloudflare challenge detected (cf-mitigated: challenge) on ${response?.url || host}`);
+                    return {
+                        retryDelay: [],
+                        promptUser: true,
+                        HTTP: 403,
+                        toastHost: host,
+                        stallWarningMessage: UIText.Warning.warning403StalledRetry(host),
+                        toastMessage: undefined
+                    };
+                }
                 let autoIncrease = userPreferences?.autoIncreaseDelayOn403?.value;
                 if (autoIncrease && !util.isNullOrEmpty(storyUrl) && (typeof Parser !== "undefined") && (Parser.additionalDelayByStory != null)) {
                     let increment = parseInt(userPreferences?.autoIncreaseDelayOn403Amount?.value, 10);
@@ -344,8 +362,11 @@ class FetchErrorHandler {
         toast.style.alignItems = "center";
         toast.style.gap = "12px";
 
+        let timestamp = new Date().toLocaleTimeString();
+        let formattedMessage = `[${timestamp}] ${message}`;
+
         let messageNode = document.createElement("span");
-        messageNode.textContent = message;
+        messageNode.textContent = formattedMessage;
         messageNode.style.flex = "1";
 
         let closeButton = document.createElement("button");
@@ -469,8 +490,11 @@ class FetchErrorHandler {
         toast.style.flexDirection = "column";
         toast.style.gap = "8px";
 
+        let timestamp = new Date().toLocaleTimeString();
+        let formattedMessage = `[${timestamp}] ${message}`;
+
         let messageNode = document.createElement("span");
-        messageNode.textContent = message;
+        messageNode.textContent = formattedMessage;
 
         let buttonsContainer = document.createElement("div");
         buttonsContainer.style.display = "flex";
@@ -686,6 +710,13 @@ class HttpClient {
      */
     static checkResponseAndGetData(url, wrapOptions, response) {
         if (!response.ok) {
+            if (response.status === 403 && typeof response.headers?.get === "function") {
+                let cfMitigated = response.headers.get("cf-mitigated");
+                let server = response.headers.get("server");
+                if (cfMitigated || (server && server.toLowerCase().includes("cloudflare"))) {
+                    console.log(`[WebToEpub][HttpClient] HTTP 403 diagnostics for ${url}: cf-mitigated=${cfMitigated || "none"}, server=${server || "unknown"}`);
+                }
+            }
             return wrapOptions.errorHandler.onResponseError(url, wrapOptions, response);
         } else {
             let handler = wrapOptions.responseHandler;
@@ -753,6 +784,9 @@ class HttpClient {
             HttpClient.logCookiesForDomain(domain, partitionedCookies, unpartitionedCookies);
             let cookies = partitionedCookies.filter(item => item.partitionKey != undefined);
             for (const element of cookies) {
+                if (HttpClient.isClearanceCookie(element.name)) {
+                    continue;
+                }
                 const cleanDomain = element.domain.startsWith(".") ? element.domain.substring(1) : element.domain;
                 const cookieDetails = {
                     url: `https://${cleanDomain}${element.path}`,
