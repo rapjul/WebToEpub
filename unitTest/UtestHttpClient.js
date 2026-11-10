@@ -299,7 +299,7 @@ QUnit.test("Firefox filterHeaders ignores tab requests to prevent breaking tab c
     Firefox.setModifyHeaderRules(prevRules);
 });
 
-QUnit.test("HttpClient isClearanceCookie and unsetPartitionCookies preserve Cloudflare tokens", async function (assert) {
+QUnit.test("HttpClient setPartitionCookies copies missing cookies and unsetPartitionCookies removes only added cookies", async function (assert) {
     assert.ok(HttpClient.isClearanceCookie("cf_clearance"), "identifies cf_clearance");
     assert.ok(HttpClient.isClearanceCookie("__cf_bm"), "identifies __cf_bm");
     assert.ok(HttpClient.isClearanceCookie("_cfuvid"), "identifies _cfuvid");
@@ -309,12 +309,20 @@ QUnit.test("HttpClient isClearanceCookie and unsetPartitionCookies preserve Clou
     let prevCookies = window.chrome?.cookies;
     let removed = [];
     let setCookies = [];
+    let unpartitionedStore = [
+        { name: "existing_token", value: "orig_val" },
+        { name: "cf_clearance", value: "valid_clearance_123" }
+    ];
     let fakeCookiesApi = {
-        getAll: async () => [
-            { name: "cf_clearance", domain: ".royalroad.com", path: "/", partitionKey: { topLevelSite: "https://royalroad.com" }, storeId: "0" },
-            { name: "__cf_bm", domain: ".royalroad.com", path: "/", partitionKey: { topLevelSite: "https://royalroad.com" }, storeId: "0" },
-            { name: "temp_partitioned", domain: ".royalroad.com", path: "/", partitionKey: { topLevelSite: "https://royalroad.com" }, storeId: "0" }
-        ],
+        getAll: async (filter) => {
+            if (filter.partitionKey) {
+                return [
+                    { name: "cf_clearance", value: "stale_clearance_456", domain: ".royalroad.com", path: "/", partitionKey: { topLevelSite: "https://royalroad.com" }, storeId: "0" },
+                    { name: "new_partitioned", value: "new_val", domain: ".royalroad.com", path: "/", partitionKey: { topLevelSite: "https://royalroad.com" }, storeId: "0" }
+                ];
+            }
+            return unpartitionedStore;
+        },
         remove: async (details) => {
             removed.push(details.name);
         },
@@ -327,11 +335,13 @@ QUnit.test("HttpClient isClearanceCookie and unsetPartitionCookies preserve Clou
     }
     window.chrome.cookies = fakeCookiesApi;
 
-    await HttpClient.setPartitionCookies("https://www.royalroad.com/fiction/159064");
-    assert.deepEqual(setCookies, ["temp_partitioned"], "setPartitionCookies skips copying clearance cookies");
+    let added = await HttpClient.setPartitionCookies("https://www.royalroad.com/fiction/159064");
+    assert.deepEqual(setCookies, ["new_partitioned"], "copies missing cookie but does NOT overwrite existing unpartitioned clearance cookie");
+    assert.equal(added.length, 1, "recorded 1 added cookie");
+    assert.equal(added[0].name, "new_partitioned");
 
-    await HttpClient.unsetPartitionCookies("https://www.royalroad.com/fiction/159064");
-    assert.deepEqual(removed, ["temp_partitioned"], "only non-clearance partitioned cookie is removed");
+    await HttpClient.unsetPartitionCookies("https://www.royalroad.com/fiction/159064", added);
+    assert.deepEqual(removed, ["new_partitioned"], "only removes the temporarily added cookie");
 
     window.chrome.cookies = prevCookies;
 });

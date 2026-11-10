@@ -679,14 +679,16 @@ class HttpClient {
             wrapOptions.errorHandler = new FetchErrorHandler();
         }
         let response;
+        let addedCookies = [];
         try
         {
-            await HttpClient.setPartitionCookies(url);
+            addedCookies = await HttpClient.setPartitionCookies(url);
             response = await fetch(url, wrapOptions.fetchOptions);
-            await HttpClient.unsetPartitionCookies(url);
+            await HttpClient.unsetPartitionCookies(url, addedCookies);
         }
         catch (error)
         {
+            await HttpClient.unsetPartitionCookies(url, addedCookies);
             return wrapOptions.errorHandler.onFetchError(url, error);
         }
         if (!util.isNullOrEmpty(wrapOptions.storyUrl)) {
@@ -765,20 +767,18 @@ class HttpClient {
     /**
      * Copies partitioned cookies to the unpartitioned cookie store so that extension-initiated
      * fetch requests (which run in an unpartitioned context) can send them.
+     * Only copies cookies that do not already exist in the unpartitioned store to avoid
+     * overwriting real browser session and clearance cookies.
+     *
      * @param {string} url - The URL of the request to copy cookies for.
-     * @returns {Promise<void>} Resolves when all partitioned cookies have been copied.
+     * @returns {Promise<Array<{name: string, url: string, storeId?: string}>>} List of cookies added temporarily.
      */
     static async setPartitionCookies(url) {
         // get partitionKey in the form of https://<site name>.<tld>
         let parsedUrl = new URL(url);
-        //keep old code for reference in case it changes again
-        //let topLevelSite = parsedUrl.protocol + "//" + parsedUrl.hostname;
+        let addedCookies = [];
 
         try {
-            //  get all cookie from the site which use the partitionKey (e.g. cloudflare)
-            // keep old code for reference in case it changes again
-            // let cookies = await chrome.cookies.getAll({partitionKey: {topLevelSite: topLevelSite}});
-
             // set domain to the highest level from the website as all subdomains are included #1447 #1445
             let urlparts = parsedUrl.hostname.split(".");
             let domain = urlparts[urlparts.length - 2] + "." + urlparts[urlparts.length - 1];
@@ -786,14 +786,19 @@ class HttpClient {
             let partitionedCookies = await cookieApi.getAll({domain: domain, partitionKey: {}});
             let unpartitionedCookies = await cookieApi.getAll({domain: domain});
             HttpClient.logCookiesForDomain(domain, partitionedCookies, unpartitionedCookies);
+
+            let existingNames = new Set((unpartitionedCookies || []).map(c => c.name));
             let cookies = partitionedCookies.filter(item => item.partitionKey != undefined);
             for (const element of cookies) {
-                if (HttpClient.isClearanceCookie(element.name)) {
+                // If an unpartitioned cookie with this name already exists in the cookie store,
+                // do not overwrite it!
+                if (existingNames.has(element.name)) {
                     continue;
                 }
                 const cleanDomain = element.domain.startsWith(".") ? element.domain.substring(1) : element.domain;
+                const cookieUrl = `https://${cleanDomain}${element.path}`;
                 const cookieDetails = {
-                    url: `https://${cleanDomain}${element.path}`,
+                    url: cookieUrl,
                     name: element.name,
                     value: element.value,
                     path: element.path,
@@ -808,6 +813,11 @@ class HttpClient {
                 }
                 try {
                     await cookieApi.set(cookieDetails);
+                    addedCookies.push({
+                        name: element.name,
+                        url: cookieUrl,
+                        storeId: element.storeId
+                    });
                 } catch (cookieError) {
                     console.error(`[WebToEpub] Failed to set cookie ${element.name}:`, cookieError);
                 }
@@ -816,6 +826,7 @@ class HttpClient {
             // Probably running browser that doesn't support partitionKey, e.g. Kiwi
             console.log("failed to set cookie", err);
         }
+        return addedCookies;
     }
 
     /**
@@ -833,18 +844,33 @@ class HttpClient {
     }
 
     /**
-     * Removes temporary unpartitioned copies of partitioned cookies after a `fetch` request completes
-     * while preserving Cloudflare clearance tokens to prevent infinite challenge verification loops.
+     * Removes temporary unpartitioned copies of partitioned cookies after a `fetch` request completes.
+     * Only removes cookies that were added by `setPartitionCookies`, preserving existing cookies.
      *
      * @param {string} url - The URL of the completed request.
+     * @param {Array<{name: string, url: string, storeId?: string}>} [addedCookies] - Specific cookies added for this request.
      * @returns {Promise<void>} Resolves when temporary unpartitioned cookies have been removed.
      */
-    static async unsetPartitionCookies(url) {
-        let parsedUrl = new URL(url);
+    static async unsetPartitionCookies(url, addedCookies) {
         try {
+            let cookieApi = util.isFirefox() ? browser.cookies : chrome.cookies;
+            if (Array.isArray(addedCookies)) {
+                for (const cookie of addedCookies) {
+                    try {
+                        await cookieApi.remove({
+                            name: cookie.name,
+                            url: cookie.url,
+                            storeId: cookie.storeId
+                        });
+                    } catch (cookieError) {
+                        console.error(`[WebToEpub] Failed to unset cookie ${cookie.name}:`, cookieError);
+                    }
+                }
+                return;
+            }
+            let parsedUrl = new URL(url);
             let urlparts = parsedUrl.hostname.split(".");
             let domain = urlparts[urlparts.length - 2] + "." + urlparts[urlparts.length - 1];
-            let cookieApi = util.isFirefox() ? browser.cookies : chrome.cookies;
             let partitionedCookies = await cookieApi.getAll({domain: domain, partitionKey: {}});
             let cookies = partitionedCookies.filter(item => item.partitionKey != undefined);
             for (const element of cookies) {
