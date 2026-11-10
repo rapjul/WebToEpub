@@ -45,9 +45,6 @@ class RoyalRoadParser extends Parser {
         // (redesign-proof); fall back to scraping the old table for legacy pages.
         let tocUrl = RoyalRoadParser.fictionUrl(dom.baseURI);
         this.tocUrl = tocUrl;
-        await HttpClient.setDeclarativeNetRequestRules(
-            RoyalRoadParser.makeFetchRules(tocUrl)
-        );
         let options = {
             parser: this
         };
@@ -533,9 +530,11 @@ class RoyalRoadParser extends Parser {
     async fetchChapter(url) {
         let referer = this.previousChapterUrl || this.tocUrl || this.state?.chapterListUrl || RoyalRoadParser.fictionUrl(url);
         this.previousChapterUrl = url;
-        await HttpClient.setDeclarativeNetRequestRules(
-            RoyalRoadParser.makeFetchRules(referer)
-        );
+        if (!util.isFirefox()) {
+            await HttpClient.setDeclarativeNetRequestRules(
+                RoyalRoadParser.makeFetchRules(referer)
+            );
+        }
         let options = {
             parser: this,
             storyUrl: this.state?.chapterListUrl

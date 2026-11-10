@@ -136,3 +136,51 @@ QUnit.test("makeFetchRules sets referer and removes origin without spoofing sec-
     assert.notOk(headersMap.has("sec-fetch-mode"), "does not spoof sec-fetch-mode");
     assert.notOk(headersMap.has("sec-fetch-site"), "does not spoof sec-fetch-site");
 });
+
+QUnit.test("fetchChapter skips declarative header rules on Firefox", async function (assert) {
+    let parser = new RoyalRoadParser();
+    let rulesCalled = false;
+    let prevSetRules = HttpClient.setDeclarativeNetRequestRules;
+    let prevWrapFetch = HttpClient.wrapFetch;
+    let prevIsFirefox = util.isFirefox;
+
+    util.isFirefox = () => true;
+    HttpClient.setDeclarativeNetRequestRules = async () => {
+        rulesCalled = true;
+    };
+    HttpClient.wrapFetch = async () => ({
+        responseXML: new DOMParser().parseFromString("<html><head><title>Chapter</title></head></html>", "text/html")
+    });
+
+    let ch1 = "https://www.royalroad.com/fiction/159064/slug/chapter/1/ch1";
+    await parser.fetchChapter(ch1);
+    assert.equal(rulesCalled, false, "did not set declarative rules on Firefox");
+    assert.equal(parser.previousChapterUrl, ch1, "still updated previousChapterUrl");
+
+    util.isFirefox = prevIsFirefox;
+    HttpClient.setDeclarativeNetRequestRules = prevSetRules;
+    HttpClient.wrapFetch = prevWrapFetch;
+});
+
+QUnit.test("getChapterUrls does not set declarative header rules for table of contents fetch", async function (assert) {
+    let parser = new RoyalRoadParser();
+    let rulesCalled = false;
+    let prevSetRules = HttpClient.setDeclarativeNetRequestRules;
+    let prevFetchText = HttpClient.fetchText;
+
+    HttpClient.setDeclarativeNetRequestRules = async () => {
+        rulesCalled = true;
+    };
+    HttpClient.fetchText = async () => (
+        '<html><head><script>window.chapters = [{"id":1,"title":"Ch 1","url":"/chapter/1"}];</script></head><body></body></html>'
+    );
+
+    let dom = new DOMParser().parseFromString("<html><head><base href=\"https://www.royalroad.com/fiction/159064/slug\"></head><body></body></html>", "text/html");
+    let chapters = await parser.getChapterUrls(dom);
+
+    assert.equal(rulesCalled, false, "TOC fetch does not call setDeclarativeNetRequestRules");
+    assert.equal(chapters.length, 1, "parsed chapters from TOC");
+
+    HttpClient.setDeclarativeNetRequestRules = prevSetRules;
+    HttpClient.fetchText = prevFetchText;
+});
