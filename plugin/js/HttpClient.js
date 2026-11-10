@@ -109,6 +109,10 @@ class FetchErrorHandler {
         if (wrapOptions.retry === undefined) {
             let retry = FetchErrorHandler.getAutomaticRetryBehaviourForStatus(response, wrapOptions);
             if (retry.retryDelay.length === 0) {
+                if (retry.promptUser) {
+                    wrapOptions.retry = retry;
+                    return this.promptUserForRetry(url, wrapOptions, response, failError);
+                }
                 return Promise.reject(failError);
             }
             wrapOptions.retry = retry;

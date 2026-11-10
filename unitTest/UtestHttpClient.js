@@ -374,3 +374,27 @@ QUnit.test("getAutomaticRetryBehaviourForStatus returns undefined toastMessage f
 
     window.userPreferences = prevPrefs;
 });
+
+QUnit.test("onResponseError prompts immediately when challenge has empty retryDelay and promptUser is true", function (assert) {
+    let handler = new FetchErrorHandler();
+    let prompted = false;
+    handler.promptUserForRetry = function (url, wrapOptions, response, failError) {
+        prompted = true;
+        return Promise.resolve("prompted");
+    };
+
+    let challengeHeaders = new Headers();
+    challengeHeaders.set("cf-mitigated", "challenge");
+    let response = {
+        status: 403,
+        url: "https://www.royalroad.com/fiction/182375/slug",
+        headers: challengeHeaders
+    };
+    let wrapOptions = {};
+
+    return handler.onResponseError(response.url, wrapOptions, response).then(result => {
+        assert.equal(prompted, true, "prompted user immediately without scheduling retries");
+        assert.equal(result, "prompted", "resolved prompt action");
+        assert.equal(wrapOptions.retry?.HTTP, 403, "attached retry state to wrapOptions");
+    });
+});
