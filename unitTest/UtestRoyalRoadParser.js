@@ -184,3 +184,27 @@ QUnit.test("getChapterUrls does not set declarative header rules for table of co
     HttpClient.setDeclarativeNetRequestRules = prevSetRules;
     HttpClient.fetchText = prevFetchText;
 });
+
+QUnit.test("getChapterUrls extracts directly from active tab DOM without network fetch", async function (assert) {
+    let parser = new RoyalRoadParser();
+    let fetchCalled = false;
+    let prevFetchText = HttpClient.fetchText;
+
+    HttpClient.fetchText = async () => {
+        fetchCalled = true;
+        throw new Error("Should not make network fetch when active tab DOM already has chapters");
+    };
+
+    let dom = new DOMParser().parseFromString(
+        '<html><head><base href="https://www.royalroad.com/fiction/182375/the-dao-of-the-goat"><script>window.chapters = [{"id":101,"title":"Episode 1: The Beginning","url":"/chapter/101"}];</script></head><body></body></html>',
+        "text/html"
+    );
+    let chapters = await parser.getChapterUrls(dom);
+
+    assert.equal(fetchCalled, false, "did not perform network fetch");
+    assert.equal(chapters.length, 1, "extracted chapter directly from active tab DOM");
+    assert.equal(chapters[0].title, "Episode 1: The Beginning");
+    assert.equal(chapters[0].sourceUrl, "https://www.royalroad.com/chapter/101");
+
+    HttpClient.fetchText = prevFetchText;
+});

@@ -34,9 +34,6 @@ class RoyalRoadParser extends Parser {
      * @returns {Promise<Array<{sourceUrl: string, title: string, newArc: string|null}>>} Ordered chapter list.
      */
     async getChapterUrls(dom) {
-        // Page in browser has links reduced to "Number of links to show"
-        // Fetch new page to get all chapter links.
-        //
         // Royal Road's markup varies by session/redesign: the old server-rendered
         // <table id="chapters">, a new Tailwind table (class "w-full divide-y", no id),
         // or a JS-rendered shell with an empty <body>. The one constant across every
@@ -45,6 +42,23 @@ class RoyalRoadParser extends Parser {
         // (redesign-proof); fall back to scraping the old table for legacy pages.
         let tocUrl = RoyalRoadParser.fictionUrl(dom.baseURI);
         this.tocUrl = tocUrl;
+
+        // If the user opened WebToEpub while already on the fiction page in their browser,
+        // the active tab's DOM already contains the full chapter list and metadata.
+        let rawHtml = dom.documentElement?.outerHTML || "";
+        let fromDomJson = RoyalRoadParser.chaptersFromWindowChapters(rawHtml, tocUrl);
+        if (fromDomJson.length > 0) {
+            dom.royalRoadBookMeta = RoyalRoadParser.extractBookMeta(rawHtml, dom);
+            return fromDomJson;
+        }
+        let domTable = dom.querySelector("table#chapters");
+        let fromDomTable = util.hyperlinksToChapterList(domTable);
+        if (fromDomTable.length > 0) {
+            dom.royalRoadBookMeta = RoyalRoadParser.extractBookMeta(rawHtml, dom);
+            return fromDomTable;
+        }
+
+        // Fallback: started from a chapter URL or DOM lacks chapters; fetch the TOC page:
         let options = {
             parser: this
         };
